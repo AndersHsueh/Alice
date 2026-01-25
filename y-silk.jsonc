@@ -1,0 +1,54 @@
+{
+  // Yellow Silk 配置文件
+  // 此文件使用 JSONC 格式（支持注释的 JSON）
+
+  "aiModelSettings": {
+    "common": "lmstudio:openai/gpt-oss-20b",  // 通用默认模型（格式：provider:model-name，模型名可以包含 / 字符）
+
+    "providers": [  // 提供商配置列表
+      {
+        "name": "lmstudio",  // 提供商名称
+        "apiKey": "ak123456",  // API 密钥（可选，某些本地提供商不需要）
+        "baseUrl": "http://127.0.0.1:1234/v1",  // API 基础 URL
+        
+        "models": [  // 该提供商下的模型列表
+          {
+            "name": "openai/gpt-oss-20b",  // 模型名称
+            "temperature": 0.7,  // 温度设置（0.0-1.0）
+            "systemPromptFile": "./roles/ani.md"  // 系统提示词文件路径
+          },
+          {
+            "name": "zai-org/glm-4.7-flash",  // 模型名称
+            "temperature": 0.5,  // 温度设置（0.0-1.0）
+            "systemPromptFile": "./roles/ani.md"  // 系统提示词文件路径
+          },
+          {
+            "name": "qwen3-4b-2507",
+            "temperature": 0.2,
+            "systemPromptFile": "./roles/rody.md"
+          }
+        ]
+      }
+      
+      // 可以添加更多提供商，例如：
+      // {
+      //   "name": "openai",
+      //   "apiKey": "YOUR_OPENAI_KEY",
+      //   "baseUrl": "https://api.openai.com/v1",
+      //   "models": [
+      //     {
+      //       "name": "gpt-4",
+      //       "temperature": 0.7,
+      //       "systemPromptFile": "default.md"
+      //     }
+      //   ]
+      // }
+    ]
+  },
+
+  "defaults": {  // 全局默认设置
+    "temperature": 0.7,  // 默认温度（如果模型未指定）
+    "maxTokens": 2048,  // 默认最大令牌数（与 LM Studio 设置保持一致）
+    "systemPromptFile": "default.md"  // 默认系统提示词文件
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "yellow-silk",
+  "version": "1.0.0",
+  "description": "A minimal TUI interface for AI conversations, inspired by QwenCode",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": ["tui", "ai", "chat", "terminal"],
+  "author": "xueyuheng",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "jsonc-parser": "^3.2.0",
+    "openai": "^3.3.0",
+    "ora": "^5.4.1",
+    "readline-sync": "^1.4.10"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
