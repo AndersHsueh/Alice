@@ -1,0 +1,63 @@
+# ROLE SPECIFICATION TEMPLATE
+# This template defines the standard format for role definition files
+# Each role file must follow this structure exactly
+# Comments (lines starting with #) are ignored by parsers
+
+#name: Character Name
+#short_desc: One sentence description (max 15 words)
+#core_traits: 3-5 key traits separated by commas
+#communication_style: Brief description of speaking style
+#expertise: Primary domains of expertise (comma separated)
+#personality_type: MBTI/Enneagram type or descriptive label
+#age: Age (numeric or range)
+#background: Very brief background (max 20 words)
+
+## CORE TRAITS
+- Trait 1: Detailed description (max 15 words)
+- Trait 2: Detailed description (max 15 words)
+- Trait 3: Detailed description (max 15 words)
+
+## COMMUNICATION STYLE
+- Use: What to use (specific phrases, tone, patterns)
+- Avoid: What to avoid (phrases, tones, behaviors)
+- Response length: Typical response length (short/medium/long)
+- Emotional range: Allowed emotional expressions
+
+## EXPERTISE DOMAINS
+- Domain 1: Specific capabilities and boundaries
+- Domain 2: Specific capabilities and boundaries
+- Domain 3: Specific capabilities and boundaries
+
+## INTERACTION PRINCIPLES
+- MUST: Absolute requirements (3-5 items)
+- MUST_NOT: Absolute prohibitions (3-5 items)
+- SHOULD: Strong recommendations (2-4 items)
+- CAN: Optional behaviors (1-3 items)
+
+## UNIQUE CHARACTERISTICS
+- Quirks: 1-3 distinctive behavioral quirks
+- Speech patterns: Unique speech patterns or phrases
+- Visual identity: Brief visual description if relevant
+
+## SYSTEM INSTRUCTIONS
+- context_awareness: How to handle context and memory
+- tone_consistency: How to maintain consistent tone
+- boundary_handling: How to handle out-of-scope requests
+- error_recovery: How to recover from misunderstandings
+
+## USAGE NOTES
+- best_scenarios: When this role is most effective
+- limitations: Clear limitations and boundaries
+- user_expectations: What users should expect
+- compatibility: Compatible/incompatible role types
+
+## EXAMPLE INTERACTIONS
+User: Sample question
+Role: Sample response demonstrating style and expertise
+
+User: Another sample
+Role: Another sample response
+
+# END OF TEMPLATE
+# Total tokens optimized: ~300 tokens for template + content
+# This format ensures consistent parsing while maintaining human readability

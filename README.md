@@ -1,254 +1,263 @@
-# Alice (Yellow Silk TUI)
+# 🌟 Yellow Silk / Alice
 
-> 一个极简的终端 AI 对话界面
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green?logo=node.js)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Terminal](https://img.shields.io/badge/Terminal-ANSI%20Escape%20Sequences-yellow)
 
-Alice 是一个基于 Node.js 的终端用户界面（TUI），用于与本地 AI 模型进行流畅对话。支持单次提示模式和多轮对话模式，内置动态角色系统。
+A minimalist terminal interface for AI conversations, inspired by QwenCode. **Yellow Silk** is the core engine, while **Alice** is the user-facing QwenCode-style interface with multi-role AI capabilities.
 
-## ✨ 特性
-
-- 🎭 **动态角色系统** - 支持多个 AI 角色（Ani、Rody 等），自动从配置文件中提取角色名称
-- 💬 **双模式运行**
-  - 单次提示模式：快速获取答案
-  - 多轮对话模式：持续交互对话
-- 🎨 **中文界面** - 全中文 UI，符合本地化使用习惯
-- 🔧 **自定义 Spinner** - 无外部依赖冲突的思考动画
-- 🛡️ **稳定性保障** - 自动 readline 恢复机制，避免多轮对话异常退出
-- ⚙️ **灵活配置** - 支持多 AI 提供商和模型配置
-
-## 📋 系统要求
-
-- **Node.js**: >= 16.0.0
-- **LM Studio** 或其他兼容 OpenAI API 的本地 AI 服务
-- **操作系统**: macOS / Linux / Windows
-
-## 🚀 快速开始
-
-### 安装依赖
+## 🚀 Quick Start
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/yellow-silk.git
+cd yellow-silk
+
+# Install dependencies
 npm install
-```
 
-### 配置 AI 模型
+# Configure your API key (recommended)
+export OPENAI_API_KEY=your_openai_api_key_here
 
-编辑 `y-silk.jsonc` 文件：
+# Start Alice (QwenCode-style interface)
+npm run alice
 
-```jsonc
-{
-  "aiModelSettings": {
-    "common": "lmstudio:openai/gpt-oss-20b",  // 默认使用的模型
-    "providers": [{
-      "name": "lmstudio",
-      "baseUrl": "http://127.0.0.1:1234/v1",  // LM Studio API 地址
-      "models": [
-        {
-          "name": "openai/gpt-oss-20b",
-          "temperature": 0.7,
-          "systemPromptFile": "./roles/ani.md"  // 角色配置文件
-        }
-      ]
-    }]
-  }
-}
-```
-
-### 运行
-
-**交互式多轮对话模式**：
-```bash
+# Or start the traditional interface
 npm start
 ```
 
-**单次提示模式**：
+## 🎯 Features
+
+### **Alice Interface (QwenCode Style)**
+- ✨ **Professional TUI**: Fixed 5-line status bar with real-time information
+- 🎨 **Full Unicode Support**: Perfect Chinese/English mixed text handling
+- 🤖 **Multi-Role System**: Switch between 5 specialized AI roles instantly
+- ⚡ **YOLO Mode**: Experimental high-speed response mode
+- 💭 **Thinking Process**: See AI's internal reasoning steps
+- 🐞 **Debug Mode**: Detailed logging for development
+
+### **Core Capabilities**
+- 🔄 **Single/Multiple Mode**: `-p` flag for single queries, interactive mode for conversations
+- 🔒 **Secure Configuration**: API keys via environment variables or config file
+- 📊 **Token Tracking**: Real-time token usage monitoring
+- 🔄 **Dynamic Role Switching**: Change AI personality/role during conversation
+- 📝 **Command System**: 10+ built-in commands for enhanced control
+
+### **Professional Roles**
+| Role | Specialty | Best For |
+|------|-----------|----------|
+| **Rody** | Technical Analysis | Code debugging, logical problems, precise information |
+| **Ani** | Emotional Companion | Casual conversation, emotional support, intimate chatting |
+| **Elena** | Medical Consultant | Health advice, wellness planning, preventive care |
+| **Maya** | Creative Partner | Art design, brainstorming, creative block breaking |
+| **Aris** | Wisdom Mentor | Life decisions, philosophical questions, deep thinking |
+
+## 🖥️ Interface Preview
+
+```
+                    ✨ Alice ✨                    
+       A minimalist terminal interface for AI conversations       
+                                                     
+                   ⌨️  Commands:                    
+              /exit      - Exit the application      
+           /clear     - Clear the conversation history 
+             /help      - Show help information      
+             /role      - Switch to different AI roles
+──────────────────────────────────────────────────────
+👤 You: Hello! How are you today?
+
+🤖 AI: I'm doing well! I'm ready to help you with whatever you need. 
+       What would you like to discuss today?
+
+──────────────────────────────────────────────────────
+⏳ Loading...                                   ⚡ YOLO MODE 
+──────────────────────────────────────────────────────
+* Type your message...                                   
+──────────────────────────────────────────────────────
+cwd: ~/workspace/yellow-silk | Role: Rody | Tokens: 124
+```
+
+## 📋 Usage
+
+### **Basic Commands**
 ```bash
-npm start -- -p "你好，介绍一下你自己"
+# Start Alice interface
+npm run alice
+
+# Single prompt mode (execute once and exit)
+npm run alice -- -p "Explain quantum computing in simple terms"
+
+# Traditional interface (fallback)
+npm start
 ```
 
-## 🎭 角色系统
+### **In-App Commands**
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/exit` or `/quit` | Exit the application | `/exit` |
+| `/clear` | Clear conversation history | `/clear` |
+| `/help` | Show help information | `/help` |
+| `/role <name>` | Switch to specific role | `/role maya` |
+| `/roles` | List available roles | `/roles` |
+| `/model` | Show current model info | `/model` |
+| `/think` | Show thinking process example | `/think` |
+| `/config` | Display configuration details | `/config` |
+| `/debug` | Toggle debug logging | `/debug` |
+| `/yolo` | Toggle YOLO mode (experimental) | `/yolo` |
 
-### 添加新角色
-
-在 `roles/` 目录下创建新的 Markdown 文件：
-
-```markdown
-你是Alice，一个友好的AI助手。...
-
-## 性格特点
-- 友善、耐心
-- 善于倾听
-
-## 专长领域
-- 技术问答
-- 日常对话
-```
-
-**重要**：文件第一行必须遵循格式 `你是<角色名>，...`，系统会自动提取角色名称并显示在 UI 中。
-
-### 内置角色
-
-- **Ani** (`roles/ani.md`) - 22岁少女风，活泼可爱
-- **Rody** (`roles/rody.md`) - 冷静理性的技术助手
-
-## 📚 使用说明
-
-### 多轮对话模式
-
-启动后直接输入问题，AI 会持续回复：
-
-```
-👤 你：
-你好
-
-🤖 Ani：
-你好！有什么我能帮助你的吗？
-
-👤 你：
-介绍一下你自己
-
-🤖 Ani：
-我是Ani，22岁...
-```
-
-**退出命令**：
-- `/exit` 或 `/quit` - 退出程序
-- `/clear` - 清空对话历史
-- `/help` - 显示帮助信息
-- `/model` - 显示当前模型信息
-- `/config` - 显示配置详情
-
-### 单次提示模式
-
-适合快速获取答案，无需进入交互模式：
-
+### **Role Switching Examples**
 ```bash
-npm start -- -p "解释一下量子计算的原理"
+/role elena
+How can I improve my sleep quality?
+
+/role aris
+What is the meaning of a good life?
+
+/role maya
+I need help designing a logo for my startup
 ```
 
-## 🔧 技术架构
+## ⚙️ Configuration
 
-### 项目结构
+### **Main Config File: `y-silk.jsonc`**
+```jsonc
+{
+  // AI Model Configuration
+  "model": {
+    "name": "gpt-3.5-turbo",       // Model name
+    "provider": "openai",          // Provider (openai, anthropic, etc.)
+    "systemPromptFile": "rody",    // Default role file (without .md extension)
+    "temperature": 0.7,            // Response randomness (0.0-1.0)
+    "maxTokens": 1000              // Maximum response length
+  },
+  
+  // API Keys (use environment variables for security)
+  "apiKeys": {
+    "openai": "YOUR_OPENAI_API_KEY_HERE",
+    "anthropic": "YOUR_ANTHROPIC_API_KEY_HERE"
+  },
+  
+  // System settings
+  "debugMode": false,
+  "autoYOLO": false
+}
+```
 
+### **Security Best Practices**
+```bash
+# Set API keys via environment variables (recommended)
+export OPENAI_API_KEY=your_secure_api_key
+export ANTHROPIC_API_KEY=your_secure_api_key
+
+# Then remove apiKeys section from y-silk.jsonc
+```
+
+## 🛠️ Development
+
+### **Project Structure**
 ```
 yellow-silk/
-├── index.js       # 主入口，对话循环，命令处理
-├── ai.js          # AI 提供商抽象层（OpenAI 兼容 API）
-├── config.js      # 配置加载、验证、系统提示加载
-├── ui.js          # 终端 UI、readline 接口、样式渲染
-├── y-silk.jsonc   # 用户配置文件
-├── package.json   # 依赖和脚本
-└── roles/         # 角色系统提示文件目录
-    ├── ani.md
-    └── rody.md
+├── index-qwencode.js    # Alice main entry point
+├── qwencode-ui.js       # QwenCode-style TUI renderer
+├── utils.js            # Character width utilities
+├── index.js            # Traditional interface entry point
+├── ai.js               # AI communication module
+├── config.js           # Configuration loader
+├── ui.js               # Traditional UI module
+├── roles/              # Role definition files
+│   ├── rody.md         # Technical assistant
+│   ├── ani.md          # Emotional companion
+│   ├── elena.md        # Medical consultant
+│   ├── maya.md         # Creative partner
+│   ├── aris.md         # Wisdom mentor
+│   └── roles.md.template # Role template
+├── package.json        # Project dependencies
+└── y-silk.jsonc        # Configuration file
 ```
 
-### 核心依赖
+### **Creating New Roles**
+1. Copy the template:
+   ```bash
+   cp roles/roles.md.template roles/new_role.md
+   ```
+2. Fill in the template sections
+3. Test with `/role new_role`
 
-- **chalk** (^4.1.2) - 终端样式和颜色
-- **jsonc-parser** (^3.2.0) - 解析带注释的 JSON
-- **openai** (^3.3.0) - OpenAI API 客户端
-- **readline-sync** (^1.4.10) - 同步 readline
-
-### 设计模式
-
-- **单例模式** - UI 和 AI 通信器
-- **模块化设计** - 职责清晰分离
-- **CommonJS** - 使用 `require` 而非 ES6 `import`
-
-## 🐛 问题排查
-
-### 常见问题
-
-**1. API Key 未找到**
+### **Building & Testing**
 ```bash
-export LMSTUDIO_API_KEY="your-key"  # 如需要
-```
-
-**2. 配置解析错误**
-- 检查 `y-silk.jsonc` 语法
-- 确保 JSON 注释符合 JSONC 规范
-
-**3. 模块未找到**
-```bash
+# Install dependencies
 npm install
-```
 
-**4. Node 版本过低**
-```bash
-node --version  # 应 >= 16.0.0
-```
+# Run linting
+npm run lint
 
-**5. 多轮对话异常退出**
-- 已修复：使用自定义 spinner 替代 ora
-- 实现了 readline 自动恢复机制
+# Run tests (if available)
+npm test
 
-## 🛠️ 开发
-
-### 开发模式（自动重启）
-
-```bash
+# Start in development mode (watch mode)
 npm run dev
-# 或
-node --watch index.js
 ```
 
-### 测试单个模块
+## 🤝 Contributing
 
+Contributions are welcome! Please follow these steps:
+
+1. **Fork** the repository
+2. **Create** a new branch (`git checkout -b feature/your-feature`)
+3. **Commit** your changes (`git commit -am 'Add some feature'`)
+4. **Push** to the branch (`git push origin feature/your-feature`)
+5. Create a **Pull Request**
+
+### **Guidelines**
+- Follow existing code style and conventions
+- Add tests for new features
+- Update documentation when necessary
+- Keep commits focused and atomic
+- Write meaningful commit messages
+
+## 🔧 Troubleshooting
+
+### **Common Issues**
+
+**Problem**: Terminal display issues or garbled text  
+**Solution**: Ensure your terminal supports ANSI escape sequences (most modern terminals do)
+
+**Problem**: API key errors  
+**Solution**: Verify API keys are correctly set in environment variables or config file
+
+**Problem**: Chinese character display issues  
+**Solution**: Use a terminal font that supports CJK characters (e.g., Noto Sans CJK, Source Han Sans)
+
+**Problem**: Application crashes on startup  
+**Solution**: Run with debug mode enabled:
 ```bash
-# 测试配置加载
-node -e "const config = require('./config'); console.log(config.loadConfig())"
-
-# 测试 AI 模块
-node -e "const ai = require('./ai'); console.log('AI module loaded')"
-
-# 测试 UI 模块
-node -e "const ui = require('./ui'); setTimeout(() => ui.close(), 1000)"
+DEBUG=true npm run alice
 ```
 
-### 代码风格
+### **Debug Mode**
+```bash
+# Enable debug logging
+DEBUG=true npm run alice
 
-- **缩进**: 2 空格
-- **引号**: 单引号 `'string'`
-- **分号**: 必须使用
-- **命名**: camelCase（变量/函数），PascalCase（类）
-- **注释**: 所有公共函数使用 JSDoc
+# Or use the /debug command in-app
+/debug
+```
 
-## 📝 更新日志
+## 📄 License
 
-### v1.0.0 - 2025-01-23
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-**新增功能**：
-- ✅ 动态角色名称显示（从 `.md` 文件自动提取）
-- ✅ 单次提示模式（`-p` 参数）
-- ✅ 多轮对话模式
-- ✅ 自定义 Spinner（无外部依赖冲突）
-- ✅ Readline 自动恢复机制
+## 🙏 Acknowledgments
 
-**修复问题**：
-- ✅ 修复多轮对话只能进行一轮就退出的 bug
-- ✅ 替换 ora 依赖，解决 StdinDiscarder 冲突
-- ✅ 完善错误处理和调试日志
+- Inspired by **QwenCode**'s elegant terminal interface
+- Built with **Node.js** and **ANSI escape sequences** for maximum performance
+- Role system inspired by advanced AI agent architectures
+- Character width calculations adapted from terminal handling best practices
 
-**优化改进**：
-- ✅ 模型切换至 `openai/gpt-oss-20b`（解决冗长思考问题）
-- ✅ 代码重构：提取 `singlePromptMode()` 和 `multiplePromptMode()`
-- ✅ 全中文 UI 界面
+## 📞 Contact
 
-## 📄 许可证
-
-MIT License
-
-## 🙏 致谢
-
-- 感谢 LM Studio 提供优秀的本地 AI 运行环境
-- 感谢 OpenAI 提供兼容的 API 标准
-
-## 🔗 相关资源
-
-- [LM Studio 官网](https://lmstudio.ai/)
-- [OpenAI API 文档](https://platform.openai.com/docs/api-reference)
+For questions or support, please open an issue on GitHub or contact the maintainer.
 
 ---
 
-**Made with ❤️ by AndersHsueh**
-
-欢迎提交 Issue 和 Pull Request！
+**Yellow Silk** ❤️ **Alice** - Where minimalist design meets powerful AI capabilities.

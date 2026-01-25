@@ -42,15 +42,24 @@ class UserInterface {
    */
   displayWelcomeBanner() {
     console.clear();
-    console.log(chalk.bold.yellow('✨ Yellow Silk TUI ✨'));
-    console.log(chalk.gray('极简终端 AI 对话界面'));
-    console.log(chalk.gray('──────────────────────────────────────────────────────'));
-    console.log(chalk.blue('⌨️  命令列表：'));
+
+    console.log(chalk.bold.yellow('██╗       █████╗ ██╗     ██╗ ██████╗███████╗'));
+    console.log(chalk.bold.yellow('╚██╗     ██╔══██╗██║     ██║██╔════╝██╔════╝'));
+    console.log(chalk.bold.yellow(' ╚██╗    ███████║██║     ██║██║     █████╗  '));
+    console.log(chalk.bold.yellow(' ██╔╝    ██╔══██║██║     ██║██║     ██╔══╝  '));
+    console.log(chalk.bold.yellow('██╔╝     ██║  ██║███████╗██║╚██████╗███████╗'));
+    console.log(chalk.bold.yellow('╚═╝      ╚═╝  ╚═╝╚══════╝╚═╝ ╚═════╝╚══════╝'));
+
+    console.log(chalk.gray(' '));
+    console.log(chalk.blue('⌨️ 入门提示：'));
     console.log(chalk.gray('   /exit      - 退出应用'));
     console.log(chalk.gray('   /clear     - 清空对话历史'));
     console.log(chalk.gray('   /help      - 显示帮助信息'));
     console.log(chalk.gray('   /think     - 查看思考过程'));
-    console.log(chalk.gray('──────────────────────────────────────────────────────\n'));
+    console.log(chalk.gray('   /config    - 显示配置详情'));
+    console.log(chalk.gray('   /model     - 显示当前模型信息'));
+
+    console.log(chalk.gray('\n'));
   }
   
   /**
@@ -60,11 +69,12 @@ class UserInterface {
     console.log(chalk.bold.cyan('\n📚 帮助信息'));
     console.log(chalk.gray('──────────────────────────────────────────────────────'));
     console.log(chalk.blue('可用命令：'));
-    console.log(chalk.gray('  /exit      - 优雅地退出应用程序'));
-    console.log(chalk.gray('  /clear     - 清空对话历史记录'));
-    console.log(chalk.gray('  /help      - 显示此帮助信息'));
+    console.log(chalk.gray('  /exit      - 退出应用'));
+    console.log(chalk.gray('  /clear     - 清空对话历史'));
+    console.log(chalk.gray('  /help      - 显示帮助信息'));
+    console.log(chalk.gray('  /think     - 查看思考过程'));
+    console.log(chalk.gray('  /config    - 显示配置详情'));
     console.log(chalk.gray('  /model     - 显示当前模型信息'));
-    console.log(chalk.gray('  /think     - 查看上一条 AI 回复的思考过程'));
     console.log(chalk.gray('\n💡 提示：'));
     console.log(chalk.gray('  - 输入消息后按回车发送'));
     console.log(chalk.gray('  - 可以按回车输入多行'));
