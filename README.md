@@ -37,6 +37,40 @@ ALICE 是一个现代化的命令行 AI 助手，旨在提供类似 GitHub Copil
 
 ## 🚀 快速开始
 
+### 方式一：下载预编译版本（推荐）
+
+直接从 [Releases 页面](https://github.com/AndersHsueh/Alice/releases) 下载适合您系统的版本：
+
+| 操作系统 | 下载文件 | 说明 |
+|---------|---------|------|
+| Windows x64 | `alice-win-x64.zip` | 适用于 64 位 Windows |
+| macOS Intel | `alice-macos-x64.tar.gz` | 适用于 Intel 芯片 Mac |
+| macOS Apple Silicon | `alice-macos-arm64.tar.gz` | 适用于 M1/M2/M3 Mac |
+| Linux x64 | `alice-linux-x64.tar.gz` | 适用于 64 位 Linux |
+
+**Windows 用户**:
+```powershell
+# 解压后直接运行
+.\alice.exe
+```
+
+**macOS / Linux 用户**:
+```bash
+# 解压
+tar -xzf alice-*.tar.gz
+
+# 添加执行权限
+chmod +x alice-*
+
+# 运行（可选：移动到系统路径）
+sudo mv alice-* /usr/local/bin/alice
+
+# 直接运行
+alice
+```
+
+### 方式二：从源码构建
+
 ### 前置要求
 
 - **Node.js**: ≥ 18.0.0
