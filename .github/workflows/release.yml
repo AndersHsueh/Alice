@@ -1,0 +1,178 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 触发条件：推送 v 开头的 tag，如 v0.1.0
+      - 'ALICE-*'  # 也支持 ALICE-MVP-C2 这样的 tag
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        include:
+          # Windows x64
+          - os: windows-latest
+            platform: win
+            arch: x64
+            ext: .exe
+            
+          # macOS x64 (Intel)
+          - os: macos-latest
+            platform: macos
+            arch: x64
+            ext: ''
+            
+          # macOS ARM64 (Apple Silicon)
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+            ext: ''
+            
+          # Linux x64
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            ext: ''
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Install pkg globally
+        run: npm install -g pkg
+
+      - name: Package executable
+        run: |
+          pkg . \
+            --targets node20-${{ matrix.platform }}-${{ matrix.arch }} \
+            --output dist/alice-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}
+
+      - name: Create archive (Unix)
+        if: matrix.platform != 'win'
+        run: |
+          cd dist
+          tar -czf alice-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz alice-${{ matrix.platform }}-${{ matrix.arch }}
+
+      - name: Create archive (Windows)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          cd dist
+          Compress-Archive -Path alice-${{ matrix.platform }}-${{ matrix.arch }}.exe -DestinationPath alice-${{ matrix.platform }}-${{ matrix.arch }}.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: alice-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            dist/alice-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+            dist/alice-${{ matrix.platform }}-${{ matrix.arch }}.zip
+          if-no-files-found: ignore
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure
+        run: ls -R artifacts
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" =~ ^refs/tags/v(.*)$ ]]; then
+            echo "version=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          cat << 'EOF' > release_notes.md
+          ## 🎉 ALICE CLI ${{ steps.version.outputs.version }}
+
+          ### 📦 下载说明
+
+          根据您的操作系统选择对应的版本：
+
+          - **Windows x64**: `alice-win-x64.zip`
+          - **macOS Intel**: `alice-macos-x64.tar.gz`
+          - **macOS Apple Silicon**: `alice-macos-arm64.tar.gz`
+          - **Linux x64**: `alice-linux-x64.tar.gz`
+
+          ### 🚀 快速开始
+
+          **Windows**:
+          ```powershell
+          # 解压后直接运行
+          .\alice.exe
+          ```
+
+          **macOS / Linux**:
+          ```bash
+          # 解压
+          tar -xzf alice-*.tar.gz
+
+          # 添加执行权限
+          chmod +x alice-*
+
+          # 运行
+          ./alice-*
+          ```
+
+          ### ✅ 前置要求
+
+          - **LM Studio** 需要运行并启动本地服务器（端口 1234）
+          - 或配置其他 LLM 后端（如 Ollama）
+
+          ### 📝 更新内容
+
+          请查看 [CHANGELOG](https://github.com/AndersHsueh/Alice/releases)
+
+          ### 🐛 问题反馈
+
+          遇到问题？请提交 [Issue](https://github.com/AndersHsueh/Alice/issues)
+          EOF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ALICE CLI ${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
