@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@types/figlet": "^1.5.8",
+    "@types/gradient-string": "^1.1.6",
     "@types/node": "^20.11.5",
     "@types/react": "^18.2.48",
     "rimraf": "^5.0.5",
