@@ -1,6 +1,8 @@
-# ALICE CLI - AI 驱动的命令行助手
-
 <div align="center">
+
+![ALICE Banner](./etc/alice-banner.png)
+
+# ALICE-CLI
 
 🤖 **ALICE** - 基于大语言模型的智能办公助手
 
