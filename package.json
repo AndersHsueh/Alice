@@ -1,7 +1,7 @@
 {
   "name": "alice-cli",
-  "version": "0.1.1",
-  "description": "ALICE - AI-powered office assistant CLI",
+  "version": "0.2.0",
+  "description": "ALICE - AI-powered office assistant CLI with Function Calling support",
   "type": "module",
   "bin": {
     "alice": "./dist/index.js"
@@ -18,10 +18,17 @@
     "ai",
     "assistant",
     "office",
-    "productivity"
+    "productivity",
+    "function-calling",
+    "tools",
+    "llm"
   ],
   "author": "Anders",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AndersHsueh/Alice.git"
+  },
   "dependencies": {
     "ajv": "^8.17.1",
     "axios": "^1.6.5",

@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 
-# reference-code
+# Reference code
 pi-mono/
 
 # Build output
@@ -33,7 +33,7 @@ desktop.ini
 *~
 *.sublime-*
 
-# User config
+# User config (runtime configuration directory)
 .alice/
 
 # Temporary files
@@ -44,3 +44,11 @@ desktop.ini
 # Test coverage
 coverage/
 .nyc_output/
+
+# Session state (for development)
+.copilot/
+
+# Backup files
+*.backup
+*.bak
+

@@ -23,8 +23,11 @@ export const Banner: React.FC<BannerProps> = ({ onComplete }) => {
       setFrame(prev => {
         if (prev >= totalFrames) {
           clearInterval(timer);
-          setCompleted(true);
-          setTimeout(onComplete, 500);
+          // 动画结束后先停留 0.5 秒，再进入 completed 状态并触发 onComplete
+          setTimeout(() => {
+            setCompleted(true);
+            onComplete();
+          }, 500);
           return prev;
         }
         return prev + 1;
@@ -60,7 +63,7 @@ export const Banner: React.FC<BannerProps> = ({ onComplete }) => {
         ))}
         <Box marginTop={1}>
           <Text dimColor italic>
-            Your AI Office Assistant 🤖✨
+            对齐你的项目颗粒度，拉通你的办公流程 👩‍💻 ✨
           </Text>
         </Box>
         <Box marginTop={1}>

@@ -6,7 +6,7 @@
 
 🤖 **ALICE** - 基于大语言模型的智能办公助手
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/AndersHsueh/Alice)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/AndersHsueh/Alice)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 
@@ -14,7 +14,7 @@
 
 ## 📖 简介
 
-ALICE 是一个现代化的命令行 AI 助手，旨在提供类似 GitHub Copilot CLI 的交互体验。支持多种 LLM 后端（本地和云端），ALICE 可以帮助您：
+ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具调用。支持多种 LLM 后端（本地和云端），ALICE 可以帮助您：
 
 - 💬 自然语言对话交互
 - 🎨 优雅的终端界面设计
@@ -24,6 +24,20 @@ ALICE 是一个现代化的命令行 AI 助手，旨在提供类似 GitHub Copil
 - 🔄 智能降级，保障可用性
 
 ## ✨ 特性
+
+### 🔧 工具系统（Function Calling）
+- **7 个内置工具**: 文件操作、系统信息、命令执行等
+  - `readFile` - 读取文件内容
+  - `listFiles` - 列出目录文件
+  - `searchFiles` - 搜索文件（支持 glob 模式）
+  - `getCurrentDirectory` - 获取当前目录
+  - `getGitInfo` - 查看 Git 仓库信息
+  - `getCurrentDateTime` - 获取当前时间
+  - `executeCommand` - 执行系统命令（带安全确认）
+- **智能工具调用**: AI 自动决定何时使用哪个工具
+- **实时进度展示**: 工具执行状态可视化
+- **安全机制**: 危险命令需要用户确认
+- **跨平台支持**: Windows/macOS/Linux 全平台兼容
 
 ### 核心功能
 - **多后端支持**: 支持 LM Studio、Ollama、OpenAI 等多种 LLM 服务
@@ -146,6 +160,60 @@ alice --no-banner
 alice --test-model
 ```
 
+### 🔧 工具使用示例
+
+ALICE 支持 Function Calling，AI 可以自动调用工具完成任务：
+
+```bash
+# 示例 1: 查询时间
+> You: 现在几点了？
+
+[⏰ 获取当前时间] 正在执行...
+[✅ 获取当前时间] 执行成功
+
+Alice: 现在是 2026 年 2 月 10 日 21:40，星期二。
+
+# 示例 2: 搜索文件
+> You: 这个项目有多少个 TypeScript 文件？
+
+[🔍 搜索文件] 正在搜索 **/*.ts...
+[🔍 搜索文件] 找到 25 个文件
+
+Alice: 项目中共有 25 个 TypeScript 文件，主要分布在 src/core、src/cli 等目录。
+
+# 示例 3: 读取文件
+> You: 帮我看看 package.json 的内容
+
+[📄 读取文件] 正在读取 package.json...
+[✅ 读取文件] 文件读取成功 (1024 bytes)
+
+Alice: 你的项目名称是 alice-cli，版本 0.2.0，主要依赖包括...
+
+# 示例 4: 危险命令（需确认）
+> You: 删除 node_modules 文件夹
+
+[⚠️  危险命令警告]
+命令: rm -rf node_modules
+确认执行? (y/N): y
+
+[🔧 执行命令] 执行中...
+[✅ 执行命令] 命令执行完成
+
+Alice: node_modules 已删除，你可以运行 npm install 重新安装依赖。
+```
+
+### 配置危险命令确认
+
+编辑 `~/.alice/settings.jsonc` 中的 `dangerous_cmd` 字段：
+
+```jsonc
+{
+  // true: 危险命令需要确认 (默认，推荐)
+  // false: 直接执行，不需要确认
+  "dangerous_cmd": true
+}
+```
+
 ### 配置文件
 
 配置文件位于 `~/.alice/settings.jsonc`（支持注释的 JSON 格式）：
@@ -205,7 +273,10 @@ alice --test-model
   },
 
   // 工作区配置
-  "workspace": "."
+  "workspace": ".",
+
+  // 危险命令确认（true: 执行前需确认 | false: 直接执行）
+  "dangerous_cmd": true
 }
 ```
 
