@@ -12,17 +12,21 @@
 
 ## 📖 简介
 
-ALICE 是一个现代化的命令行 AI 助手，旨在提供类似 GitHub Copilot CLI 的交互体验。通过集成本地大语言模型（LM Studio），ALICE 可以帮助您：
+ALICE 是一个现代化的命令行 AI 助手，旨在提供类似 GitHub Copilot CLI 的交互体验。支持多种 LLM 后端（本地和云端），ALICE 可以帮助您：
 
 - 💬 自然语言对话交互
 - 🎨 优雅的终端界面设计
 - 🚀 快速响应，流畅体验
-- 🔒 本地运行，保护隐私
+- 🔒 支持本地部署，保护隐私
 - ⚡ 轻量高效，开箱即用
+- 🔄 智能降级，保障可用性
 
 ## ✨ 特性
 
 ### 核心功能
+- **多后端支持**: 支持 LM Studio、Ollama、OpenAI 等多种 LLM 服务
+- **智能降级**: 主模型故障时自动切换到最快的备用模型
+- **模型测速**: 内置 `--test-model` 工具，一键测试所有模型速度
 - **智能对话**: 基于 LLM 的自然语言理解和生成
 - **命令系统**: 内置快捷命令，提升操作效率
 - **历史记录**: 支持上下箭头浏览历史输入
@@ -125,20 +129,129 @@ npm start
 | `/quit` | 退出 ALICE |
 | `Ctrl+C` | 强制退出 |
 
+### 命令行参数
+
+| 参数 | 说明 |
+|------|------|
+| `--no-banner` | 跳过启动动画 |
+| `--test-model` | 测试所有配置的模型并显示速度排名 |
+
+```bash
+# 跳过启动动画
+alice --no-banner
+
+# 测试所有模型速度
+alice --test-model
+```
+
 ### 配置文件
 
-配置文件位于 `~/.alice/config.json`：
+配置文件位于 `~/.alice/settings.jsonc`（支持注释的 JSON 格式）：
 
-```json
+```jsonc
 {
-  "workspace": ".",
-  "llm": {
-    "model": "auto",
-    "baseURL": "http://localhost:1234/v1",
-    "temperature": 0.7,
-    "maxTokens": 2000
-  }
+  // 默认使用的模型
+  "default_model": "lmstudio-local",
+
+  // 系统推荐的最快模型（由 --test-model 自动更新）
+  "suggest_model": "lmstudio-local",
+
+  // 多模型配置列表
+  "models": [
+    {
+      "name": "lmstudio-local",
+      "provider": "lmstudio",
+      "baseURL": "http://127.0.0.1:1234/v1",
+      "model": "qwen3-vl-4b-instruct",
+      "apiKey": "",
+      "temperature": 0.7,
+      "maxTokens": 2000,
+      "last_update_datetime": null,
+      "speed": null
+    },
+    {
+      "name": "ollama-local",
+      "provider": "ollama",
+      "baseURL": "http://localhost:11434/v1",
+      "model": "qwen2.5:7b",
+      "apiKey": "",
+      "temperature": 0.7,
+      "maxTokens": 2000,
+      "last_update_datetime": null,
+      "speed": null
+    },
+    {
+      "name": "openai-gpt4",
+      "provider": "openai",
+      "baseURL": "https://api.openai.com/v1",
+      "model": "gpt-4",
+      "apiKey": "${OPENAI_API_KEY}",  // 从环境变量读取
+      "temperature": 0.7,
+      "maxTokens": 2000,
+      "last_update_datetime": null,
+      "speed": null
+    }
+  ],
+
+  // UI 配置
+  "ui": {
+    "banner": {
+      "enabled": true,
+      "style": "particle"
+    },
+    "theme": "tech-blue"
+  },
+
+  // 工作区配置
+  "workspace": "."
 }
+```
+
+#### 支持的 LLM 提供商
+
+ALICE 使用 OpenAI 兼容 API 格式，支持以下提供商：
+
+| 提供商 | provider 值 | 说明 |
+|--------|-------------|------|
+| **LM Studio** | `lmstudio` | 本地运行，默认端口 1234 |
+| **Ollama** | `ollama` | 本地运行，默认端口 11434 |
+| **OpenAI** | `openai` | 云服务，需要 API Key |
+| **Azure OpenAI** | `azure` | 云服务，需要 API Key |
+| **自定义** | `custom` | 任何兼容 OpenAI API 格式的服务 |
+
+#### 环境变量配置
+
+为了安全，建议将 API Key 存储在环境变量中：
+
+```bash
+# macOS / Linux
+export OPENAI_API_KEY="sk-xxxxx"
+export AZURE_OPENAI_KEY="xxxxx"
+
+# Windows
+set OPENAI_API_KEY=sk-xxxxx
+set AZURE_OPENAI_KEY=xxxxx
+```
+
+在配置文件中使用 `${VAR_NAME}` 格式引用环境变量：
+
+```jsonc
+{
+  "apiKey": "${OPENAI_API_KEY}"
+}
+```
+
+#### 智能降级机制
+
+ALICE 内置智能降级功能：
+
+- 当 `default_model` 连接失败时，自动切换到 `suggest_model`
+- `suggest_model` 由 `--test-model` 命令自动选择最快的模型
+- 降级时会显示友好提示，建议用户重新测速
+
+```
+⚠️  主模型 (openai-gpt4) 连接失败，已自动切换到备用模型 (ollama-local)
+💡 提示：运行 'alice --test-model' 重新测速并更新推荐模型
 ```
 
 ### 系统提示词
@@ -169,10 +282,15 @@ alice-cli/
 │   │       ├── ChatArea.tsx
 │   │       └── InputBox.tsx
 │   ├── core/              # 核心逻辑
-│   │   ├── llm.ts        # LLM 客户端
+│   │   ├── llm.ts        # LLM 客户端（支持降级）
+│   │   ├── providers/    # Provider 适配器
+│   │   │   ├── base.ts
+│   │   │   ├── openai-compatible.ts
+│   │   │   └── index.ts
 │   │   └── session.ts    # 会话管理
 │   ├── utils/            # 工具函数
-│   │   └── config.ts     # 配置管理
+│   │   ├── config.ts     # 配置管理（支持 JSONC）
+│   │   └── test-model.ts # 模型测速工具
 │   └── types/            # TypeScript 类型
 │       └── index.ts
 ├── dist/                 # 构建输出
@@ -231,11 +349,14 @@ npm run clean
 - [x] 启动 Banner 动画
 - [x] 命令历史记录
 - [x] 配置管理系统
+- [x] 多 LLM 后端支持（LM Studio、Ollama、OpenAI 等）
+- [x] 智能降级机制
+- [x] 模型测速工具（--test-model）
 - [ ] 会话持久化
 - [ ] 流式输出优化
 
 ### 未来计划
-- [ ] 多模型支持
+- [ ] 更多 LLM 提供商（Anthropic Claude、通义千问、智谱 ChatGLM 等）
 - [ ] 插件系统
 - [ ] 代码高亮
 - [ ] 文件操作能力
