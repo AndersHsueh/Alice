@@ -30,7 +30,13 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
     const config = configManager.get();
     const systemPrompt = await configManager.loadSystemPrompt();
     
-    const client = new LLMClient(config.llm, systemPrompt);
+    const defaultModel = configManager.getDefaultModel();
+    if (!defaultModel) {
+      console.error('错误：未找到默认模型配置');
+      return;
+    }
+    
+    const client = new LLMClient(defaultModel, systemPrompt);
     setLlmClient(client);
   };
 
@@ -106,12 +112,19 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
       exit();
     } else if (command === '/config') {
       const config = configManager.get();
+      const defaultModel = configManager.getDefaultModel();
+      const suggestModel = configManager.getSuggestModel();
+      
       const configMsg: Message = {
         role: 'assistant',
         content: `⚙️ 当前配置：
-模型: ${config.llm.model}
-API: ${config.llm.baseURL}
-工作目录: ${config.workspace}`,
+默认模型: ${config.default_model}
+推荐模型: ${config.suggest_model}
+当前使用: ${defaultModel?.name || '未知'} (${defaultModel?.provider || '未知'})
+API 端点: ${defaultModel?.baseURL || '未知'}
+工作目录: ${config.workspace}
+
+💡 运行 'alice --test-model' 可测速所有模型`,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, configMsg]);
@@ -149,10 +162,11 @@ API: ${config.llm.baseURL}
   }
 
   const config = configManager.get();
+  const defaultModel = configManager.getDefaultModel();
 
   return (
     <Box flexDirection="column" height="100%">
-      <Header workspace={config.workspace} model={config.llm.model} />
+      <Header workspace={config.workspace} model={defaultModel?.name || llmClient?.getModelName() || '未知'} />
       
       <ChatArea messages={messages} isProcessing={isProcessing} />
       
