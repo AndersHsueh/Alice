@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Box, useApp, useInput } from 'ink';
+import { Box, useApp, useInput, Text } from 'ink';
 import { Banner } from './components/Banner.js';
 import { Header } from './components/Header.js';
 import { ChatArea } from './components/ChatArea.js';
 import { InputBox } from './components/InputBox.js';
+import { ToolCallStatus } from './components/ToolCallStatus.js';
+import { DangerousCommandConfirm } from './components/DangerousCommandConfirm.js';
 import { LLMClient } from '../core/llm.js';
 import { configManager } from '../utils/config.js';
+import { toolRegistry, builtinTools } from '../tools/index.js';
 import type { Message } from '../types/index.js';
+import type { ToolCallRecord } from '../types/tool.js';
 
 interface AppProps {
   skipBanner?: boolean;
@@ -19,6 +23,13 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
   const [llmClient, setLlmClient] = useState<LLMClient | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [toolRecords, setToolRecords] = useState<ToolCallRecord[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    message: string;
+    command: string;
+    onConfirm: (confirmed: boolean) => void;
+  } | null>(null);
+  const [streamingContent, setStreamingContent] = useState('');
   const { exit } = useApp();
 
   useEffect(() => {
@@ -36,7 +47,28 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
       return;
     }
     
+    // 注册所有内置工具
+    toolRegistry.registerAll(builtinTools);
+    
     const client = new LLMClient(defaultModel, systemPrompt);
+    
+    // 启用工具支持
+    client.enableTools(config);
+    
+    // 设置危险命令确认处理器
+    client.setConfirmHandler(async (message: string, command: string) => {
+      return new Promise((resolve) => {
+        setConfirmDialog({
+          message,
+          command,
+          onConfirm: (confirmed) => {
+            setConfirmDialog(null);
+            resolve(confirmed);
+          }
+        });
+      });
+    });
+    
     setLlmClient(client);
   };
 
@@ -68,16 +100,37 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
     setMessages(prev => [...prev, userMsg]);
 
     setIsProcessing(true);
+    setStreamingContent('');
+    setToolRecords([]);
 
     try {
-      const response = await llmClient.chat([...messages, userMsg]);
-      
+      // 使用带工具的流式对话
+      for await (const chunk of llmClient.chatStreamWithTools(
+        [...messages, userMsg],
+        (record) => {
+          // 更新工具调用状态
+          setToolRecords(prev => {
+            const index = prev.findIndex(r => r.id === record.id);
+            if (index >= 0) {
+              const updated = [...prev];
+              updated[index] = record;
+              return updated;
+            }
+            return [...prev, record];
+          });
+        }
+      )) {
+        setStreamingContent(prev => prev + chunk);
+      }
+
+      // 流式完成，保存完整消息
       const assistantMsg: Message = {
         role: 'assistant',
-        content: response,
+        content: streamingContent,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, assistantMsg]);
+      setStreamingContent('');
     } catch (error) {
       const errorMsg: Message = {
         role: 'assistant',
@@ -85,8 +138,10 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMsg]);
+      setStreamingContent('');
     } finally {
       setIsProcessing(false);
+      setToolRecords([]);
     }
   };
 
@@ -168,11 +223,33 @@ API 端点: ${defaultModel?.baseURL || '未知'}
     <Box flexDirection="column" height="100%">
       <Header workspace={config.workspace} model={defaultModel?.name || llmClient?.getModelName() || '未知'} />
       
-      <ChatArea messages={messages} isProcessing={isProcessing} />
+      <ChatArea 
+        messages={messages} 
+        isProcessing={isProcessing}
+        streamingContent={streamingContent}
+      />
+      
+      {/* 工具调用状态展示 */}
+      {toolRecords.length > 0 && (
+        <Box flexDirection="column" marginX={2} marginBottom={1}>
+          {toolRecords.map(record => (
+            <ToolCallStatus key={record.id} record={record} />
+          ))}
+        </Box>
+      )}
+      
+      {/* 危险命令确认对话框 */}
+      {confirmDialog && (
+        <DangerousCommandConfirm
+          message={confirmDialog.message}
+          command={confirmDialog.command}
+          onConfirm={confirmDialog.onConfirm}
+        />
+      )}
       
       <InputBox
         onSubmit={handleSubmit}
-        disabled={isProcessing}
+        disabled={isProcessing || !!confirmDialog}
         onHistoryUp={handleHistoryUp}
         onHistoryDown={handleHistoryDown}
       />

@@ -6,9 +6,14 @@ import type { Message } from '../../types/index.js';
 interface ChatAreaProps {
   messages: Message[];
   isProcessing: boolean;
+  streamingContent?: string;
 }
 
-export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isProcessing }) => {
+export const ChatArea: React.FC<ChatAreaProps> = ({ 
+  messages, 
+  isProcessing,
+  streamingContent = ''
+}) => {
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1} flexGrow={1}>
       {messages.length === 0 ? (
@@ -17,22 +22,36 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isProcessing }) =>
           <Text dimColor>💡 输入 /help 查看可用命令</Text>
         </Box>
       ) : (
-        messages.map((msg, idx) => (
-          <Box key={idx} flexDirection="column" marginBottom={1}>
-            <Box>
-              <Text bold color={msg.role === 'user' ? 'cyan' : 'green'}>
-                {msg.role === 'user' ? '> You' : 'Alice'}
-                {': '}
-              </Text>
+        <>
+          {messages.map((msg, idx) => (
+            <Box key={idx} flexDirection="column" marginBottom={1}>
+              <Box>
+                <Text bold color={msg.role === 'user' ? 'cyan' : 'green'}>
+                  {msg.role === 'user' ? '> You' : 'Alice'}
+                  {': '}
+                </Text>
+              </Box>
+              <Box marginLeft={2} flexDirection="column">
+                <Text wrap="wrap">{msg.content}</Text>
+              </Box>
             </Box>
-            <Box marginLeft={2} flexDirection="column">
-              <Text wrap="wrap">{msg.content}</Text>
+          ))}
+          
+          {/* 流式内容显示 */}
+          {streamingContent && (
+            <Box flexDirection="column" marginBottom={1}>
+              <Box>
+                <Text bold color="green">Alice: </Text>
+              </Box>
+              <Box marginLeft={2} flexDirection="column">
+                <Text wrap="wrap">{streamingContent}</Text>
+              </Box>
             </Box>
-          </Box>
-        ))
+          )}
+        </>
       )}
 
-      {isProcessing && (
+      {isProcessing && !streamingContent && (
         <Box marginTop={1}>
           <Text color="green">
             <Spinner type="dots" />
