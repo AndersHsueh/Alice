@@ -1,0 +1,128 @@
+{
+  // ===============================================
+  // ALICE CLI 配置文件示例
+  // 位置: ~/.alice/settings.jsonc
+  // ===============================================
+
+  // 默认使用的模型（从下面的 models 列表中选择）
+  "default_model": "lmstudio-local",
+
+  // 系统推荐的最快模型（由 --test-model 自动更新，请勿手动修改）
+  "suggest_model": "lmstudio-local",
+
+  // ===============================================
+  // 多模型配置列表
+  // ===============================================
+  "models": [
+    // -----------------------------------------------
+    // LM Studio（本地模型）
+    // 下载地址: https://lmstudio.ai/
+    // 默认端口: 1234
+    // -----------------------------------------------
+    {
+      "name": "lmstudio-local",
+      "provider": "lmstudio",
+      "baseURL": "http://127.0.0.1:1234/v1",
+      "model": "qwen3-vl-4b-instruct",
+      "apiKey": "",  // 本地服务不需要 API Key
+      "temperature": 0.7,
+      "maxTokens": 2000,
+      "last_update_datetime": null,  // 由 --test-model 自动更新
+      "speed": null                   // 由 --test-model 自动更新
+    },
+
+    // -----------------------------------------------
+    // Ollama（本地模型）
+    // 安装: brew install ollama (macOS)
+    // 默认端口: 11434
+    // -----------------------------------------------
+    {
+      "name": "ollama-qwen",
+      "provider": "ollama",
+      "baseURL": "http://localhost:11434/v1",
+      "model": "qwen2.5:7b",
+      "apiKey": "",
+      "temperature": 0.7,
+      "maxTokens": 2000,
+      "last_update_datetime": null,
+      "speed": null
+    },
+
+    // -----------------------------------------------
+    // OpenAI（云服务）
+    // 需要设置环境变量: export OPENAI_API_KEY="sk-xxxxx"
+    // -----------------------------------------------
+    {
+      "name": "openai-gpt4",
+      "provider": "openai",
+      "baseURL": "https://api.openai.com/v1",
+      "model": "gpt-4",
+      "apiKey": "${OPENAI_API_KEY}",  // 从环境变量读取
+      "temperature": 0.7,
+      "maxTokens": 2000,
+      "last_update_datetime": null,
+      "speed": null
+    },
+
+    {
+      "name": "openai-gpt35",
+      "provider": "openai",
+      "baseURL": "https://api.openai.com/v1",
+      "model": "gpt-3.5-turbo",
+      "apiKey": "${OPENAI_API_KEY}",
+      "temperature": 0.7,
+      "maxTokens": 2000,
+      "last_update_datetime": null,
+      "speed": null
+    },
+
+    // -----------------------------------------------
+    // Azure OpenAI（云服务）
+    // 需要设置环境变量: export AZURE_OPENAI_KEY="xxxxx"
+    // baseURL 格式: https://{resource-name}.openai.azure.com
+    // -----------------------------------------------
+    {
+      "name": "azure-gpt35",
+      "provider": "azure",
+      "baseURL": "https://your-resource.openai.azure.com",
+      "model": "gpt-35-turbo",
+      "apiKey": "${AZURE_OPENAI_KEY}",
+      "temperature": 0.7,
+      "maxTokens": 2000,
+      "last_update_datetime": null,
+      "speed": null
+    },
+
+    // -----------------------------------------------
+    // 自定义 OpenAI 兼容 API
+    // 任何支持 OpenAI API 格式的服务都可以配置在这里
+    // -----------------------------------------------
+    {
+      "name": "custom-api",
+      "provider": "custom",
+      "baseURL": "https://your-custom-api.com/v1",
+      "model": "your-model-name",
+      "apiKey": "${CUSTOM_API_KEY}",
+      "temperature": 0.7,
+      "maxTokens": 2000,
+      "last_update_datetime": null,
+      "speed": null
+    }
+  ],
+
+  // ===============================================
+  // UI 配置
+  // ===============================================
+  "ui": {
+    "banner": {
+      "enabled": true,              // 是否显示启动动画
+      "style": "particle"           // 动画风格: "particle" | "matrix"
+    },
+    "theme": "tech-blue"            // 主题: "tech-blue"
+  },
+
+  // ===============================================
+  // 工作区配置
+  // ===============================================
+  "workspace": "."                  // 当前工作目录（通常无需修改）
+}
