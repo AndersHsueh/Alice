@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
-import { BaseProvider, ProviderConfig } from './base.js';
+import { BaseProvider, ProviderConfig, ChatResponse } from './base.js';
 import type { Message } from '../../types/index.js';
+import type { OpenAIFunction } from '../../types/tool.js';
 
 export class OpenAICompatibleProvider extends BaseProvider {
   private client: AxiosInstance;
@@ -150,5 +151,164 @@ export class OpenAICompatibleProvider extends BaseProvider {
     }
     
     return error instanceof Error ? error : new Error(String(error));
+  }
+
+  async chatWithTools(
+    messages: Message[], 
+    tools: OpenAIFunction[]
+  ): Promise<ChatResponse> {
+    try {
+      const requestMessages = this.buildMessages(messages);
+
+      const response = await this.client.post('/chat/completions', {
+        model: this.config.model,
+        messages: requestMessages,
+        temperature: this.config.temperature,
+        max_tokens: this.config.maxTokens,
+        tools: tools.map(t => ({
+          type: 'function',
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters
+          }
+        })),
+        tool_choice: 'auto',  // 让模型自动决定是否调用工具
+        stream: false,
+      });
+
+      const choice = response.data?.choices?.[0];
+      if (!choice) {
+        throw new Error('未收到有效响应');
+      }
+
+      const message = choice.message;
+
+      // 检查是否有工具调用
+      if (message.tool_calls && message.tool_calls.length > 0) {
+        return {
+          type: 'tool_calls',
+          tool_calls: message.tool_calls,
+          content: message.content || undefined
+        };
+      }
+
+      // 普通文本响应
+      return {
+        type: 'text',
+        content: message.content || ''
+      };
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  async *chatStreamWithTools(
+    messages: Message[], 
+    tools: OpenAIFunction[]
+  ): AsyncGenerator<ChatResponse> {
+    try {
+      const requestMessages = this.buildMessages(messages);
+
+      const response = await this.client.post(
+        '/chat/completions',
+        {
+          model: this.config.model,
+          messages: requestMessages,
+          temperature: this.config.temperature,
+          max_tokens: this.config.maxTokens,
+          tools: tools.map(t => ({
+            type: 'function',
+            function: {
+              name: t.name,
+              description: t.description,
+              parameters: t.parameters
+            }
+          })),
+          tool_choice: 'auto',
+          stream: true,
+        },
+        {
+          responseType: 'stream',
+        }
+      );
+
+      const stream = response.data;
+      let buffer = '';
+      let accumulatedToolCalls: any[] = [];
+      let accumulatedContent = '';
+
+      for await (const chunk of stream) {
+        buffer += chunk.toString();
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            
+            if (data === '[DONE]') {
+              // 流结束，如果有累积的工具调用，返回
+              if (accumulatedToolCalls.length > 0) {
+                yield {
+                  type: 'tool_calls',
+                  tool_calls: accumulatedToolCalls,
+                  content: accumulatedContent || undefined
+                };
+              }
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta;
+              
+              if (!delta) continue;
+
+              // 处理文本内容
+              if (delta.content) {
+                accumulatedContent += delta.content;
+                yield {
+                  type: 'text',
+                  content: delta.content
+                };
+              }
+
+              // 处理工具调用（流式累积）
+              if (delta.tool_calls) {
+                for (const toolCall of delta.tool_calls) {
+                  const index = toolCall.index;
+                  
+                  if (!accumulatedToolCalls[index]) {
+                    accumulatedToolCalls[index] = {
+                      id: toolCall.id || '',
+                      type: 'function',
+                      function: {
+                        name: toolCall.function?.name || '',
+                        arguments: ''
+                      }
+                    };
+                  }
+
+                  if (toolCall.function?.name) {
+                    accumulatedToolCalls[index].function.name = toolCall.function.name;
+                  }
+                  if (toolCall.function?.arguments) {
+                    accumulatedToolCalls[index].function.arguments += toolCall.function.arguments;
+                  }
+                  if (toolCall.id) {
+                    accumulatedToolCalls[index].id = toolCall.id;
+                  }
+                }
+              }
+            } catch (e) {
+              // 忽略解析错误
+            }
+          }
+        }
+      }
+    } catch (error) {
+      throw this.handleError(error);
+    }
   }
 }

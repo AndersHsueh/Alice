@@ -1,7 +1,11 @@
 export interface Message {
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';  // 新增 'tool' 角色
   content: string;
   timestamp: Date;
+  // Function calling 相关字段
+  tool_calls?: import('./tool.js').ToolCall[];      // assistant 返回的工具调用
+  tool_call_id?: string;        // tool message 关联的调用 ID
+  name?: string;                // tool message 的工具名称
 }
 
 export interface Session {
