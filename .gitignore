@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+# reference-code
+pi-mono/
+
 # Build output
 dist/
 *.tsbuildinfo

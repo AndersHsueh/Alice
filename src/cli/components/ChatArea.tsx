@@ -21,7 +21,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ messages, isProcessing }) =>
           <Box key={idx} flexDirection="column" marginBottom={1}>
             <Box>
               <Text bold color={msg.role === 'user' ? 'cyan' : 'green'}>
-                {msg.role === 'user' ? '> You' : '🤖 Alice'}
+                {msg.role === 'user' ? '> You' : 'Alice'}
                 {': '}
               </Text>
             </Box>
