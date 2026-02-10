@@ -46,6 +46,7 @@ const DEFAULT_CONFIG: Config = {
     theme: 'tech-blue',
   },
   workspace: process.cwd(),
+  dangerous_cmd: true,  // 默认开启危险命令确认
 };
 
 export class ConfigManager {
@@ -206,7 +207,10 @@ export class ConfigManager {
     lines.push('  },');
     lines.push('');
     lines.push('  // 工作区配置');
-    lines.push(`  "workspace": "${config.workspace}"`);
+    lines.push(`  "workspace": "${config.workspace}",`);
+    lines.push('');
+    lines.push('  // 危险命令确认（true: 执行前需确认 | false: 直接执行）');
+    lines.push(`  "dangerous_cmd": ${config.dangerous_cmd}`);
     lines.push('}');
     
     return lines.join('\n');
@@ -236,6 +240,7 @@ export class ConfigManager {
         ],
         ui: legacy.ui,
         workspace: legacy.workspace,
+        dangerous_cmd: true,  // 迁移时默认开启
       };
       
       // 保存新配置

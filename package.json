@@ -23,15 +23,18 @@
   "author": "Anders",
   "license": "MIT",
   "dependencies": {
+    "ajv": "^8.17.1",
     "axios": "^1.6.5",
     "chalk": "^5.3.0",
     "figlet": "^1.7.0",
+    "glob": "^13.0.1",
     "gradient-string": "^2.0.2",
     "ink": "^4.4.1",
     "ink-markdown": "^1.0.1",
     "ink-spinner": "^5.0.0",
     "jsonc-parser": "^3.3.1",
     "react": "^18.2.0",
+    "simple-git": "^3.30.0",
     "string-width": "^8.1.1",
     "strip-ansi": "^7.1.2"
   },

@@ -39,4 +39,8 @@ export interface Config {
   models: ModelConfig[];
   ui: UIConfig;
   workspace: string;
+  dangerous_cmd: boolean;  // 危险命令确认开关
 }
+
+// 导出工具相关类型
+export * from './tool.js';

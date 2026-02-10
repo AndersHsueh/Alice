@@ -1,0 +1,183 @@
+/**
+ * 工具执行器
+ * 负责工具调用的执行、进度跟踪和危险命令确认
+ */
+
+import type { AliceTool, ToolCall, ToolCallRecord, ToolResult } from '../types/tool.js';
+import type { Config } from '../types/index.js';
+import { toolRegistry } from './registry.js';
+import { isDangerousCommand } from './builtin/executeCommand.js';
+
+export class ToolExecutor {
+  private config: Config;
+  private abortControllers: Map<string, AbortController> = new Map();
+  private onConfirm?: (message: string, command: string) => Promise<boolean>;
+
+  constructor(config: Config) {
+    this.config = config;
+  }
+
+  /**
+   * 设置危险命令确认回调
+   */
+  setConfirmHandler(handler: (message: string, command: string) => Promise<boolean>): void {
+    this.onConfirm = handler;
+  }
+
+  /**
+   * 执行单个工具调用
+   */
+  async execute(
+    toolCall: ToolCall,
+    onUpdate?: (record: ToolCallRecord) => void
+  ): Promise<ToolResult> {
+    const { id, function: func } = toolCall;
+    const toolName = func.name;
+
+    // 获取工具
+    const tool = toolRegistry.get(toolName);
+    if (!tool) {
+      return {
+        success: false,
+        error: `工具不存在: ${toolName}`
+      };
+    }
+
+    // 解析参数
+    let params: any;
+    try {
+      params = JSON.parse(func.arguments);
+    } catch (error) {
+      return {
+        success: false,
+        error: `参数解析失败: ${func.arguments}`
+      };
+    }
+
+    // 验证参数
+    const validation = toolRegistry.validateParams(toolName, params);
+    if (!validation.valid) {
+      return {
+        success: false,
+        error: `参数验证失败: ${validation.errors}`
+      };
+    }
+
+    // 危险命令检查（仅对 executeCommand）
+    if (toolName === 'executeCommand' && this.config.dangerous_cmd) {
+      if (isDangerousCommand(params.command)) {
+        const confirmed = await this.confirmDangerousCommand(params.command);
+        if (!confirmed) {
+          return {
+            success: false,
+            error: '用户取消执行'
+          };
+        }
+      }
+    }
+
+    // 创建 AbortController
+    const controller = new AbortController();
+    this.abortControllers.set(id, controller);
+
+    // 创建工具调用记录
+    const record: ToolCallRecord = {
+      id,
+      toolName,
+      toolLabel: tool.label,
+      params,
+      status: 'running',
+      startTime: Date.now()
+    };
+
+    // 发送初始状态
+    onUpdate?.(record);
+
+    try {
+      // 执行工具
+      const result = await tool.execute(
+        id,
+        params,
+        controller.signal,
+        (partial) => {
+          // 更新进度
+          onUpdate?.({
+            ...record,
+            result: partial,
+            status: 'running'
+          });
+        }
+      );
+
+      // 更新最终状态
+      record.status = result.success ? 'success' : 'error';
+      record.result = result;
+      record.endTime = Date.now();
+
+      onUpdate?.(record);
+
+      return result;
+    } catch (error: any) {
+      const result: ToolResult = {
+        success: false,
+        error: error.message || '工具执行失败'
+      };
+
+      record.status = 'error';
+      record.result = result;
+      record.endTime = Date.now();
+
+      onUpdate?.(record);
+
+      return result;
+    } finally {
+      this.abortControllers.delete(id);
+    }
+  }
+
+  /**
+   * 批量执行工具调用
+   */
+  async executeAll(
+    toolCalls: ToolCall[],
+    onUpdate?: (record: ToolCallRecord) => void
+  ): Promise<ToolResult[]> {
+    return Promise.all(
+      toolCalls.map(call => this.execute(call, onUpdate))
+    );
+  }
+
+  /**
+   * 取消工具执行
+   */
+  cancel(toolCallId: string): void {
+    const controller = this.abortControllers.get(toolCallId);
+    if (controller) {
+      controller.abort();
+      this.abortControllers.delete(toolCallId);
+    }
+  }
+
+  /**
+   * 取消所有工具执行
+   */
+  cancelAll(): void {
+    for (const controller of this.abortControllers.values()) {
+      controller.abort();
+    }
+    this.abortControllers.clear();
+  }
+
+  /**
+   * 危险命令确认
+   */
+  private async confirmDangerousCommand(command: string): Promise<boolean> {
+    if (!this.onConfirm) {
+      // 没有确认处理器，直接拒绝
+      return false;
+    }
+
+    const message = `⚠️ 检测到危险命令！\n\n命令: ${command}\n\n此命令可能造成数据丢失或系统损坏。\n确认执行吗？`;
+    return await this.onConfirm(message, command);
+  }
+}
