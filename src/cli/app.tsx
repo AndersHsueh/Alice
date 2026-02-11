@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Box, useApp, useInput, Text } from 'ink';
+import { Box, useApp, useInput } from 'ink';
 import { Banner } from './components/Banner.js';
 import { Header } from './components/Header.js';
 import { ChatArea } from './components/ChatArea.js';
 import { InputBox } from './components/InputBox.js';
+import { StatusBar } from './components/StatusBar.js';
 import { ToolCallStatus } from './components/ToolCallStatus.js';
 import { DangerousCommandConfirm } from './components/DangerousCommandConfirm.js';
 import { LLMClient } from '../core/llm.js';
 import { configManager } from '../utils/config.js';
+import { statusManager } from '../core/statusManager.js';
 import { toolRegistry, builtinTools } from '../tools/index.js';
 import type { Message } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
+import type { StatusInfo } from '../core/statusManager.js';
 
 interface AppProps {
   skipBanner?: boolean;
@@ -30,13 +33,28 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
     onConfirm: (confirmed: boolean) => void;
   } | null>(null);
   const [streamingContent, setStreamingContent] = useState('');
+  const [statusInfo, setStatusInfo] = useState<StatusInfo>({
+    connectionStatus: { type: 'disconnected' },
+    tokenUsage: { used: 0, total: 0 },
+    responseTime: undefined,
+  });
   const { exit } = useApp();
 
   useEffect(() => {
     initializeApp();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = statusManager.subscribe((newStatus) => {
+      setStatusInfo(newStatus);
+    });
+
+    return unsubscribe;
+  }, []);
+
   const initializeApp = async () => {
+    statusManager.updateConnectionStatus('connecting');
+    
     await configManager.init();
     const config = configManager.get();
     const systemPrompt = await configManager.loadSystemPrompt();
@@ -44,18 +62,16 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
     const defaultModel = configManager.getDefaultModel();
     if (!defaultModel) {
       console.error('错误：未找到默认模型配置');
+      statusManager.updateConnectionStatus('disconnected');
       return;
     }
     
-    // 注册所有内置工具
     toolRegistry.registerAll(builtinTools);
     
     const client = new LLMClient(defaultModel, systemPrompt);
     
-    // 启用工具支持
     client.enableTools(config);
     
-    // 设置危险命令确认处理器
     client.setConfirmHandler(async (message: string, command: string) => {
       return new Promise((resolve) => {
         setConfirmDialog({
@@ -70,6 +86,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
     });
     
     setLlmClient(client);
+    statusManager.updateConnectionStatus('connected', defaultModel.provider);
   };
 
   useInput((input, key) => {
@@ -104,11 +121,11 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
     setToolRecords([]);
 
     try {
-      // 使用带工具的流式对话
+      const startTime = Date.now();
+      
       for await (const chunk of llmClient.chatStreamWithTools(
         [...messages, userMsg],
         (record) => {
-          // 更新工具调用状态
           setToolRecords(prev => {
             const index = prev.findIndex(r => r.id === record.id);
             if (index >= 0) {
@@ -123,7 +140,9 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
         setStreamingContent(prev => prev + chunk);
       }
 
-      // 流式完成，保存完整消息
+      const responseTime = Date.now() - startTime;
+      statusManager.updateResponseTime(responseTime);
+
       const assistantMsg: Message = {
         role: 'assistant',
         content: streamingContent,
@@ -132,6 +151,8 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
       setMessages(prev => [...prev, assistantMsg]);
       setStreamingContent('');
     } catch (error) {
+      statusManager.updateConnectionStatus('disconnected');
+      
       const errorMsg: Message = {
         role: 'assistant',
         content: `❌ 抱歉，遇到了问题：${error instanceof Error ? error.message : '未知错误'}`,
@@ -168,7 +189,6 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
     } else if (command === '/config') {
       const config = configManager.get();
       const defaultModel = configManager.getDefaultModel();
-      const suggestModel = configManager.getSuggestModel();
       
       const configMsg: Message = {
         role: 'assistant',
@@ -229,7 +249,6 @@ API 端点: ${defaultModel?.baseURL || '未知'}
         streamingContent={streamingContent}
       />
       
-      {/* 工具调用状态展示 */}
       {toolRecords.length > 0 && (
         <Box flexDirection="column" marginX={2} marginBottom={1}>
           {toolRecords.map(record => (
@@ -238,7 +257,6 @@ API 端点: ${defaultModel?.baseURL || '未知'}
         </Box>
       )}
       
-      {/* 危险命令确认对话框 */}
       {confirmDialog && (
         <DangerousCommandConfirm
           message={confirmDialog.message}
@@ -252,6 +270,15 @@ API 端点: ${defaultModel?.baseURL || '未知'}
         disabled={isProcessing || !!confirmDialog}
         onHistoryUp={handleHistoryUp}
         onHistoryDown={handleHistoryDown}
+      />
+      
+      <StatusBar 
+        connectionStatus={statusInfo.connectionStatus}
+        tokenUsage={statusInfo.tokenUsage}
+        responseTime={statusInfo.responseTime}
+        sessionId={statusInfo.sessionId}
+        workspace={config.workspace}
+        model={defaultModel?.name || llmClient?.getModelName() || '未知'}
       />
     </Box>
   );
