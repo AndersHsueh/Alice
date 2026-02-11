@@ -17,7 +17,6 @@ export interface StatusBarProps {
   tokenUsage?: TokenUsage;
   responseTime?: number;
   sessionId?: string;
-  workspace: string;
   enabled?: boolean;
 }
 
@@ -27,7 +26,6 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   tokenUsage,
   responseTime,
   sessionId,
-  workspace,
   enabled = true,
 }) => {
   const { stdout } = useStdout();
@@ -74,20 +72,15 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   const statusParts = buildStatusContent();
   const statusText_final = statusParts.join(' │ ');
 
-  // 左右布局：状态信息 | 工作区
-  const workspaceShort = workspace.split('/').pop() || workspace;
+  // 手动渲染上边框线 + 文字（占 2 行）
+  const borderLine = '─'.repeat(terminalWidth);
 
   return (
-    <Box
-      borderStyle="single"
-      borderTop
-      paddingX={1}
-      justifyContent="space-between"
-    >
-      <Text color="gray">{statusText_final}</Text>
-      {terminalWidth > 60 && (
-        <Text dimColor>📁 {workspaceShort}</Text>
-      )}
+    <Box flexDirection="column">
+      <Text color="gray">{borderLine}</Text>
+      <Box paddingX={1}>
+        <Text color="gray">{statusText_final}</Text>
+      </Box>
     </Box>
   );
 };

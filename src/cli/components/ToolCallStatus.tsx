@@ -1,5 +1,6 @@
 /**
  * 工具调用状态展示组件
+ * 实时显示工具执行进度、状态和结果
  */
 
 import React from 'react';
@@ -48,6 +49,13 @@ export function ToolCallStatus({ record }: Props) {
     }
   };
 
+  // 格式化执行时间
+  const getDuration = () => {
+    if (!record.endTime) return '';
+    const duration = record.endTime - record.startTime;
+    return ` (${(duration / 1000).toFixed(1)}s)`;
+  };
+
   return (
     <Box flexDirection="column" marginY={0}>
       <Box>
@@ -64,14 +72,19 @@ export function ToolCallStatus({ record }: Props) {
         {result?.status && (
           <Text color="gray" dimColor> {result.status}</Text>
         )}
+        {status === 'success' && (
+          <Text color="gray" dimColor>{getDuration()}</Text>
+        )}
       </Box>
 
       {/* 进度条 */}
       {status === 'running' && result?.progress !== undefined && (
-        <Box marginLeft={2}>
-          <Text color="cyan">
-            {`[${'█'.repeat(Math.floor(result.progress / 5))}${' '.repeat(20 - Math.floor(result.progress / 5))}]`} {result.progress}%
-          </Text>
+        <Box marginLeft={2} flexDirection="column">
+          <Box>
+            <Text color="cyan">
+              {`[${'█'.repeat(Math.floor(result.progress / 5))}${' '.repeat(20 - Math.floor(result.progress / 5))}]`} {result.progress}%
+            </Text>
+          </Box>
         </Box>
       )}
 

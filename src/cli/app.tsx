@@ -277,7 +277,6 @@ API 端点: ${defaultModel?.baseURL || '未知'}
         tokenUsage={statusInfo.tokenUsage}
         responseTime={statusInfo.responseTime}
         sessionId={statusInfo.sessionId}
-        workspace={config.workspace}
         model={defaultModel?.name || llmClient?.getModelName() || '未知'}
       />
     </Box>

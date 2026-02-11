@@ -49,17 +49,14 @@ export const InputBox: React.FC<InputBoxProps> = ({
   });
 
   return (
-    <Box
-      borderStyle="round"
-      borderColor={disabled ? 'gray' : 'yellow'}
-      paddingX={1}
-      marginTop={1}
-    >
-      <Text color="yellow">{'> '}</Text>
-      <Text>{input}</Text>
-      <Text color={disabled ? 'gray' : 'yellow'} dimColor={disabled}>
-        █
-      </Text>
+    <Box flexDirection="column" marginTop={1}>
+      <Box>
+        <Text color="yellow">{'> '}</Text>
+        <Text>{input}</Text>
+        <Text color={disabled ? 'gray' : 'yellow'} dimColor={disabled}>
+          █
+        </Text>
+      </Box>
     </Box>
   );
 };

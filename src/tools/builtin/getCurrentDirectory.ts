@@ -17,7 +17,21 @@ export const getCurrentDirectoryTool: AliceTool = {
 
   async execute(toolCallId, params, signal, onUpdate): Promise<ToolResult> {
     try {
+      // 报告开始
+      onUpdate?.({
+        success: true,
+        status: '获取当前目录...',
+        progress: 0
+      });
+
       const currentDir = cwd();
+
+      // 报告完成
+      onUpdate?.({
+        success: true,
+        status: '目录获取完成',
+        progress: 100
+      });
 
       return {
         success: true,
@@ -27,6 +41,12 @@ export const getCurrentDirectoryTool: AliceTool = {
         }
       };
     } catch (error: any) {
+      onUpdate?.({
+        success: false,
+        error: `获取当前目录失败: ${error.message}`,
+        progress: 0
+      });
+
       return {
         success: false,
         error: `获取当前目录失败: ${error.message}`

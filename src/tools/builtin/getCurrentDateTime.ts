@@ -16,7 +16,21 @@ export const getCurrentDateTimeTool: AliceTool = {
 
   async execute(toolCallId, params, signal, onUpdate): Promise<ToolResult> {
     try {
+      // 报告开始
+      onUpdate?.({
+        success: true,
+        status: '获取系统时间...',
+        progress: 0
+      });
+
       const now = new Date();
+
+      // 报告完成
+      onUpdate?.({
+        success: true,
+        status: '时间获取完成',
+        progress: 100
+      });
 
       return {
         success: true,
@@ -40,6 +54,12 @@ export const getCurrentDateTimeTool: AliceTool = {
         }
       };
     } catch (error: any) {
+      onUpdate?.({
+        success: false,
+        error: `获取时间失败: ${error.message}`,
+        progress: 0
+      });
+
       return {
         success: false,
         error: `获取时间失败: ${error.message}`
