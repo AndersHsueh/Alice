@@ -12,6 +12,7 @@ import { LLMClient } from '../core/llm.js';
 import { CommandRegistry } from '../core/commandRegistry.js';
 import { builtinCommands } from '../core/builtinCommands.js';
 import { configManager } from '../utils/config.js';
+import { themeManager } from '../core/theme.js';
 import { statusManager } from '../core/statusManager.js';
 import { toolRegistry, builtinTools, setQuestionDialogCallback } from '../tools/index.js';
 import { KeyAction } from '../core/keybindings.js';
@@ -83,6 +84,9 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     } else {
       await configManager.init();
     }
+
+    // 初始化主题系统
+    await themeManager.init();
 
     let config = configManager.get();
     const systemPrompt = await configManager.loadSystemPrompt();

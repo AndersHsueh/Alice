@@ -6,6 +6,7 @@
 import path from 'path';
 import type { AliceCommand, CommandContext } from './commandRegistry.js';
 import { exportToHTML, exportToMarkdown, generateDefaultFilename } from '../utils/exporter.js';
+import { themeManager } from './theme.js';
 
 /**
  * /help 命令 - 显示帮助信息
@@ -24,6 +25,7 @@ export const helpCommand: AliceCommand = {
   /help (/h, /?) - 显示帮助信息
   /clear (/cls) - 清空对话历史
   /config - 查看当前配置
+  /theme (/t) [name] - 切换主题
   /export [html|md] [filename] - 导出会话
   /quit (/q, /exit) - 退出程序
 
@@ -151,6 +153,60 @@ export const exportCommand: AliceCommand = {
 };
 
 /**
+ * /theme 命令 - 主题切换
+ */
+export const themeCommand: AliceCommand = {
+  name: 'theme',
+  description: '查看和切换主题',
+  aliases: ['t'],
+
+  async handler(args, ctx) {
+    try {
+      if (args.length === 0) {
+        // 列出所有可用主题
+        const available = await themeManager.getAvailableThemes();
+        const current = themeManager.getTheme();
+        
+        const themeList = available
+          .map(name => {
+            const marker = name === current.name ? '✓ ' : '  ';
+            const desc = themeManager.getThemeDescription(name);
+            return `${marker}${name}: ${desc}`;
+          })
+          .join('\n');
+
+        const themeMsg: any = {
+          role: 'assistant',
+          content: `🎨 可用主题：\n\n${themeList}\n\n💡 使用 /theme <name> 切换主题`,
+          timestamp: new Date(),
+        };
+        
+        ctx.setMessages([...ctx.messages, themeMsg]);
+      } else {
+        // 切换到指定主题
+        const themeName = args[0];
+        await themeManager.loadTheme(themeName);
+        
+        const successMsg: any = {
+          role: 'assistant',
+          content: `✅ 主题已切换为 "${themeName}"。重新启动应用以查看完整效果。`,
+          timestamp: new Date(),
+        };
+        
+        ctx.setMessages([...ctx.messages, successMsg]);
+      }
+    } catch (error: any) {
+      const errorMsg: any = {
+        role: 'assistant',
+        content: `❌ 主题操作失败: ${error.message}`,
+        timestamp: new Date(),
+      };
+      ctx.setMessages([...ctx.messages, errorMsg]);
+    }
+  },
+};
+
+/**
  * 所有内置命令列表
  */
 export const builtinCommands: AliceCommand[] = [
@@ -159,4 +215,5 @@ export const builtinCommands: AliceCommand[] = [
   quitCommand,
   configCommand,
   exportCommand,
+  themeCommand,
 ];
