@@ -7,6 +7,9 @@ import type { AliceTool, ToolCall, ToolCallRecord, ToolResult } from '../types/t
 import type { Config } from '../types/index.js';
 import { toolRegistry } from './registry.js';
 import { isDangerousCommand } from './builtin/executeCommand.js';
+import { eventBus } from '../core/events.js';
+import { createToolCallEvent } from '../types/events.js';
+import type { ToolExecuteEvent, ToolErrorEvent } from '../types/events.js';
 
 export class ToolExecutor {
   private config: Config;
@@ -93,6 +96,28 @@ export class ToolExecutor {
     // 发送初始状态
     onUpdate?.(record);
 
+    // ===== 触发 tool:before_call 事件 =====
+    const beforeEvent = createToolCallEvent(toolName, id, params);
+    await eventBus.emit('tool:before_call', beforeEvent);
+    
+    // 检查是否被拦截
+    if (beforeEvent._prevented) {
+      const result = beforeEvent._customResult || {
+        success: false,
+        error: '工具调用被拦截'
+      };
+      
+      record.status = result.success ? 'success' : 'error';
+      record.result = result;
+      record.endTime = Date.now();
+      
+      onUpdate?.(record);
+      
+      return result;
+    }
+
+    const startTime = Date.now();
+
     try {
       // 执行工具
       const result = await tool.execute(
@@ -116,6 +141,16 @@ export class ToolExecutor {
 
       onUpdate?.(record);
 
+      // ===== 触发 tool:after_call 事件 =====
+      const afterEvent: ToolExecuteEvent = {
+        toolName,
+        toolCallId: id,
+        params,
+        result,
+        duration: Date.now() - startTime
+      };
+      await eventBus.emit('tool:after_call', afterEvent);
+
       return result;
     } catch (error: any) {
       const result: ToolResult = {
@@ -128,6 +163,16 @@ export class ToolExecutor {
       record.endTime = Date.now();
 
       onUpdate?.(record);
+
+      // ===== 触发 tool:error 事件 =====
+      const errorEvent: ToolErrorEvent = {
+        toolName,
+        toolCallId: id,
+        params,
+        error: error instanceof Error ? error : new Error(error.message || '未知错误'),
+        duration: Date.now() - startTime
+      };
+      await eventBus.emit('tool:error', errorEvent);
 
       return result;
     } finally {
