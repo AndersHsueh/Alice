@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type { Message } from '../../types/index.js';
+import { StreamingMessage, StaticMessage } from '../../components/StreamingMessage.js';
+import { StreamingIndicator } from '../../components/StreamingIndicator.js';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -21,9 +23,13 @@ const MessageItem: React.FC<{ message: Message; index: number }> = React.memo(
           {': '}
         </Text>
       </Box>
-      <Box marginLeft={2} flexDirection="column">
-        <Text wrap="wrap">{message.content}</Text>
-      </Box>
+      {message.role === 'user' ? (
+        <Box marginLeft={2}>
+          <Text wrap="wrap">{message.content}</Text>
+        </Box>
+      ) : (
+        <StaticMessage content={message.content} />
+      )}
     </Box>
   ),
   (prevProps, nextProps) => {
@@ -41,8 +47,31 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   isProcessing,
   streamingContent = ''
 }) => {
+  const [streamStartTime, setStreamStartTime] = useState<number | undefined>();
+  const isStreaming = Boolean(streamingContent && !isProcessing);
+  
+  // 记录流式开始时间
+  useEffect(() => {
+    if (isStreaming && !streamStartTime) {
+      setStreamStartTime(Date.now());
+    } else if (!isStreaming && streamStartTime) {
+      // 流式结束，延迟清除（等状态指示器显示完成）
+      const timeout = setTimeout(() => {
+        setStreamStartTime(undefined);
+      }, 2000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isStreaming, streamStartTime]);
+  
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1} flexGrow={1}>
+      {/* 状态指示器 */}
+      <StreamingIndicator
+        isStreaming={isStreaming}
+        startTime={streamStartTime}
+        tokenCount={streamingContent.length}
+      />
+      
       {messages.length === 0 && !streamingContent ? (
         <Box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1}>
           <Text dimColor>💡 输入您的问题，我来帮您解决办公难题</Text>
@@ -60,9 +89,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               <Box>
                 <Text bold color="green">Alice: </Text>
               </Box>
-              <Box marginLeft={2} flexDirection="column">
-                <Text wrap="wrap">{streamingContent}</Text>
-              </Box>
+              <StreamingMessage
+                content={streamingContent}
+                isStreaming={isStreaming}
+                color="green"
+              />
             </Box>
           )}
         </>
