@@ -19,6 +19,8 @@ import { sessionManager } from '../core/session.js';
 import { StatsTracker } from '../core/statsTracker.js';
 import type { SessionStats } from '../core/statsTracker.js';
 import { toolRegistry, builtinTools, setQuestionDialogCallback } from '../tools/index.js';
+import { mcpManager } from '../core/mcp.js';
+import { mcpConfigManager } from '../utils/mcpConfig.js';
 import { KeyAction } from '../core/keybindings.js';
 import type { Message, Session } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
@@ -251,6 +253,20 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     }
     
     toolRegistry.registerAll(builtinTools);
+
+    // 初始化 MCP 服务器
+    try {
+      const mcpSettings = await mcpConfigManager.load();
+      const enabledServers = Object.fromEntries(
+        Object.entries(mcpSettings.servers).filter(([, c]) => c.enabled !== false)
+      );
+      if (Object.keys(enabledServers).length > 0) {
+        console.log('🔌 连接 MCP 服务器...');
+        await mcpManager.connectAll(enabledServers);
+      }
+    } catch (error: any) {
+      console.warn(`⚠️  MCP 初始化失败: ${error.message}`);
+    }
     
     const client = new LLMClient(defaultModel, systemPrompt);
     
@@ -277,6 +293,9 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     if (isExitingRef.current) return;
     isExitingRef.current = true;
     exitCodeRef.current = code instanceof Error ? code : undefined;
+
+    // 断开 MCP 服务器
+    mcpManager.disconnectAll().catch(() => {});
 
     const stats = statsTrackerRef.current?.endSession();
     if (!stats) {
