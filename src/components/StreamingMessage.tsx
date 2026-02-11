@@ -9,6 +9,7 @@ import { marked } from 'marked';
 import TerminalRenderer from 'marked-terminal';
 import Table from 'cli-table3';
 import { parseMarkdownBlocks, type MarkdownBlock } from '../utils/markdownParser.js';
+import { parseMarkdownTable, renderTable } from '../utils/tableRenderer.js';
 
 /**
  * 获取终端宽度并计算合适的内容宽度
@@ -88,7 +89,6 @@ const RenderBlock: React.FC<{ block: MarkdownBlock; showCursor?: boolean }> = Re
     if (block.isComplete) {
       // 特殊处理表格块，使用自定义渲染
       if (block.type === 'table') {
-        const { parseMarkdownTable, renderTable } = require('../utils/tableRenderer.js');
         try {
           const rows = parseMarkdownTable(block.content);
           const rendered = renderTable(rows);
