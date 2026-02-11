@@ -5,8 +5,10 @@
 
 import type { AliceTool, OpenAIFunction } from '../types/tool.js';
 import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
 
 const ajv = new Ajv();
+addFormats(ajv);
 
 export class ToolRegistry {
   private tools: Map<string, AliceTool> = new Map();
