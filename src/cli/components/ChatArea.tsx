@@ -48,29 +48,31 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   streamingContent = ''
 }) => {
   const [streamStartTime, setStreamStartTime] = useState<number | undefined>();
-  const isStreaming = Boolean(streamingContent && !isProcessing);
+  const isStreaming = Boolean(streamingContent);  // 简化判断：有流式内容就显示
   
   // 记录流式开始时间
   useEffect(() => {
-    if (isStreaming && !streamStartTime) {
+    if (streamingContent && !streamStartTime) {
       setStreamStartTime(Date.now());
-    } else if (!isStreaming && streamStartTime) {
+    } else if (!streamingContent && streamStartTime) {
       // 流式结束，延迟清除（等状态指示器显示完成）
       const timeout = setTimeout(() => {
         setStreamStartTime(undefined);
       }, 2000);
       return () => clearTimeout(timeout);
     }
-  }, [isStreaming, streamStartTime]);
+  }, [streamingContent, streamStartTime]);
   
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1} flexGrow={1}>
       {/* 状态指示器 */}
-      <StreamingIndicator
-        isStreaming={isStreaming}
-        startTime={streamStartTime}
-        tokenCount={streamingContent.length}
-      />
+      {streamingContent && (
+        <StreamingIndicator
+          isStreaming={true}
+          startTime={streamStartTime}
+          tokenCount={streamingContent.length}
+        />
+      )}
       
       {messages.length === 0 && !streamingContent ? (
         <Box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1}>

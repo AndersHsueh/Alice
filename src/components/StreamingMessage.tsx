@@ -87,29 +87,7 @@ const RenderBlock: React.FC<{ block: MarkdownBlock; showCursor?: boolean }> = Re
   ({ block, showCursor = false }) => {
     // 完整的块用 Markdown 渲染
     if (block.isComplete) {
-      // 特殊处理表格块，使用自定义渲染
-      if (block.type === 'table') {
-        try {
-          const rows = parseMarkdownTable(block.content);
-          const rendered = renderTable(rows);
-          
-          return (
-            <Box marginBottom={1}>
-              <Text>{rendered}</Text>
-            </Box>
-          );
-        } catch (error) {
-          // 降级到 marked 渲染
-          const rendered = marked.parse(block.content, { async: false }) as string;
-          return (
-            <Box marginBottom={1}>
-              <Text>{rendered}</Text>
-            </Box>
-          );
-        }
-      }
-      
-      // 其他块用 marked 渲染
+      // 统一使用 marked 渲染（包括表格）
       const rendered = marked.parse(block.content, { async: false }) as string;
       
       return (
@@ -179,24 +157,7 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
 export const StaticMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
   if (!content) return null;
   
-  // 检测是否包含表格
-  if (content.includes('|') && content.split('\n').some(line => line.trim().match(/^\|.*\|$/))) {
-    const blocks = parseMarkdownBlocks(content);
-    
-    return (
-      <Box marginLeft={2} flexDirection="column">
-        {blocks.map((block, idx) => (
-          <RenderBlock
-            key={`static-${block.type}-${idx}`}
-            block={block}
-            showCursor={false}
-          />
-        ))}
-      </Box>
-    );
-  }
-  
-  // 普通内容用 marked 渲染
+  // 统一使用 marked 渲染
   const rendered = marked.parse(content, { async: false }) as string;
   
   return (
