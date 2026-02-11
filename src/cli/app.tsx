@@ -21,6 +21,7 @@ import type { SessionStats } from '../core/statsTracker.js';
 import { toolRegistry, builtinTools, setQuestionDialogCallback } from '../tools/index.js';
 import { mcpManager } from '../core/mcp.js';
 import { mcpConfigManager } from '../utils/mcpConfig.js';
+import { skillManager } from '../core/skillManager.js';
 import { KeyAction } from '../core/keybindings.js';
 import type { Message, Session } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
@@ -210,7 +211,21 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     applySession(session);
 
     let config = configManager.get();
-    const systemPrompt = await configManager.loadSystemPrompt();
+    const baseSystemPrompt = await configManager.loadSystemPrompt();
+
+    // 初始化 Skills 系统（三阶段：Discovery）
+    let skillsSummary = '';
+    try {
+      await skillManager.ensureDefaultSkills();
+      await skillManager.discover();
+      skillsSummary = skillManager.buildSkillsSummary();
+    } catch (error: any) {
+      console.warn(`⚠️  Skills 初始化失败: ${error.message}`);
+    }
+
+    const systemPrompt = skillsSummary
+      ? baseSystemPrompt + '\n' + skillsSummary
+      : baseSystemPrompt;
     
     // 应用 CLI 参数覆盖
     // 1. 处理 --workspace

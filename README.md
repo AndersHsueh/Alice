@@ -58,7 +58,7 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 - 📊 会话统计 (#23)
 
 ### 🔧 工具系统（Function Calling）
-- **7 个内置工具**: 文件操作、系统信息、命令执行等
+- **8 个内置工具**: 文件操作、系统信息、命令执行、技能加载等
   - `readFile` - 读取文件内容
   - `listFiles` - 列出目录文件
   - `searchFiles` - 搜索文件（支持 glob 模式）
@@ -66,6 +66,7 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
   - `getGitInfo` - 查看 Git 仓库信息
   - `getCurrentDateTime` - 获取当前时间
   - `executeCommand` - 执行系统命令（带安全确认）
+  - `loadSkill` - 按需加载技能指令
 - **智能工具调用**: AI 自动决定何时使用哪个工具
 - **实时进度展示**: 工具执行状态可视化
 - **安全机制**: 危险命令需要用户确认
@@ -91,6 +92,34 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 - **会话恢复**: 自动创建和保存会话，优雅的退出汇报显示
 - **会话导出**: 支持导出为 HTML（含样式）和 Markdown 格式
 - **智能提问**: AI 可以主动向用户提问以澄清任务
+
+### 🧠 Skills 技能系统（三阶段渐进式加载）
+
+ALICE 采用 Anthropic 推荐的**渐进式加载**架构，按需加载技能，避免上下文窗口膨胀：
+
+1. **Discovery（启动时）**: 扫描 `~/.agents/skills/` 目录，仅提取每个技能的名称和描述（~100 tokens/skill），注入系统提示词
+2. **Instruction（按需）**: 当用户请求匹配某技能时，AI 通过 `loadSkill` 工具加载完整指令
+3. **Resource（执行时）**: 技能附带的脚本和文件仅在实际执行时访问
+
+**默认内置 6 个技能**（首次启动自动安装）：
+- `find-skills` - 搜索和发现新技能
+- `obsidian-markdown` / `json-canvas` / `obsidian-bases` / `obsidian-cli` - Obsidian 笔记集成
+- `skill-creator` - 创建自定义技能
+
+**安装更多技能**：
+```bash
+npx skills add <source> --skill <name> -g
+npx skills find  # 交互式搜索
+```
+
+### 🔌 MCP (Model Context Protocol)
+
+ALICE 支持通过 MCP 连接外部工具服务器，大幅扩展能力：
+
+- 独立配置文件 `~/.Alice/mcp_settings.jsonc`
+- 最多 3 个 MCP 服务器同时连接
+- 自动发现工具并注册到 Function Calling 系统
+- 默认内置 `fetch` MCP 服务器（网页抓取）
 
 ### 视觉体验
 - 🎭 炫酷的启动 Banner 动画
@@ -551,11 +580,11 @@ npm run clean
 
 ### 未来计划
 - [x] 完整的会话恢复（--continue/--resume/--session 参数）
+- [x] 组件化 UI 架构（5 个内置组件）
+- [x] MCP (Model Context Protocol) 支持
+- [x] Skills 技能系统（三阶段渐进式加载）
 - [ ] Overlay 系统（浮层组件）
 - [ ] 扩展系统（Extension API）
-- [ ] 组件化 UI 架构
-- [ ] MCP (Model Context Protocol) 支持
-- [ ] Skills 技能系统
 - [ ] sudo 密码管理
 
 ## 🤝 贡献指南
