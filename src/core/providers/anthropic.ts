@@ -5,16 +5,8 @@
 
 import axios from 'axios';
 import { BaseProvider, type ProviderConfig, type ChatResponse } from './base.js';
-import type { Message } from '../../types/index.js';
+import type { Message, ProviderSpecificConfig } from '../../types/index.js';
 import type { OpenAIFunction, ToolCall } from '../../types/tool.js';
-
-/**
- * Anthropic 特有配置
- */
-export interface AnthropicConfig extends ProviderConfig {
-  anthropicVersion?: string;  // API 版本，默认 '2023-06-01'
-  topK?: number;              // Top-k 采样
-}
 
 /**
  * Anthropic Provider 实现
@@ -23,10 +15,13 @@ export class AnthropicProvider extends BaseProvider {
   private anthropicVersion: string;
   private topK?: number;
 
-  constructor(config: AnthropicConfig, systemPrompt: string) {
+  constructor(config: ProviderConfig & { providerConfig?: ProviderSpecificConfig }, systemPrompt: string) {
     super(config, systemPrompt);
-    this.anthropicVersion = config.anthropicVersion || '2023-06-01';
-    this.topK = config.topK;
+    
+    // 从 providerConfig 读取特有配置
+    const anthropicConfig = config.providerConfig?.anthropic;
+    this.anthropicVersion = anthropicConfig?.anthropicVersion || '2023-06-01';
+    this.topK = anthropicConfig?.topK;
   }
 
   async chat(messages: Message[]): Promise<string> {

@@ -15,7 +15,39 @@ export interface Session {
   metadata: Record<string, any>;
 }
 
-export type Provider = 'lmstudio' | 'ollama' | 'openai' | 'azure' | 'custom';
+export type Provider = 
+  | 'lmstudio' 
+  | 'ollama' 
+  | 'openai' 
+  | 'azure' 
+  | 'custom'
+  | 'anthropic'
+  | 'claude'
+  | 'google'
+  | 'gemini'
+  | 'mistral';
+
+/**
+ * 提供商特有配置
+ */
+export interface ProviderSpecificConfig {
+  // Anthropic 特有配置
+  anthropic?: {
+    anthropicVersion?: string;  // API 版本，默认 '2023-06-01'
+    topK?: number;              // Top-k 采样
+  };
+  
+  // Google 特有配置
+  google?: {
+    safetySettings?: Array<{
+      category: string;
+      threshold: string;
+    }>;
+  };
+  
+  // 其他提供商可扩展
+  [key: string]: any;
+}
 
 export interface ModelConfig {
   name: string;
@@ -28,6 +60,9 @@ export interface ModelConfig {
   last_update_datetime: string | null;
   speed: number | null;
   promptCaching?: boolean;  // 提示词缓存（默认 true）
+  
+  // 提供商特有配置
+  providerConfig?: ProviderSpecificConfig;
 }
 
 export interface UIConfig {

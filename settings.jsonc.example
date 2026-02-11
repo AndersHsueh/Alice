@@ -113,7 +113,15 @@
       "maxTokens": 4096,
       "promptCaching": true,  // Claude 支持提示词缓存
       "last_update_datetime": null,
-      "speed": null
+      "speed": null,
+      
+      // Anthropic 特有配置
+      "providerConfig": {
+        "anthropic": {
+          "anthropicVersion": "2023-06-01",  // API 版本
+          "topK": 40                          // Top-k 采样（可选）
+        }
+      }
     },
 
     // -----------------------------------------------
@@ -131,7 +139,19 @@
       "maxTokens": 2048,
       "promptCaching": false,  // Gemini 使用 context caching（另行配置）
       "last_update_datetime": null,
-      "speed": null
+      "speed": null,
+      
+      // Google 特有配置
+      "providerConfig": {
+        "google": {
+          "safetySettings": [
+            {
+              "category": "HARM_CATEGORY_HARASSMENT",
+              "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            }
+          ]
+        }
+      }
     },
 
     // -----------------------------------------------

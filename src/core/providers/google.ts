@@ -5,18 +5,8 @@
 
 import axios from 'axios';
 import { BaseProvider, type ProviderConfig, type ChatResponse } from './base.js';
-import type { Message } from '../../types/index.js';
+import type { Message, ProviderSpecificConfig } from '../../types/index.js';
 import type { OpenAIFunction, ToolCall } from '../../types/tool.js';
-
-/**
- * Google 特有配置
- */
-export interface GoogleConfig extends ProviderConfig {
-  safetySettings?: Array<{
-    category: string;
-    threshold: string;
-  }>;
-}
 
 /**
  * Google Gemini Provider 实现
@@ -24,9 +14,12 @@ export interface GoogleConfig extends ProviderConfig {
 export class GoogleProvider extends BaseProvider {
   private safetySettings?: any[];
 
-  constructor(config: GoogleConfig, systemPrompt: string) {
+  constructor(config: ProviderConfig & { providerConfig?: ProviderSpecificConfig }, systemPrompt: string) {
     super(config, systemPrompt);
-    this.safetySettings = config.safetySettings;
+    
+    // 从 providerConfig 读取特有配置
+    const googleConfig = config.providerConfig?.google;
+    this.safetySettings = googleConfig?.safetySettings;
   }
 
   async chat(messages: Message[]): Promise<string> {

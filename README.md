@@ -310,15 +310,23 @@ Alice: node_modules 已删除，你可以运行 npm install 重新安装依赖�
 
 #### 支持的 LLM 提供商
 
-ALICE 使用 OpenAI 兼容 API 格式，支持以下提供商：
+ALICE 使用插件式 Provider 系统，支持以下提供商：
 
-| 提供商 | provider 值 | 说明 |
-|--------|-------------|------|
-| **LM Studio** | `lmstudio` | 本地运行，默认端口 1234 |
-| **Ollama** | `ollama` | 本地运行，默认端口 11434 |
-| **OpenAI** | `openai` | 云服务，需要 API Key |
-| **Azure OpenAI** | `azure` | 云服务，需要 API Key |
-| **自定义** | `custom` | 任何兼容 OpenAI API 格式的服务 |
+| 提供商 | provider 值 | 说明 | Function Calling |
+|--------|-------------|------|------------------|
+| **LM Studio** | `lmstudio` | 本地运行，默认端口 1234 | ✅ |
+| **Ollama** | `ollama` | 本地运行，默认端口 11434 | ✅ |
+| **OpenAI** | `openai` | GPT-4/3.5，支持提示词缓存 | ✅ |
+| **Anthropic** | `anthropic` 或 `claude` | Claude 3.5/3，长上下文 | ✅ |
+| **Google** | `google` 或 `gemini` | Gemini 1.5/2.0，多模态 | ✅ |
+| **Mistral** | `mistral` | Mistral Large/Medium | ✅ |
+| **Azure OpenAI** | `azure` | Azure 托管的 OpenAI | ✅ |
+| **自定义** | `custom` | 任何兼容 OpenAI API 的服务 | ✅ |
+
+**新特性**：
+- 🔌 插件式注册，可动态添加新 Provider
+- 📊 内置模型元数据（定价、能力、上下文窗口）
+- ⚙️ 细粒度配置（每个 Provider 独立配置）
 
 #### 环境变量配置
 
@@ -327,11 +335,14 @@ ALICE 使用 OpenAI 兼容 API 格式，支持以下提供商：
 ```bash
 # macOS / Linux
 export OPENAI_API_KEY="sk-xxxxx"
+export ANTHROPIC_API_KEY="sk-ant-xxxxx"
+export GOOGLE_API_KEY="xxxxx"
+export MISTRAL_API_KEY="xxxxx"
 export AZURE_OPENAI_KEY="xxxxx"
 
 # Windows
 set OPENAI_API_KEY=sk-xxxxx
-set AZURE_OPENAI_KEY=xxxxx
+set ANTHROPIC_API_KEY=sk-ant-xxxxx
 ```
 
 在配置文件中使用 `${VAR_NAME}` 格式引用环境变量：
@@ -339,6 +350,46 @@ set AZURE_OPENAI_KEY=xxxxx
 ```jsonc
 {
   "apiKey": "${OPENAI_API_KEY}"
+}
+```
+
+#### Provider 特有配置
+
+部分 Provider 支持额外配置：
+
+```jsonc
+{
+  "name": "claude-sonnet",
+  "provider": "anthropic",
+  "model": "claude-3-5-sonnet-20241022",
+  
+  // Anthropic 特有配置
+  "providerConfig": {
+    "anthropic": {
+      "anthropicVersion": "2023-06-01",
+      "topK": 40
+    }
+  }
+}
+```
+
+```jsonc
+{
+  "name": "gemini-pro",
+  "provider": "google",
+  "model": "gemini-1.5-pro",
+  
+  // Google 特有配置
+  "providerConfig": {
+    "google": {
+      "safetySettings": [
+        {
+          "category": "HARM_CATEGORY_HARASSMENT",
+          "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+        }
+      ]
+    }
+  }
 }
 ```
 
