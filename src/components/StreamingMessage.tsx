@@ -7,18 +7,36 @@ import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { marked } from 'marked';
 import TerminalRenderer from 'marked-terminal';
+import Table from 'cli-table3';
 import { parseMarkdownBlocks, type MarkdownBlock } from '../utils/markdownParser.js';
 
+/**
+ * 获取终端宽度并计算合适的内容宽度
+ */
+function getContentWidth(): number {
+  const termWidth = process.stdout.columns || 80;
+  const minWidth = 60;  // 最小宽度
+  const maxWidth = 120; // 最大宽度
+  const contentWidth = Math.max(minWidth, Math.min(termWidth - 10, maxWidth));
+  return contentWidth;
+}
+
 // 配置 marked 使用终端渲染器
-marked.setOptions({
-  // @ts-ignore - marked-terminal 类型定义问题
-  renderer: new TerminalRenderer({
+const createRenderer = () => {
+  const contentWidth = getContentWidth();
+  
+  return new TerminalRenderer({
     // 表格样式
     tableOptions: {
       style: {
-        head: ['cyan'],
+        head: ['cyan', 'bold'],
         border: ['grey']
-      }
+      },
+      // 自动换行
+      wordWrap: true,
+      // 字符宽度（中文需要考虑）
+      colWidths: [],  // 自动计算
+      wrapOnWordBoundary: false  // 中文不按单词边界
     },
     // 代码块样式
     code: (code: string) => {
@@ -26,8 +44,30 @@ marked.setOptions({
     },
     // 其他样式配置
     reflowText: true,
-    width: 100
-  })
+    width: contentWidth,
+    // 文本换行
+    showSectionPrefix: false
+  });
+};
+
+// 动态创建渲染器
+let currentRenderer = createRenderer();
+
+// 监听终端大小变化
+if (typeof process.stdout.on === 'function') {
+  process.stdout.on('resize', () => {
+    currentRenderer = createRenderer();
+    marked.setOptions({
+      // @ts-ignore
+      renderer: currentRenderer
+    });
+  });
+}
+
+// 初始设置
+marked.setOptions({
+  // @ts-ignore
+  renderer: currentRenderer
 });
 
 export interface StreamingMessageProps {
@@ -46,6 +86,30 @@ const RenderBlock: React.FC<{ block: MarkdownBlock; showCursor?: boolean }> = Re
   ({ block, showCursor = false }) => {
     // 完整的块用 Markdown 渲染
     if (block.isComplete) {
+      // 特殊处理表格块，使用自定义渲染
+      if (block.type === 'table') {
+        const { parseMarkdownTable, renderTable } = require('../utils/tableRenderer.js');
+        try {
+          const rows = parseMarkdownTable(block.content);
+          const rendered = renderTable(rows);
+          
+          return (
+            <Box marginBottom={1}>
+              <Text>{rendered}</Text>
+            </Box>
+          );
+        } catch (error) {
+          // 降级到 marked 渲染
+          const rendered = marked.parse(block.content, { async: false }) as string;
+          return (
+            <Box marginBottom={1}>
+              <Text>{rendered}</Text>
+            </Box>
+          );
+        }
+      }
+      
+      // 其他块用 marked 渲染
       const rendered = marked.parse(block.content, { async: false }) as string;
       
       return (
@@ -115,6 +179,24 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
 export const StaticMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
   if (!content) return null;
   
+  // 检测是否包含表格
+  if (content.includes('|') && content.split('\n').some(line => line.trim().match(/^\|.*\|$/))) {
+    const blocks = parseMarkdownBlocks(content);
+    
+    return (
+      <Box marginLeft={2} flexDirection="column">
+        {blocks.map((block, idx) => (
+          <RenderBlock
+            key={`static-${block.type}-${idx}`}
+            block={block}
+            showCursor={false}
+          />
+        ))}
+      </Box>
+    );
+  }
+  
+  // 普通内容用 marked 渲染
   const rendered = marked.parse(content, { async: false }) as string;
   
   return (
