@@ -5,7 +5,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useStdout } from 'ink';
+import stringWidth from 'string-width';
 
 export interface StreamingIndicatorProps {
   /** 是否正在流式输出 */
@@ -28,18 +29,48 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = ({
   onComplete
 }) => {
   const [showComplete, setShowComplete] = useState(false);
-  const [cursor, setCursor] = useState('█');
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [pulseStep, setPulseStep] = useState(0);
+  const { stdout } = useStdout();
+  const [terminalWidth, setTerminalWidth] = useState(stdout.columns || 80);
+  const boxHeight = 3;
+  const boxWidth = Math.max(20, terminalWidth - 4);
+  const pulseLevels = [
+    { color: 'cyan', dim: true },
+    { color: 'cyan', dim: true },
+    { color: 'cyan', dim: false },
+    { color: 'cyanBright', dim: false },
+    { color: 'cyan', dim: false },
+    { color: 'cyan', dim: true }
+  ];
+  const { color: pulseColor, dim: pulseDim } = pulseLevels[pulseStep];
   
-  // 闪烁光标效果
+  useEffect(() => {
+    const updateWidth = () => {
+      setTerminalWidth(stdout.columns || 80);
+    };
+
+    updateWidth();
+    stdout.on('resize', updateWidth);
+
+    return () => {
+      stdout.off('resize', updateWidth);
+    };
+  }, [stdout]);
+
+  // 呼吸灯动效
   useEffect(() => {
     if (!isStreaming) return;
     
     const interval = setInterval(() => {
-      setCursor(prev => prev === '█' ? '▓' : '█');
+      setPulseStep(prev => (prev + 1) % pulseLevels.length);
     }, 500);
     
     return () => clearInterval(interval);
+  }, [isStreaming, pulseLevels.length]);
+
+  useEffect(() => {
+    setPulseStep(0);
   }, [isStreaming]);
   
   // 计算耗时
@@ -80,17 +111,52 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = ({
   const estimateTokens = (count: number) => {
     return Math.floor(count / 2.5);
   };
+
+  const buildBorderLine = (row: number) => {
+    if (boxWidth < 2) return '';
+    if (row === 0) return `╭${'─'.repeat(boxWidth - 2)}╮`;
+    return `╰${'─'.repeat(boxWidth - 2)}╯`;
+  };
+
+  const renderBorderLine = (row: number) => {
+    return (
+      <Text color={pulseColor} dimColor={pulseDim}>
+        {buildBorderLine(row)}
+      </Text>
+    );
+  };
+
+  const renderMiddleLine = () => {
+    const innerWidth = boxWidth - 2;
+    const label = '正在生成';
+    const labelWidth = stringWidth(label);
+    let content = label;
+
+    if (innerWidth > labelWidth) {
+      const padding = innerWidth - labelWidth;
+      const leftPad = Math.floor(padding / 2);
+      const rightPad = padding - leftPad;
+      content = `${' '.repeat(leftPad)}${label}${' '.repeat(rightPad)}`;
+    } else if (innerWidth > 0) {
+      content = label.slice(0, innerWidth);
+    }
+
+    return (
+      <Text>
+        <Text color={pulseColor} dimColor={pulseDim}>│</Text>
+        <Text color={pulseColor} dimColor={pulseDim}>{content}</Text>
+        <Text color={pulseColor} dimColor={pulseDim}>│</Text>
+      </Text>
+    );
+  };
   
   // 显示思考中状态
   if (isStreaming) {
     return (
-      <Box 
-        borderStyle="round" 
-        borderColor="cyan" 
-        paddingX={1}
-        marginBottom={1}
-      >
-        <Text color="cyan">💬 正在生成 {cursor}</Text>
+      <Box flexDirection="column" width={boxWidth} marginBottom={1}>
+        {renderBorderLine(0)}
+        {renderMiddleLine()}
+        {renderBorderLine(boxHeight - 1)}
       </Box>
     );
   }
