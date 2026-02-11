@@ -7,7 +7,7 @@ interface HeaderProps {
   model: string;
 }
 
-export const Header: React.FC<HeaderProps> = ({ workspace, model }) => {
+const HeaderComponent: React.FC<HeaderProps> = ({ workspace, model }) => {
   const shortPath = path.basename(workspace);
 
   return (
@@ -36,3 +36,6 @@ export const Header: React.FC<HeaderProps> = ({ workspace, model }) => {
     </Box>
   );
 };
+
+// 用 memo 包裹，props 不变时跳过重渲染
+export const Header = React.memo(HeaderComponent);

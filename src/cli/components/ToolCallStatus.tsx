@@ -12,7 +12,7 @@ interface Props {
   record: ToolCallRecord;
 }
 
-export function ToolCallStatus({ record }: Props) {
+function ToolCallStatusComponent({ record }: Props) {
   const { toolLabel, status, result } = record;
 
   // 状态图标
@@ -97,3 +97,15 @@ export function ToolCallStatus({ record }: Props) {
     </Box>
   );
 }
+
+// 用 memo 包裹，根据 record.id 的值判断是否重新渲染
+// 同一个工具的同一个 record.id 在执行过程中会更新 status/result，需要重渲
+export const ToolCallStatus = React.memo(ToolCallStatusComponent, (prevProps, nextProps) => {
+  // 返回 true 表示跳过重渲染
+  // record.id 相同且 status/result 相同时才跳过
+  return (
+    prevProps.record.id === nextProps.record.id &&
+    prevProps.record.status === nextProps.record.status &&
+    prevProps.record.result === nextProps.record.result
+  );
+});

@@ -8,7 +8,7 @@ interface InputBoxProps {
   onHistoryDown: () => string | undefined;
 }
 
-export const InputBox: React.FC<InputBoxProps> = ({
+const InputBoxComponent: React.FC<InputBoxProps> = ({
   onSubmit,
   disabled,
   onHistoryUp,
@@ -60,3 +60,16 @@ export const InputBox: React.FC<InputBoxProps> = ({
     </Box>
   );
 };
+
+// 用 memo 包裹，props 不变时跳过重渲染
+// 注意：disabled 状态会频繁变化，但这对性能影响较小
+export const InputBox = React.memo(InputBoxComponent, (prevProps, nextProps) => {
+  // 返回 true 表示跳过重渲染 - disabled 和 callbacks 变化时才重渲
+
+  return (
+    prevProps.disabled === nextProps.disabled &&
+    prevProps.onSubmit === nextProps.onSubmit &&
+    prevProps.onHistoryUp === nextProps.onHistoryUp &&
+    prevProps.onHistoryDown === nextProps.onHistoryDown
+  );
+});

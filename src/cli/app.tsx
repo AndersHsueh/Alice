@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, useApp, useInput } from 'ink';
 import { Banner } from './components/Banner.js';
 import { Header } from './components/Header.js';
@@ -174,6 +174,19 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     try {
       const startTime = Date.now();
       
+      // 流式输出节流：缓存 chunk，每 50ms 批量刷新一次
+      const THROTTLE_MS = 50;
+      let buffer = '';
+      let lastFlush = Date.now();
+
+      const flushBuffer = () => {
+        if (buffer.length > 0) {
+          setStreamingContent(prev => prev + buffer);
+          buffer = '';
+          lastFlush = Date.now();
+        }
+      };
+
       for await (const chunk of llmClient.chatStreamWithTools(
         [...messages, userMsg],
         (record) => {
@@ -188,8 +201,17 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
           });
         }
       )) {
-        setStreamingContent(prev => prev + chunk);
+        buffer += chunk;
+
+        // 定期刷新缓冲区
+        const now = Date.now();
+        if (now - lastFlush >= THROTTLE_MS) {
+          flushBuffer();
+        }
       }
+
+      // 最后确保所有剩余的 chunk 都被刷新
+      flushBuffer();
 
       const responseTime = Date.now() - startTime;
       statusManager.updateResponseTime(responseTime);

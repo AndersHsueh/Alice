@@ -20,7 +20,7 @@ export interface StatusBarProps {
   enabled?: boolean;
 }
 
-export const StatusBar: React.FC<StatusBarProps> = ({
+const StatusBarComponent: React.FC<StatusBarProps> = ({
   model,
   connectionStatus,
   tokenUsage,
@@ -84,3 +84,6 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     </Box>
   );
 };
+
+// 用 memo 包裹，props 不变时跳过重渲染
+export const StatusBar = React.memo(StatusBarComponent);
