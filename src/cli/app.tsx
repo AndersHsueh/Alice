@@ -8,6 +8,8 @@ import { StatusBar } from './components/StatusBar.js';
 import { ToolCallStatus } from './components/ToolCallStatus.js';
 import { DangerousCommandConfirm } from './components/DangerousCommandConfirm.js';
 import { LLMClient } from '../core/llm.js';
+import { CommandRegistry } from '../core/commandRegistry.js';
+import { builtinCommands } from '../core/builtinCommands.js';
 import { configManager } from '../utils/config.js';
 import { statusManager } from '../core/statusManager.js';
 import { toolRegistry, builtinTools } from '../tools/index.js';
@@ -37,6 +39,11 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
     connectionStatus: { type: 'disconnected' },
     tokenUsage: { used: 0, total: 0 },
     responseTime: undefined,
+  });
+  const [commandRegistry] = useState(() => {
+    const registry = new CommandRegistry();
+    builtinCommands.forEach(cmd => registry.register(cmd));
+    return registry;
   });
   const { exit } = useApp();
 
@@ -96,11 +103,14 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
   });
 
   const handleSubmit = async (input: string) => {
-    if (!llmClient || isProcessing) return;
+    if (!llmClient || isProcessing) {
+      // 但命令可以在没有 llmClient 的情况下执行
+      if (!input.startsWith('/') || !llmClient) return;
+    }
 
     // 处理命令
     if (input.startsWith('/')) {
-      handleCommand(input);
+      await handleCommand(input);
       return;
     }
 
@@ -166,50 +176,28 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
     }
   };
 
-  const handleCommand = (cmd: string) => {
-    const command = cmd.toLowerCase();
+  const handleCommand = async (cmd: string) => {
+    try {
+      // 解析命令名和参数（去掉前面的 /）
+      const [cmdName, ...args] = cmd.slice(1).split(/\s+/);
 
-    if (command === '/help') {
-      const helpMsg: Message = {
+      // 使用命令注册表执行命令
+      await commandRegistry.execute(cmdName, args, {
+        messages,
+        setMessages,
+        config: configManager.get(),
+        workspace: configManager.get().workspace,
+        llmClient,
+        exit: (code?: any) => exit(code),
+      });
+    } catch (error: any) {
+      // 显示错误信息
+      const errorMsg: Message = {
         role: 'assistant',
-        content: `📚 可用命令：
-/help - 显示帮助信息
-/clear - 清空对话历史
-/quit - 退出 ALICE
-/config - 查看当前配置
-
-💡 直接输入问题开始对话！`,
+        content: `❌ ${error.message}`,
         timestamp: new Date(),
       };
-      setMessages(prev => [...prev, helpMsg]);
-    } else if (command === '/clear') {
-      setMessages([]);
-    } else if (command === '/quit') {
-      exit();
-    } else if (command === '/config') {
-      const config = configManager.get();
-      const defaultModel = configManager.getDefaultModel();
-      
-      const configMsg: Message = {
-        role: 'assistant',
-        content: `⚙️ 当前配置：
-默认模型: ${config.default_model}
-推荐模型: ${config.suggest_model}
-当前使用: ${defaultModel?.name || '未知'} (${defaultModel?.provider || '未知'})
-API 端点: ${defaultModel?.baseURL || '未知'}
-工作目录: ${config.workspace}
-
-💡 运行 'alice --test-model' 可测速所有模型`,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, configMsg]);
-    } else {
-      const unknownMsg: Message = {
-        role: 'assistant',
-        content: `❓ 未知命令: ${cmd}。输入 /help 查看可用命令。`,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, unknownMsg]);
+      setMessages(prev => [...prev, errorMsg]);
     }
   };
 
