@@ -150,7 +150,7 @@ export class LLMClient {
 
     const tools = toolRegistry.toOpenAIFunctions();
     let conversationMessages = [...messages];
-    let maxIterations = 10;
+    const maxIterations = configManager.getMaxIterations();
     let iteration = 0;
 
     while (iteration < maxIterations) {
@@ -223,7 +223,7 @@ export class LLMClient {
 
     const tools = toolRegistry.toOpenAIFunctions();
     let conversationMessages = [...messages];
-    let maxIterations = 10;
+    const maxIterations = configManager.getMaxIterations();
     let iteration = 0;
 
     while (iteration < maxIterations) {

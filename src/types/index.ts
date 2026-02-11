@@ -88,6 +88,7 @@ export interface Config {
   workspace: string;
   dangerous_cmd: boolean;  // 危险命令确认开关
   keybindings?: Record<string, string | string[]>;  // 键绑定配置
+  maxIterations?: number;  // 工具调用最大迭代次数（5-20，默认10）
 }
 
 // 导出工具相关类型
