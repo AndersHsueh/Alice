@@ -2,22 +2,20 @@
 import React from 'react';
 import { render } from 'ink';
 import { App } from './cli/app.js';
-import { testAllModels } from './utils/test-model.js';
+import { parseArgs } from './utils/cliArgs.js';
 
-// 解析命令行参数
-const args = process.argv.slice(2);
-const skipBanner = args.includes('--no-banner');
-const testModel = args.includes('--test-model');
+async function main() {
+  const { options: cliOptions, shouldExit } = await parseArgs();
 
-// 如果是测试模式，直接执行测速并退出
-if (testModel) {
-  testAllModels()
-    .then(() => process.exit(0))
-    .catch((error) => {
-      console.error('测速失败:', error);
-      process.exit(1);
-    });
-} else {
-  // 渲染应用
-  render(<App skipBanner={skipBanner} />);
+  if (shouldExit) {
+    process.exit(0);
+  }
+
+  // 渲染应用，传入 CLI 选项
+  render(<App skipBanner={cliOptions.skipBanner} cliOptions={cliOptions} />);
 }
+
+main().catch((error) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});

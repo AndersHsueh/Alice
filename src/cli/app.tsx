@@ -16,12 +16,14 @@ import { toolRegistry, builtinTools } from '../tools/index.js';
 import type { Message } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
 import type { StatusInfo } from '../core/statusManager.js';
+import type { CLIOptions } from '../utils/cliArgs.js';
 
 interface AppProps {
   skipBanner?: boolean;
+  cliOptions?: CLIOptions;
 }
 
-export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
+export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} }) => {
   const [showBanner, setShowBanner] = useState(!skipBanner);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -62,15 +64,54 @@ export const App: React.FC<AppProps> = ({ skipBanner = false }) => {
   const initializeApp = async () => {
     statusManager.updateConnectionStatus('connecting');
     
-    await configManager.init();
-    const config = configManager.get();
+    // 如果指定了 --config，使用自定义配置路径
+    if (cliOptions.config) {
+      await configManager.init(cliOptions.config);
+    } else {
+      await configManager.init();
+    }
+
+    let config = configManager.get();
     const systemPrompt = await configManager.loadSystemPrompt();
     
-    const defaultModel = configManager.getDefaultModel();
+    // 应用 CLI 参数覆盖
+    // 1. 处理 --workspace
+    if (cliOptions.workspace) {
+      config = { ...config, workspace: cliOptions.workspace };
+      try {
+        process.chdir(cliOptions.workspace);
+      } catch (error) {
+        console.error(`❌ 无法切换到目录: ${cliOptions.workspace}`);
+      }
+    }
+
+    // 2. 处理 --model
+    let defaultModel = configManager.getDefaultModel();
+    if (cliOptions.model) {
+      const selectedModel = configManager.getModel(cliOptions.model);
+      if (selectedModel) {
+        defaultModel = selectedModel;
+      } else {
+        const availableModels = config.models.map(m => m.name).join(', ');
+        console.error(`❌ 模型 '${cliOptions.model}' 未找到。可用模型: ${availableModels}`);
+        statusManager.updateConnectionStatus('disconnected');
+        return;
+      }
+    }
+
     if (!defaultModel) {
-      console.error('错误：未找到默认模型配置');
+      console.error('❌ 错误：未找到默认模型配置');
       statusManager.updateConnectionStatus('disconnected');
       return;
+    }
+    
+    // 3. 处理 --verbose / --debug
+    if (cliOptions.verbose) {
+      // 可以在此处设置全局日志级别（如果实现了日志系统）
+      console.log('ℹ️ 详细日志输出已启用');
+    }
+    if (cliOptions.debug) {
+      console.log('🐛 调试模式已启用');
     }
     
     toolRegistry.registerAll(builtinTools);

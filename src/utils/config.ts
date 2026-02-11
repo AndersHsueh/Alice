@@ -68,7 +68,15 @@ export class ConfigManager {
     this.legacyConfigPath = path.join(this.configDir, 'config.json');
   }
 
-  async init(): Promise<void> {
+  async init(customConfigPath?: string): Promise<void> {
+    // 如果指定了自定义配置路径，使用该路径
+    if (customConfigPath) {
+      this.settingsPath = customConfigPath;
+      // 自定义路径时，直接加载（不进行迁移检查）
+      await this.load();
+      return;
+    }
+
     await fs.mkdir(this.configDir, { recursive: true });
     
     // 检查是否需要从旧配置迁移
