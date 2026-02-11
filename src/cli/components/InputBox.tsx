@@ -61,15 +61,6 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
   );
 };
 
-// 用 memo 包裹，props 不变时跳过重渲染
-// 注意：disabled 状态会频繁变化，但这对性能影响较小
-export const InputBox = React.memo(InputBoxComponent, (prevProps, nextProps) => {
-  // 返回 true 表示跳过重渲染 - disabled 和 callbacks 变化时才重渲
-
-  return (
-    prevProps.disabled === nextProps.disabled &&
-    prevProps.onSubmit === nextProps.onSubmit &&
-    prevProps.onHistoryUp === nextProps.onHistoryUp &&
-    prevProps.onHistoryDown === nextProps.onHistoryDown
-  );
-});
+// InputBox 使用内部 useState 管理输入状态
+// useInput hook 直接操作内部 state，不受外部 memo 影响
+export const InputBox = InputBoxComponent;

@@ -216,13 +216,19 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       const responseTime = Date.now() - startTime;
       statusManager.updateResponseTime(responseTime);
 
-      const assistantMsg: Message = {
-        role: 'assistant',
-        content: streamingContent,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, assistantMsg]);
-      setStreamingContent('');
+      // 使用函数式更新获取最新的 streamingContent 值
+      // （闭包中的 streamingContent 是旧值，必须通过 setState 回调获取最新值）
+      setStreamingContent(currentContent => {
+        if (currentContent) {
+          const assistantMsg: Message = {
+            role: 'assistant',
+            content: currentContent,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, assistantMsg]);
+        }
+        return '';
+      });
     } catch (error) {
       statusManager.updateConnectionStatus('disconnected');
       
