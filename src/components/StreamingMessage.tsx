@@ -7,7 +7,6 @@ import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { marked } from 'marked';
 import TerminalRenderer from 'marked-terminal';
-import Table from 'cli-table3';
 import { parseMarkdownBlocks, type MarkdownBlock } from '../utils/markdownParser.js';
 import { parseMarkdownTable, renderTable } from '../utils/tableRenderer.js';
 
@@ -87,9 +86,19 @@ const RenderBlock: React.FC<{ block: MarkdownBlock; showCursor?: boolean }> = Re
   ({ block, showCursor = false }) => {
     // 完整的块用 Markdown 渲染
     if (block.isComplete) {
-      // 统一使用 marked 渲染（包括表格）
+      if (block.type === 'table') {
+        const rows = parseMarkdownTable(block.content);
+        const renderedTable = renderTable(rows);
+        return (
+          <Box marginBottom={1}>
+            <Text>{renderedTable}</Text>
+          </Box>
+        );
+      }
+
+      // 统一使用 marked 渲染（非表格）
       const rendered = marked.parse(block.content, { async: false }) as string;
-      
+
       return (
         <Box marginBottom={block.type === 'paragraph' ? 0 : 1}>
           <Text>{rendered}</Text>
@@ -155,14 +164,23 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
  * 静态消息组件（已完成的历史消息）
  */
 export const StaticMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
-  if (!content) return null;
-  
-  // 统一使用 marked 渲染
-  const rendered = marked.parse(content, { async: false }) as string;
-  
+  const blocks = useMemo(() => {
+    if (!content) return [];
+    return parseMarkdownBlocks(content);
+  }, [content]);
+
+  if (!content || blocks.length === 0) {
+    return null;
+  }
+
   return (
     <Box marginLeft={2} flexDirection="column">
-      <Text>{rendered}</Text>
+      {blocks.map((block, idx) => (
+        <RenderBlock
+          key={`${block.type}-${block.startLine}-${idx}`}
+          block={block}
+        />
+      ))}
     </Box>
   );
 });
