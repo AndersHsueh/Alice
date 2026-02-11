@@ -26,6 +26,7 @@ export class LLMClient {
         apiKey: modelConfig.apiKey,
         temperature: modelConfig.temperature,
         maxTokens: modelConfig.maxTokens,
+        promptCaching: modelConfig.promptCaching,
       },
       systemPrompt
     );

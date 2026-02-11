@@ -7,6 +7,7 @@ export interface ProviderConfig {
   apiKey?: string;
   temperature: number;
   maxTokens: number;
+  promptCaching?: boolean;  // 提示词缓存（默认 true）
 }
 
 /**
@@ -44,12 +45,30 @@ export abstract class BaseProvider {
   ): AsyncGenerator<ChatResponse>;
 
   protected buildMessages(messages: Message[]): Array<any> {
-    const result: any[] = [
-      {
+    const enableCaching = this.config.promptCaching !== false; // 默认开启
+    
+    const result: any[] = [];
+    
+    // System prompt - 支持 prompt caching
+    if (enableCaching) {
+      // Anthropic/OpenAI 的 prompt caching 格式
+      result.push({
+        role: 'system',
+        content: [
+          {
+            type: 'text',
+            text: this.systemPrompt,
+            cache_control: { type: 'ephemeral' }
+          }
+        ]
+      });
+    } else {
+      // 标准格式（不支持缓存的提供商会忽略 cache_control 字段）
+      result.push({
         role: 'system',
         content: this.systemPrompt,
-      },
-    ];
+      });
+    }
 
     for (const msg of messages) {
       if (msg.role === 'tool') {

@@ -27,6 +27,7 @@ export interface ModelConfig {
   maxTokens: number;
   last_update_datetime: string | null;
   speed: number | null;
+  promptCaching?: boolean;  // 提示词缓存（默认 true）
 }
 
 export interface UIConfig {
