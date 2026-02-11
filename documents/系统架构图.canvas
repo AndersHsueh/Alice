@@ -1,0 +1,262 @@
+{
+  "nodes": [
+    {
+      "id": "prd",
+      "type": "file",
+      "file": "documents/产品需求文档.md",
+      "x": -600,
+      "y": -400,
+      "width": 400,
+      "height": 300,
+      "color": "#00D9FF"
+    },
+    {
+      "id": "tech-arch",
+      "type": "file",
+      "file": "documents/技术架构.md",
+      "x": 100,
+      "y": -400,
+      "width": 350,
+      "height": 300,
+      "color": "#B030FF"
+    },
+    {
+      "id": "knowledge",
+      "type": "file",
+      "file": "documents/知识管理模块.md",
+      "x": -600,
+      "y": 0,
+      "width": 300,
+      "height": 250,
+      "color": "#FFB030"
+    },
+    {
+      "id": "tools",
+      "type": "file",
+      "file": "documents/工具系统.md",
+      "x": -200,
+      "y": 0,
+      "width": 300,
+      "height": 250,
+      "color": "#30FF80"
+    },
+    {
+      "id": "ui-layer",
+      "type": "text",
+      "text": "# 用户界面层\n\n## React 组件 (Ink)\n- Banner (启动动画)\n- Header (信息栏)\n- ChatArea (对话区)\n- InputBox (输入框)\n- StatusBar (状态栏)\n- ToolCallStatus (工具状态)\n- DangerousCommandConfirm (确认对话框)\n\n## 职责\n- 状态管理 (useState)\n- 事件处理 (useInput)\n- 视觉渲染",
+      "x": 600,
+      "y": -500,
+      "width": 350,
+      "height": 400,
+      "color": "#00D9FF"
+    },
+    {
+      "id": "core-layer",
+      "type": "text",
+      "text": "# 核心业务层\n\n## LLMClient\n- 消息管理\n- 流式输出 (SSE)\n- 智能降级\n- Provider 适配\n\n## ToolExecutor\n- 工具注册\n- 参数验证\n- 安全检查\n- 结果收集\n\n## 管理器\n- SessionManager (会话)\n- StatusManager (状态)\n- ConfigManager (配置)",
+      "x": 600,
+      "y": 0,
+      "width": 350,
+      "height": 450,
+      "color": "#B030FF"
+    },
+    {
+      "id": "data-layer",
+      "type": "text",
+      "text": "# 数据访问层\n\n## Provider 适配器\n- OpenAI Compatible\n  - LM Studio\n  - Ollama\n  - OpenAI\n  - Azure\n  - Custom\n\n## 工具注册表\n- 7 个内置工具\n  - readFile\n  - listFiles\n  - searchFiles\n  - getCurrentDirectory\n  - getGitInfo\n  - getCurrentDateTime\n  - executeCommand",
+      "x": 600,
+      "y": 550,
+      "width": 350,
+      "height": 450,
+      "color": "#FFB030"
+    },
+    {
+      "id": "llm-services",
+      "type": "text",
+      "text": "# LLM 服务\n\n## 本地部署\n- LM Studio (端口 1234)\n- Ollama (端口 11434)\n\n## 云服务\n- OpenAI\n- Azure OpenAI\n\n## 自定义\n- 任何 OpenAI 兼容 API",
+      "x": 1100,
+      "y": -100,
+      "width": 280,
+      "height": 350,
+      "color": "#30FF80"
+    },
+    {
+      "id": "system-api",
+      "type": "text",
+      "text": "# 系统 API\n\n## 文件系统\n- fs (读写文件)\n- glob (文件搜索)\n\n## Git\n- simple-git\n\n## 系统命令\n- child_process\n\n## 其他\n- 时间/日期\n- 环境变量",
+      "x": 1100,
+      "y": 350,
+      "width": 280,
+      "height": 350,
+      "color": "#FF6B6B"
+    },
+    {
+      "id": "config",
+      "type": "text",
+      "text": "# 配置系统\n\n## 配置文件\n~/.alice/settings.jsonc\n\n## 配置项\n- default_model\n- suggest_model\n- models[] (多模型)\n- ui (主题/Banner)\n- workspace\n- dangerous_cmd\n\n## 特性\n- JSONC 格式 (支持注释)\n- 环境变量替换\n- JSON Schema 验证",
+      "x": -600,
+      "y": 350,
+      "width": 350,
+      "height": 400,
+      "color": "#9B59B6"
+    },
+    {
+      "id": "function-calling",
+      "type": "text",
+      "text": "# Function Calling 流程\n\n1️⃣ 用户输入自然语言\n2️⃣ LLM 理解意图\n3️⃣ 选择工具 + 生成参数\n4️⃣ ToolExecutor 执行\n5️⃣ 收集结果\n6️⃣ LLM 整合回复\n7️⃣ 展示给用户\n\n## 安全机制\n- 危险命令检测\n- 用户确认\n- 路径安全检查\n- 参数 Schema 验证",
+      "x": -150,
+      "y": 350,
+      "width": 300,
+      "height": 400,
+      "color": "#3498DB"
+    },
+    {
+      "id": "feature-roadmap",
+      "type": "text",
+      "text": "# 功能路线图\n\n## ✅ v0.2.0 (当前)\n- 基础对话\n- 7个内置工具\n- Function Calling\n- 多后端支持\n- 智能降级\n- Banner 动画\n\n## 🔄 v0.3.0\n- 知识管理\n- Obsidian 集成\n- 文档处理\n\n## 📋 v0.4.0\n- 数据分析\n- 智能搜索\n- 报告生成\n\n## 🚀 v0.5.0\n- 插件系统\n- Web UI\n- 团队协作",
+      "x": -600,
+      "y": 850,
+      "width": 350,
+      "height": 450,
+      "color": "#E74C3C"
+    },
+    {
+      "id": "tech-stack",
+      "type": "text",
+      "text": "# 技术栈\n\n## 运行时\n- Node.js ≥18\n- TypeScript\n- ESM 模块\n\n## UI 框架\n- Ink (React for CLI)\n- chalk (颜色)\n- figlet (ASCII Art)\n- gradient-string\n\n## 核心库\n- axios (HTTP)\n- ajv (Schema 验证)\n- simple-git\n- glob\n- jsonc-parser\n\n## 打包\n- pkg / nexe",
+      "x": -150,
+      "y": 850,
+      "width": 300,
+      "height": 450,
+      "color": "#1ABC9C"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-prd-tech",
+      "fromNode": "prd",
+      "toNode": "tech-arch",
+      "label": "指导实现",
+      "color": "#808080",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "edge-prd-knowledge",
+      "fromNode": "prd",
+      "toNode": "knowledge",
+      "label": "功能模块",
+      "color": "#808080",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "edge-prd-tools",
+      "fromNode": "prd",
+      "toNode": "tools",
+      "label": "核心能力",
+      "color": "#808080",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "edge-tech-ui",
+      "fromNode": "tech-arch",
+      "toNode": "ui-layer",
+      "label": "UI 层",
+      "color": "#00D9FF",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "edge-tech-core",
+      "fromNode": "tech-arch",
+      "toNode": "core-layer",
+      "label": "核心层",
+      "color": "#B030FF",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "edge-tech-data",
+      "fromNode": "tech-arch",
+      "toNode": "data-layer",
+      "label": "数据层",
+      "color": "#FFB030",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "edge-ui-core",
+      "fromNode": "ui-layer",
+      "toNode": "core-layer",
+      "label": "调用",
+      "color": "#808080",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "edge-core-data",
+      "fromNode": "core-layer",
+      "toNode": "data-layer",
+      "label": "使用",
+      "color": "#808080",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "edge-data-llm",
+      "fromNode": "data-layer",
+      "toNode": "llm-services",
+      "label": "Provider",
+      "color": "#30FF80",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "edge-data-sys",
+      "fromNode": "data-layer",
+      "toNode": "system-api",
+      "label": "Tools",
+      "color": "#FF6B6B",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "edge-tools-fc",
+      "fromNode": "tools",
+      "toNode": "function-calling",
+      "label": "实现",
+      "color": "#808080",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "edge-tech-config",
+      "fromNode": "tech-arch",
+      "toNode": "config",
+      "label": "配置管理",
+      "color": "#9B59B6",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "edge-prd-roadmap",
+      "fromNode": "prd",
+      "toNode": "feature-roadmap",
+      "label": "版本规划",
+      "color": "#E74C3C",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "edge-tech-stack",
+      "fromNode": "tech-arch",
+      "toNode": "tech-stack",
+      "label": "技术选型",
+      "color": "#1ABC9C",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ]
+}
