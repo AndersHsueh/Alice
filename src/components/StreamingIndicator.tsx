@@ -1,11 +1,11 @@
 /**
  * 流式状态指示器
  * 显示 AI 思考状态和完成提示
+ * 简化版：不使用 Overlay，直接显示在顶部
  */
 
 import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
-import { Overlay } from './Overlay.js';
 
 export interface StreamingIndicatorProps {
   /** 是否正在流式输出 */
@@ -76,7 +76,7 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = ({
     return `${seconds}s`;
   };
   
-  // 估算 token 数（粗略估计：中文 ~1.5 字符/token，英文 ~4 字符/token）
+  // 估算 token 数
   const estimateTokens = (count: number) => {
     return Math.floor(count / 2.5);
   };
@@ -84,22 +84,14 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = ({
   // 显示思考中状态
   if (isStreaming) {
     return (
-      <Overlay
-        visible={true}
-        options={{
-          anchor: 'top-right',
-          width: 28,
-          maxHeight: 3,
-          showBackdrop: false,
-          borderStyle: 'round',
-          padding: 0
-        }}
+      <Box 
+        borderStyle="round" 
+        borderColor="cyan" 
+        paddingX={1}
+        marginBottom={1}
       >
-        <Box paddingX={1}>
-          <Text color="cyan">💬 正在生成</Text>
-          <Text color="cyan"> {cursor}</Text>
-        </Box>
-      </Overlay>
+        <Text color="cyan">💬 正在生成 {cursor}</Text>
+      </Box>
     );
   }
   
@@ -108,25 +100,17 @@ export const StreamingIndicator: React.FC<StreamingIndicatorProps> = ({
     const tokens = estimateTokens(tokenCount);
     
     return (
-      <Overlay
-        visible={true}
-        options={{
-          anchor: 'top-right',
-          width: 32,
-          maxHeight: 3,
-          showBackdrop: false,
-          borderStyle: 'round',
-          padding: 0
-        }}
+      <Box 
+        borderStyle="round" 
+        borderColor="green" 
+        paddingX={1}
+        marginBottom={1}
       >
-        <Box paddingX={1}>
-          <Text color="green">✨ 完成!</Text>
-          <Text dimColor> {formatTime(elapsedTime)}</Text>
-          {tokens > 0 && (
-            <Text dimColor> · {tokens} tokens</Text>
-          )}
-        </Box>
-      </Overlay>
+        <Text color="green">✨ 完成! {formatTime(elapsedTime)}</Text>
+        {tokens > 0 && (
+          <Text dimColor> · {tokens} tokens</Text>
+        )}
+      </Box>
     );
   }
   
