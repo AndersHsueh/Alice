@@ -8,12 +8,15 @@ import { StatusBar } from './components/StatusBar.js';
 import { ToolCallStatus } from './components/ToolCallStatus.js';
 import { DangerousCommandConfirm } from './components/DangerousCommandConfirm.js';
 import { QuestionPrompt } from './components/QuestionPrompt.js';
+import { ExitReport } from './components/ExitReport.js';
 import { LLMClient } from '../core/llm.js';
 import { CommandRegistry } from '../core/commandRegistry.js';
 import { builtinCommands } from '../core/builtinCommands.js';
 import { configManager } from '../utils/config.js';
 import { themeManager } from '../core/theme.js';
 import { statusManager } from '../core/statusManager.js';
+import { sessionManager } from '../core/session.js';
+import { StatsTracker } from '../core/statsTracker.js';
 import { toolRegistry, builtinTools, setQuestionDialogCallback } from '../tools/index.js';
 import { KeyAction } from '../core/keybindings.js';
 import type { Message } from '../types/index.js';
@@ -51,11 +54,17 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     tokenUsage: { used: 0, total: 0 },
     responseTime: undefined,
   });
+  const [showExitReport, setShowExitReport] = useState(false);
   const [commandRegistry] = useState(() => {
     const registry = new CommandRegistry();
     builtinCommands.forEach(cmd => registry.register(cmd));
     return registry;
   });
+  
+  // 引用
+  const statsTrackerRef = useRef<StatsTracker | null>(null);
+  const sessionIdRef = useRef<string>('');
+  
   const { exit } = useApp();
 
   // 设置 ask_user 工具的回调函数
@@ -87,6 +96,15 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
 
     // 初始化主题系统
     await themeManager.init();
+
+    // 初始化会话系统
+    await sessionManager.init();
+    const session = await sessionManager.createSession();
+    sessionIdRef.current = session.id;
+    statusManager.updateSessionId(session.id);
+    
+    // 初始化统计跟踪器
+    statsTrackerRef.current = new StatsTracker();
 
     let config = configManager.get();
     const systemPrompt = await configManager.loadSystemPrompt();
