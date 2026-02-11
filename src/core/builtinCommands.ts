@@ -3,7 +3,9 @@
  * ALICE CLI 应用中的标准命令
  */
 
+import path from 'path';
 import type { AliceCommand, CommandContext } from './commandRegistry.js';
+import { exportToHTML, exportToMarkdown, generateDefaultFilename } from '../utils/exporter.js';
 
 /**
  * /help 命令 - 显示帮助信息
@@ -22,6 +24,7 @@ export const helpCommand: AliceCommand = {
   /help (/h, /?) - 显示帮助信息
   /clear (/cls) - 清空对话历史
   /config - 查看当前配置
+  /export [html|md] [filename] - 导出会话
   /quit (/q, /exit) - 退出程序
 
 💡 直接输入问题开始对话！
@@ -89,6 +92,65 @@ export const configCommand: AliceCommand = {
 };
 
 /**
+ * /export 命令 - 导出会话
+ * 用法: /export [html|md] [filename]
+ */
+export const exportCommand: AliceCommand = {
+  name: 'export',
+  description: '导出会话为 HTML 或 Markdown',
+
+  async handler(args, ctx) {
+    try {
+      // 解析参数: /export html myfile.html
+      const format = args[0]?.toLowerCase() || 'html';
+      let filename = args[1];
+
+      // 验证格式
+      if (format !== 'html' && format !== 'md') {
+        const errorMsg: any = {
+          role: 'assistant',
+          content: `❌ 不支持的格式 "${format}"。支持的格式: html, md\n\n用法:\n  /export html [filename]\n  /export md [filename]`,
+          timestamp: new Date(),
+        };
+        ctx.setMessages([...ctx.messages, errorMsg]);
+        return;
+      }
+
+      // 生成默认文件名
+      if (!filename) {
+        filename = generateDefaultFilename(format as 'html' | 'md');
+      } else if (!filename.endsWith(`.${format}`)) {
+        filename = `${filename}.${format}`;
+      }
+
+      // 解析为绝对路径
+      const outputPath = path.resolve(process.cwd(), filename);
+
+      // 导出
+      if (format === 'html') {
+        await exportToHTML(ctx.messages, outputPath);
+      } else {
+        await exportToMarkdown(ctx.messages, outputPath);
+      }
+
+      const successMsg: any = {
+        role: 'assistant',
+        content: `✅ 会话已成功导出！\n\n📄 文件: ${outputPath}\n📊 消息数: ${ctx.messages.filter(m => m.role !== 'system').length}`,
+        timestamp: new Date(),
+      };
+      ctx.setMessages([...ctx.messages, successMsg]);
+    } catch (error: any) {
+      const errorMsg: any = {
+        role: 'assistant',
+        content: `❌ 导出失败: ${error.message}`,
+        timestamp: new Date(),
+      };
+      ctx.setMessages([...ctx.messages, errorMsg]);
+    }
+  },
+};
+
+/**
  * 所有内置命令列表
  */
 export const builtinCommands: AliceCommand[] = [
@@ -96,4 +158,5 @@ export const builtinCommands: AliceCommand[] = [
   clearCommand,
   quitCommand,
   configCommand,
+  exportCommand,
 ];
