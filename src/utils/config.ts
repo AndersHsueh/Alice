@@ -4,6 +4,7 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import * as jsonc from 'jsonc-parser';
 import type { Config, ModelConfig, UIConfig } from '../types/index.js';
+import { KeybindingManager, parseKeybindings } from '../core/keybindings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -152,6 +153,15 @@ export class ConfigManager {
 
   getSuggestModel(): ModelConfig | undefined {
     return this.getModel(this.get().suggest_model);
+  }
+
+  getKeybindingManager(): KeybindingManager {
+    const config = this.get();
+    if (config.keybindings) {
+      const customBindings = parseKeybindings(config.keybindings);
+      return new KeybindingManager(customBindings);
+    }
+    return new KeybindingManager();
   }
 
   getConfigDir(): string {

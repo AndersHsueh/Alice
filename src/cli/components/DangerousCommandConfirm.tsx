@@ -5,6 +5,8 @@
 import React, { useState } from 'react';
 import { Box, Text } from 'ink';
 import { useInput } from 'ink';
+import { configManager } from '../../utils/config.js';
+import { KeyAction } from '../../core/keybindings.js';
 
 interface Props {
   message: string;
@@ -14,12 +16,15 @@ interface Props {
 
 export function DangerousCommandConfirm({ message, command, onConfirm }: Props) {
   const [confirmed, setConfirmed] = useState(false);
+  const keybindingManager = configManager.getKeybindingManager();
 
   useInput((input, key) => {
-    if (input === 'y' || input === 'Y') {
+    const action = keybindingManager.match(input, key);
+    
+    if (action === KeyAction.Confirm) {
       setConfirmed(true);
       onConfirm(true);
-    } else if (input === 'n' || input === 'N' || key.escape) {
+    } else if (action === KeyAction.Cancel) {
       onConfirm(false);
     }
   });

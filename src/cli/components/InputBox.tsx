@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
+import { configManager } from '../../utils/config.js';
+import { KeyAction } from '../../core/keybindings.js';
 
 interface InputBoxProps {
   onSubmit: (text: string) => void;
@@ -15,36 +17,49 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
   onHistoryDown,
 }) => {
   const [input, setInput] = useState('');
+  const keybindingManager = configManager.getKeybindingManager();
 
   useInput((inputChar, key) => {
     if (disabled) return;
 
-    if (key.return) {
-      if (input.trim()) {
-        onSubmit(input.trim());
-        setInput('');
-      }
-    } else if (key.upArrow) {
-      const prev = onHistoryUp();
-      if (prev !== undefined) {
-        setInput(prev);
-      }
-    } else if (key.downArrow) {
-      const next = onHistoryDown();
-      if (next !== undefined) {
-        setInput(next);
-      }
-    } else if (key.backspace || key.delete) {
-      // 删除一个字符（正确处理中文等多字节字符）
-      setInput(prev => {
-        if (prev.length === 0) return prev;
-        // 使用 Array.from 正确处理 Unicode 字符
-        const chars = Array.from(prev);
-        return chars.slice(0, -1).join('');
-      });
-    } else if (!key.ctrl && !key.meta && !key.escape && inputChar) {
-      // 添加字符（正确处理中文输入）
-      setInput(prev => prev + inputChar);
+    const action = keybindingManager.match(inputChar, key);
+
+    switch (action) {
+      case KeyAction.Submit:
+        if (input.trim()) {
+          onSubmit(input.trim());
+          setInput('');
+        }
+        break;
+
+      case KeyAction.HistoryUp:
+        const prev = onHistoryUp();
+        if (prev !== undefined) {
+          setInput(prev);
+        }
+        break;
+
+      case KeyAction.HistoryDown:
+        const next = onHistoryDown();
+        if (next !== undefined) {
+          setInput(next);
+        }
+        break;
+
+      case KeyAction.DeleteChar:
+        setInput(prev => {
+          if (prev.length === 0) return prev;
+          const chars = Array.from(prev);
+          return chars.slice(0, -1).join('');
+        });
+        break;
+
+      default:
+        // 普通字符输入
+        if (!key.ctrl && !key.meta && !key.escape && inputChar) {
+          setInput(prev => prev + inputChar);
+        }
+        break;
     }
   });
 

@@ -14,6 +14,7 @@ import { builtinCommands } from '../core/builtinCommands.js';
 import { configManager } from '../utils/config.js';
 import { statusManager } from '../core/statusManager.js';
 import { toolRegistry, builtinTools, setQuestionDialogCallback } from '../tools/index.js';
+import { KeyAction } from '../core/keybindings.js';
 import type { Message } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
 import type { StatusInfo } from '../core/statusManager.js';
@@ -149,8 +150,11 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     statusManager.updateConnectionStatus('connected', defaultModel.provider);
   };
 
+  // 全局键绑定（Quit等）
+  const keybindingManager = configManager.getKeybindingManager();
   useInput((input, key) => {
-    if (key.ctrl && input === 'c') {
+    const action = keybindingManager.match(input, key);
+    if (action === KeyAction.Quit) {
       exit();
     }
   });

@@ -51,6 +51,7 @@ export interface Config {
   ui: UIConfig;
   workspace: string;
   dangerous_cmd: boolean;  // 危险命令确认开关
+  keybindings?: Record<string, string | string[]>;  // 键绑定配置
 }
 
 // 导出工具相关类型
