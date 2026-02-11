@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type { Message } from '../../types/index.js';
-import { StreamingMessage, StaticMessage } from '../../components/StreamingMessage.js';
+import { Markdown } from '../../components/Markdown.js';
+import { StreamingMessage } from '../../components/StreamingMessage.js';
 import { StreamingIndicator } from '../../components/StreamingIndicator.js';
 
 interface ChatAreaProps {
@@ -28,7 +29,7 @@ const MessageItem: React.FC<{ message: Message; index: number }> = React.memo(
           <Text wrap="wrap">{message.content}</Text>
         </Box>
       ) : (
-        <StaticMessage content={message.content} />
+        <Markdown content={message.content} indent={2} />
       )}
     </Box>
   ),
