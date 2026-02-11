@@ -383,12 +383,14 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       )}
       
       {questionDialog && (
-        <QuestionPrompt
-          question={questionDialog.question}
-          choices={questionDialog.choices}
-          allowFreeform={questionDialog.allowFreeform}
-          onAnswer={questionDialog.onAnswer}
-        />
+        <Box marginLeft={2} marginRight={2}>
+          <QuestionPrompt
+            question={questionDialog.question}
+            choices={questionDialog.choices}
+            allowFreeform={questionDialog.allowFreeform}
+            onAnswer={questionDialog.onAnswer}
+          />
+        </Box>
       )}
       
       <InputBox
