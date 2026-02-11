@@ -6,7 +6,7 @@
 
 🤖 **ALICE** - 基于大语言模型的智能办公助手
 
-[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/AndersHsueh/Alice)
+[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/AndersHsueh/Alice)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 
@@ -24,6 +24,28 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 - 🔄 智能降级，保障可用性
 
 ## ✨ 特性
+
+### 🚀 v0.3.0 新功能
+
+**Skills 技能系统** (#7)
+- 🧠 三阶段渐进式加载（Discovery → Instruction → Resource）
+- 📦 6 个默认技能自动安装（obsidian-markdown、skill-creator 等）
+- 🔍 按需加载，避免上下文窗口膨胀
+- 🛠️ `loadSkill` 工具供 AI 按需调用
+
+**MCP 支持** (#6)
+- 🔌 Model Context Protocol 客户端
+- 📡 最多 3 个 MCP 服务器同时连接
+- 🌐 默认内置 `fetch` MCP 服务器
+- 🔧 独立配置文件 `~/.Alice/mcp_settings.jsonc`
+
+**组件化 UI** (#14)
+- 🎨 5 个可复用 UI 组件（Markdown、SelectList 等）
+- 📦 barrel export 统一导出
+
+**其他改进**
+- ⚙️ `maxIterations` 可配置（工具调用最大迭代次数）
+- 🔧 ajv-formats 支持 MCP schema 格式验证
 
 ### 🚀 v0.2.0 新功能
 
@@ -365,7 +387,10 @@ Alice: node_modules 已删除，你可以运行 npm install 重新安装依赖�
   "workspace": ".",
 
   // 危险命令确认（true: 执行前需确认 | false: 直接执行）
-  "dangerous_cmd": true
+  "dangerous_cmd": true,
+
+  // 工具调用最大迭代次数（最小 5，最大 20，超出范围默认 10）
+  "maxIterations": 10
 }
 ```
 
@@ -583,6 +608,7 @@ npm run clean
 - [x] 组件化 UI 架构（5 个内置组件）
 - [x] MCP (Model Context Protocol) 支持
 - [x] Skills 技能系统（三阶段渐进式加载）
+- [x] 工具调用迭代次数可配置
 - [ ] Overlay 系统（浮层组件）
 - [ ] 扩展系统（Extension API）
 - [ ] sudo 密码管理
