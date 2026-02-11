@@ -9,6 +9,7 @@ export { getCurrentDirectoryTool } from './getCurrentDirectory.js';
 export { getGitInfoTool } from './getGitInfo.js';
 export { getCurrentDateTimeTool } from './getCurrentDateTime.js';
 export { executeCommandTool, isDangerousCommand } from './executeCommand.js';
+export { askUserTool, setQuestionDialogCallback } from './askUser.js';
 
 import { readFileTool } from './readFile.js';
 import { listFilesTool } from './listFiles.js';
@@ -17,6 +18,7 @@ import { getCurrentDirectoryTool } from './getCurrentDirectory.js';
 import { getGitInfoTool } from './getGitInfo.js';
 import { getCurrentDateTimeTool } from './getCurrentDateTime.js';
 import { executeCommandTool } from './executeCommand.js';
+import { askUserTool } from './askUser.js';
 
 /**
  * 所有内置工具列表
@@ -28,5 +30,6 @@ export const builtinTools = [
   getCurrentDirectoryTool,
   getGitInfoTool,
   getCurrentDateTimeTool,
-  executeCommandTool
+  executeCommandTool,
+  askUserTool
 ];

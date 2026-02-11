@@ -7,12 +7,13 @@ import { InputBox } from './components/InputBox.js';
 import { StatusBar } from './components/StatusBar.js';
 import { ToolCallStatus } from './components/ToolCallStatus.js';
 import { DangerousCommandConfirm } from './components/DangerousCommandConfirm.js';
+import { QuestionPrompt } from './components/QuestionPrompt.js';
 import { LLMClient } from '../core/llm.js';
 import { CommandRegistry } from '../core/commandRegistry.js';
 import { builtinCommands } from '../core/builtinCommands.js';
 import { configManager } from '../utils/config.js';
 import { statusManager } from '../core/statusManager.js';
-import { toolRegistry, builtinTools } from '../tools/index.js';
+import { toolRegistry, builtinTools, setQuestionDialogCallback } from '../tools/index.js';
 import type { Message } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
 import type { StatusInfo } from '../core/statusManager.js';
@@ -36,6 +37,12 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     command: string;
     onConfirm: (confirmed: boolean) => void;
   } | null>(null);
+  const [questionDialog, setQuestionDialog] = useState<{
+    question: string;
+    choices: string[];
+    allowFreeform: boolean;
+    onAnswer: (answer: string) => void;
+  } | null>(null);
   const [streamingContent, setStreamingContent] = useState('');
   const [statusInfo, setStatusInfo] = useState<StatusInfo>({
     connectionStatus: { type: 'disconnected' },
@@ -48,6 +55,11 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     return registry;
   });
   const { exit } = useApp();
+
+  // 设置 ask_user 工具的回调函数
+  useEffect(() => {
+    setQuestionDialogCallback(showQuestionDialog);
+  }, []);
 
   useEffect(() => {
     initializeApp();
@@ -270,6 +282,28 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     }
   };
 
+  /**
+   * 显示问题对话框并等待用户回答
+   * 此函数被 ask_user 工具调用
+   */
+  const showQuestionDialog = (
+    question: string,
+    choices: string[],
+    allowFreeform: boolean
+  ): Promise<string> => {
+    return new Promise((resolve) => {
+      setQuestionDialog({
+        question,
+        choices,
+        allowFreeform,
+        onAnswer: (answer: string) => {
+          setQuestionDialog(null);
+          resolve(answer);
+        }
+      });
+    });
+  };
+
   const handleHistoryUp = (): string | undefined => {
     if (history.length === 0) return undefined;
     
@@ -322,9 +356,18 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
         />
       )}
       
+      {questionDialog && (
+        <QuestionPrompt
+          question={questionDialog.question}
+          choices={questionDialog.choices}
+          allowFreeform={questionDialog.allowFreeform}
+          onAnswer={questionDialog.onAnswer}
+        />
+      )}
+      
       <InputBox
         onSubmit={handleSubmit}
-        disabled={isProcessing || !!confirmDialog}
+        disabled={isProcessing || !!confirmDialog || !!questionDialog}
         onHistoryUp={handleHistoryUp}
         onHistoryDown={handleHistoryDown}
       />
