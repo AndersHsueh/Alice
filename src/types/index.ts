@@ -34,6 +34,13 @@ export interface UIConfig {
     enabled: boolean;
     style: 'particle' | 'matrix';
   };
+  statusBar?: {
+    enabled: boolean;
+    showTokens: boolean;
+    showTime: boolean;
+    showWorkspace: boolean;
+    updateInterval: number;
+  };
   theme: string;
 }
 

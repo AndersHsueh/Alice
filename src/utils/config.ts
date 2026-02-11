@@ -43,6 +43,13 @@ const DEFAULT_CONFIG: Config = {
       enabled: true,
       style: 'particle',
     },
+    statusBar: {
+      enabled: true,
+      showTokens: true,
+      showTime: true,
+      showWorkspace: true,
+      updateInterval: 1000,
+    },
     theme: 'tech-blue',
   },
   workspace: process.cwd(),
@@ -203,6 +210,15 @@ export class ConfigManager {
     lines.push(`      "enabled": ${config.ui.banner.enabled},`);
     lines.push(`      "style": "${config.ui.banner.style}"`);
     lines.push('    },');
+    if (config.ui.statusBar) {
+      lines.push('    "statusBar": {');
+      lines.push(`      "enabled": ${config.ui.statusBar.enabled},`);
+      lines.push(`      "showTokens": ${config.ui.statusBar.showTokens},`);
+      lines.push(`      "showTime": ${config.ui.statusBar.showTime},`);
+      lines.push(`      "showWorkspace": ${config.ui.statusBar.showWorkspace},`);
+      lines.push(`      "updateInterval": ${config.ui.statusBar.updateInterval}`);
+      lines.push('    },');
+    }
     lines.push(`    "theme": "${config.ui.theme}"`);
     lines.push('  },');
     lines.push('');
