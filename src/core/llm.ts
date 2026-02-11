@@ -150,7 +150,7 @@ export class LLMClient {
 
     const tools = toolRegistry.toOpenAIFunctions();
     let conversationMessages = [...messages];
-    let maxIterations = 5; // 防止无限循环
+    let maxIterations = 10;
     let iteration = 0;
 
     while (iteration < maxIterations) {
@@ -223,7 +223,7 @@ export class LLMClient {
 
     const tools = toolRegistry.toOpenAIFunctions();
     let conversationMessages = [...messages];
-    let maxIterations = 5;
+    let maxIterations = 10;
     let iteration = 0;
 
     while (iteration < maxIterations) {
