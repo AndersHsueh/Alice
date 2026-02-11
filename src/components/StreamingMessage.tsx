@@ -5,8 +5,30 @@
 
 import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
-import Markdown from 'ink-markdown';
+import { marked } from 'marked';
+import TerminalRenderer from 'marked-terminal';
 import { parseMarkdownBlocks, type MarkdownBlock } from '../utils/markdownParser.js';
+
+// 配置 marked 使用终端渲染器
+marked.setOptions({
+  // @ts-ignore - marked-terminal 类型定义问题
+  renderer: new TerminalRenderer({
+    // 表格样式
+    tableOptions: {
+      style: {
+        head: ['cyan'],
+        border: ['grey']
+      }
+    },
+    // 代码块样式
+    code: (code: string) => {
+      return `\n${code}\n`;
+    },
+    // 其他样式配置
+    reflowText: true,
+    width: 100
+  })
+});
 
 export interface StreamingMessageProps {
   /** 流式内容 */
@@ -24,9 +46,11 @@ const RenderBlock: React.FC<{ block: MarkdownBlock; showCursor?: boolean }> = Re
   ({ block, showCursor = false }) => {
     // 完整的块用 Markdown 渲染
     if (block.isComplete) {
+      const rendered = marked.parse(block.content, { async: false }) as string;
+      
       return (
         <Box marginBottom={block.type === 'paragraph' ? 0 : 1}>
-          <Markdown>{block.content}</Markdown>
+          <Text>{rendered}</Text>
         </Box>
       );
     }
@@ -91,9 +115,11 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
 export const StaticMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
   if (!content) return null;
   
+  const rendered = marked.parse(content, { async: false }) as string;
+  
   return (
     <Box marginLeft={2} flexDirection="column">
-      <Markdown>{content}</Markdown>
+      <Text>{rendered}</Text>
     </Box>
   );
 });
