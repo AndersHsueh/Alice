@@ -17,9 +17,10 @@ import { themeManager } from '../core/theme.js';
 import { statusManager } from '../core/statusManager.js';
 import { sessionManager } from '../core/session.js';
 import { StatsTracker } from '../core/statsTracker.js';
+import type { SessionStats } from '../core/statsTracker.js';
 import { toolRegistry, builtinTools, setQuestionDialogCallback } from '../tools/index.js';
 import { KeyAction } from '../core/keybindings.js';
-import type { Message } from '../types/index.js';
+import type { Message, Session } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
 import type { StatusInfo } from '../core/statusManager.js';
 import type { CLIOptions } from '../utils/cliArgs.js';
@@ -55,6 +56,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     responseTime: undefined,
   });
   const [showExitReport, setShowExitReport] = useState(false);
+  const [exitStats, setExitStats] = useState<SessionStats | null>(null);
   const [commandRegistry] = useState(() => {
     const registry = new CommandRegistry();
     builtinCommands.forEach(cmd => registry.register(cmd));
@@ -64,6 +66,10 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
   // 引用
   const statsTrackerRef = useRef<StatsTracker | null>(null);
   const sessionIdRef = useRef<string>('');
+  const toolStatsRecordedRef = useRef<Set<string>>(new Set());
+  const lastPersistedIndexRef = useRef(0);
+  const isExitingRef = useRef(false);
+  const exitCodeRef = useRef<Error | undefined>(undefined);
   
   const { exit } = useApp();
 
@@ -84,6 +90,34 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    const tracker = statsTrackerRef.current;
+    if (!tracker) return;
+
+    if (messages.length < lastPersistedIndexRef.current) {
+      lastPersistedIndexRef.current = 0;
+    }
+
+    const newMessages = messages.slice(lastPersistedIndexRef.current);
+    if (newMessages.length === 0) return;
+
+    lastPersistedIndexRef.current = messages.length;
+
+    for (const message of newMessages) {
+      if (message.role === 'user') {
+        tracker.recordUserMessage();
+      } else if (message.role === 'assistant') {
+        tracker.recordAssistantMessage();
+      }
+    }
+
+    void (async () => {
+      for (const message of newMessages) {
+        await sessionManager.addMessage(message);
+      }
+    })();
+  }, [messages]);
+
   const initializeApp = async () => {
     statusManager.updateConnectionStatus('connecting');
     
@@ -99,12 +133,79 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
 
     // 初始化会话系统
     await sessionManager.init();
-    const session = await sessionManager.createSession();
+    statsTrackerRef.current = new StatsTracker();
+
+    const applySession = (session: Session) => {
+      const tracker = statsTrackerRef.current;
+      lastPersistedIndexRef.current = session.messages.length;
+      setMessages(session.messages);
+      setHistory(session.messages.filter(msg => msg.role === 'user').map(msg => msg.content));
+
+      if (tracker) {
+        for (const message of session.messages) {
+          if (message.role === 'user') {
+            tracker.recordUserMessage();
+          } else if (message.role === 'assistant') {
+            tracker.recordAssistantMessage();
+          }
+        }
+      }
+    };
+
+    const resolveSession = async (): Promise<Session | null> => {
+      if (cliOptions.session) {
+        const loaded = await sessionManager.openSession(cliOptions.session);
+        if (!loaded) {
+          console.error(`❌ 未找到会话: ${cliOptions.session}`);
+          exit(new Error(`Session not found: ${cliOptions.session}`));
+          return null;
+        }
+        return loaded;
+      }
+
+      const sessions = await sessionManager.listSessions();
+
+      if (cliOptions.resume) {
+        if (sessions.length === 0) {
+          console.log('ℹ️ 未找到历史会话，已创建新会话');
+          return sessionManager.createSession();
+        }
+
+        const choices = sessions.map(session => (
+          `${session.id} (${session.messages.length} msgs, ${session.createdAt.toLocaleString()})`
+        ));
+        const answer = await showQuestionDialog('请选择要恢复的会话', choices, true);
+        const selected = sessions.find(session => answer.startsWith(session.id));
+        const sessionId = selected?.id || answer.trim();
+        const loaded = await sessionManager.openSession(sessionId);
+        if (!loaded) {
+          console.error(`❌ 未找到会话: ${sessionId}`);
+          return sessionManager.createSession();
+        }
+        return loaded;
+      }
+
+      if (cliOptions.continue) {
+        if (sessions.length === 0) {
+          console.log('ℹ️ 未找到历史会话，已创建新会话');
+          return sessionManager.createSession();
+        }
+        const latest = sessions[0];
+        const loaded = await sessionManager.openSession(latest.id);
+        return loaded || sessionManager.createSession();
+      }
+
+      return sessionManager.createSession();
+    };
+
+    const session = await resolveSession();
+    if (!session) {
+      statusManager.updateConnectionStatus('disconnected');
+      return;
+    }
     sessionIdRef.current = session.id;
     statusManager.updateSessionId(session.id);
-    
-    // 初始化统计跟踪器
-    statsTrackerRef.current = new StatsTracker();
+    applySession(session);
 
     let config = configManager.get();
     const systemPrompt = await configManager.loadSystemPrompt();
@@ -172,12 +273,35 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     statusManager.updateConnectionStatus('connected', defaultModel.provider);
   };
 
+  const requestExit = (code?: number | Error) => {
+    if (isExitingRef.current) return;
+    isExitingRef.current = true;
+    exitCodeRef.current = code instanceof Error ? code : undefined;
+
+    const stats = statsTrackerRef.current?.endSession();
+    if (!stats) {
+      exit(exitCodeRef.current);
+      return;
+    }
+
+    setExitStats(stats);
+    setShowExitReport(true);
+  };
+
+  useEffect(() => {
+    if (!showExitReport || !exitStats) return;
+    const timer = setTimeout(() => {
+      exit(exitCodeRef.current);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [showExitReport, exitStats, exit]);
+
   // 全局键绑定（Quit等）
   const keybindingManager = configManager.getKeybindingManager();
   useInput((input, key) => {
     const action = keybindingManager.match(input, key);
     if (action === KeyAction.Quit) {
-      exit();
+      requestExit(0);
     }
   });
 
@@ -208,10 +332,9 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     setIsProcessing(true);
     setStreamingContent('');
     setToolRecords([]);
+    const requestStart = Date.now();
 
     try {
-      const startTime = Date.now();
-      
       // 流式输出节流：缓存 chunk，每 50ms 批量刷新一次
       const THROTTLE_MS = 50;
       let buffer = '';
@@ -237,6 +360,19 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
             }
             return [...prev, record];
           });
+
+          if ((record.status === 'success' || record.status === 'error')
+            && !toolStatsRecordedRef.current.has(record.id)) {
+            toolStatsRecordedRef.current.add(record.id);
+            const duration = record.endTime && record.startTime
+              ? record.endTime - record.startTime
+              : undefined;
+            statsTrackerRef.current?.recordToolCall(
+              record.toolName,
+              record.status === 'success',
+              duration
+            );
+          }
         }
       )) {
         buffer += chunk;
@@ -250,9 +386,6 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
 
       // 最后确保所有剩余的 chunk 都被刷新
       flushBuffer();
-
-      const responseTime = Date.now() - startTime;
-      statusManager.updateResponseTime(responseTime);
 
       // 使用函数式更新获取最新的 streamingContent 值
       // （闭包中的 streamingContent 是旧值，必须通过 setState 回调获取最新值）
@@ -278,6 +411,9 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       setMessages(prev => [...prev, errorMsg]);
       setStreamingContent('');
     } finally {
+      const responseTime = Date.now() - requestStart;
+      statusManager.updateResponseTime(responseTime);
+      statsTrackerRef.current?.recordLLMTime(responseTime);
       setIsProcessing(false);
       setToolRecords([]);
     }
@@ -295,7 +431,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
         config: configManager.get(),
         workspace: configManager.get().workspace,
         llmClient,
-        exit: (code?: any) => exit(code),
+        exit: (code?: any) => requestExit(code),
       });
     } catch (error: any) {
       // 显示错误信息
@@ -348,6 +484,14 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     setHistoryIndex(newIndex);
     return history[history.length - 1 - newIndex];
   };
+
+  if (showExitReport && exitStats) {
+    return (
+      <Box flexDirection="column" height="100%" justifyContent="center">
+        <ExitReport sessionId={sessionIdRef.current} stats={exitStats} />
+      </Box>
+    );
+  }
 
   if (showBanner) {
     return <Banner onComplete={() => setShowBanner(false)} />;

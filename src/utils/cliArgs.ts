@@ -10,6 +10,9 @@ export interface CLIOptions {
   config?: string;
   verbose?: boolean;
   debug?: boolean;
+  continue?: boolean;
+  resume?: boolean;
+  session?: string;
 }
 
 /**
@@ -38,6 +41,9 @@ export async function parseArgs(): Promise<{ options: CLIOptions; shouldExit: bo
     .option('--config <path>', 'Use custom config file')
     .option('--verbose', 'Enable verbose logging')
     .option('--debug', 'Enable debug mode')
+    .option('--continue', 'Continue latest session')
+    .option('--resume', 'Choose a session to resume')
+    .option('--session <id>', 'Resume a specific session by ID')
     .parse(process.argv);
 
   const opts = program.opts();
@@ -62,6 +68,9 @@ export async function parseArgs(): Promise<{ options: CLIOptions; shouldExit: bo
     config: opts.config,
     verbose: opts.verbose,
     debug: opts.debug,
+    continue: opts.continue,
+    resume: opts.resume,
+    session: opts.session,
   };
 
   return { options: cliOptions, shouldExit: false };

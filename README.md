@@ -550,7 +550,7 @@ npm run clean
 - [ ] 工具拦截机制（事件驱动）
 
 ### 未来计划
-- [ ] 完整的会话恢复（--continue/--resume/--session 参数）
+- [x] 完整的会话恢复（--continue/--resume/--session 参数）
 - [ ] Overlay 系统（浮层组件）
 - [ ] 扩展系统（Extension API）
 - [ ] 组件化 UI 架构

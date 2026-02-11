@@ -54,6 +54,14 @@ export class SessionManager {
     }
   }
 
+  async openSession(id: string): Promise<Session | null> {
+    const session = await this.loadSession(id);
+    if (session) {
+      this.currentSession = session;
+    }
+    return session;
+  }
+
   async listSessions(): Promise<Session[]> {
     try {
       const files = await fs.readdir(this.sessionDir);
