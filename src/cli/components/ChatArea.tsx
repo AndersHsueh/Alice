@@ -74,7 +74,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       )}
       
       {messages.length === 0 && !streamingContent ? (
-        <Box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1}>
+        <Box flexDirection="column" flexGrow={1}>
           <Text dimColor>💡 输入您的问题，我来帮您解决办公难题</Text>
           <Text dimColor>💡 输入 /help 查看可用命令</Text>
         </Box>
