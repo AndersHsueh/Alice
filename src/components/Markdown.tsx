@@ -10,6 +10,7 @@ import { marked } from 'marked';
 import TerminalRenderer from 'marked-terminal';
 import { parseMarkdownBlocks, type MarkdownBlock } from '../utils/markdownParser.js';
 import { parseMarkdownTable, renderTable } from '../utils/tableRenderer.js';
+import { splitThinkContent } from '../utils/thinkParser.js';
 import type { AliceComponentProps } from './types.js';
 
 export interface MarkdownProps extends AliceComponentProps {
@@ -101,21 +102,39 @@ export const Markdown: React.FC<MarkdownProps> = React.memo(({
   indent = 0,
   visible = true,
 }) => {
-  const blocks = useMemo(() => {
+  const segments = useMemo(() => {
     if (!content) return [];
-    return parseMarkdownBlocks(content);
+    return splitThinkContent(content);
   }, [content]);
 
-  if (!visible || !content || blocks.length === 0) return null;
+  if (!visible || !content || segments.length === 0) return null;
 
   return (
     <Box flexDirection="column" marginLeft={indent}>
-      {blocks.map((block, idx) => (
-        <RenderBlock
-          key={`${block.type}-${block.startLine}-${idx}`}
-          block={block}
-        />
-      ))}
+      {segments.map((segment, sIdx) => {
+        if (segment.type === 'think') {
+          const thinkText = segment.content.trim();
+          if (!thinkText) return null;
+          return (
+            <Box key={`think-${sIdx}`} marginBottom={0}>
+              <Text dimColor>💭 {thinkText}</Text>
+            </Box>
+          );
+        }
+
+        const blocks = parseMarkdownBlocks(segment.content);
+        if (blocks.length === 0) return null;
+        return (
+          <Box key={`content-${sIdx}`} flexDirection="column">
+            {blocks.map((block, idx) => (
+              <RenderBlock
+                key={`${block.type}-${block.startLine}-${idx}`}
+                block={block}
+              />
+            ))}
+          </Box>
+        );
+      })}
     </Box>
   );
 });

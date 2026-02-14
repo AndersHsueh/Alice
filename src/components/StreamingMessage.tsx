@@ -9,6 +9,7 @@ import { marked } from 'marked';
 import TerminalRenderer from 'marked-terminal';
 import { parseMarkdownBlocks, type MarkdownBlock } from '../utils/markdownParser.js';
 import { parseMarkdownTable, renderTable } from '../utils/tableRenderer.js';
+import { splitThinkContent, type ContentSegment } from '../utils/thinkParser.js';
 
 /**
  * 获取终端宽度并计算合适的内容宽度
@@ -129,34 +130,51 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
   isStreaming,
   color = 'green'
 }) => {
-  // 解析 Markdown 块
-  const blocks = useMemo(() => {
+  // 先拆分 think/normal 内容段
+  const segments = useMemo(() => {
     if (!content) return [];
-    return parseMarkdownBlocks(content);
+    return splitThinkContent(content);
   }, [content]);
   
-  // 如果没有内容，不渲染
-  if (!content || blocks.length === 0) {
+  if (!content || segments.length === 0) {
     return null;
   }
   
-  // 渲染策略：
-  // 1. 已完成的块 → Markdown 渲染
-  // 2. 最后一个未完成的块 → 原始文本 + 光标
-  const lastBlockIdx = blocks.length - 1;
-  
   return (
     <Box flexDirection="column">
-      {blocks.map((block, idx) => {
-        const isLastBlock = idx === lastBlockIdx;
-        const showCursor = isStreaming && isLastBlock && !block.isComplete;
-        
+      {segments.map((segment, sIdx) => {
+        if (segment.type === 'think') {
+          // 思考内容：用 dim 颜色显示，带前缀
+          const thinkText = segment.content.trim();
+          if (!thinkText) return null;
+          return (
+            <Box key={`think-${sIdx}`} marginBottom={0}>
+              <Text dimColor>💭 {thinkText}</Text>
+              {isStreaming && !segment.isComplete && <Text color="cyan">█</Text>}
+            </Box>
+          );
+        }
+
+        // 正常内容：走原有 Markdown 分块渲染
+        const blocks = parseMarkdownBlocks(segment.content);
+        if (blocks.length === 0) return null;
+        const lastBlockIdx = blocks.length - 1;
+
         return (
-          <RenderBlock
-            key={`${block.type}-${block.startLine}-${idx}`}
-            block={block}
-            showCursor={showCursor}
-          />
+          <Box key={`content-${sIdx}`} flexDirection="column">
+            {blocks.map((block, idx) => {
+              const isLastBlock = idx === lastBlockIdx;
+              const showCursor = isStreaming && isLastBlock && !block.isComplete
+                && sIdx === segments.length - 1;
+              return (
+                <RenderBlock
+                  key={`${block.type}-${block.startLine}-${idx}`}
+                  block={block}
+                  showCursor={showCursor}
+                />
+              );
+            })}
+          </Box>
         );
       })}
     </Box>
@@ -167,23 +185,41 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
  * 静态消息组件（已完成的历史消息）
  */
 export const StaticMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
-  const blocks = useMemo(() => {
+  const segments = useMemo(() => {
     if (!content) return [];
-    return parseMarkdownBlocks(content);
+    return splitThinkContent(content);
   }, [content]);
 
-  if (!content || blocks.length === 0) {
+  if (!content || segments.length === 0) {
     return null;
   }
 
   return (
     <Box marginLeft={2} flexDirection="column">
-      {blocks.map((block, idx) => (
-        <RenderBlock
-          key={`${block.type}-${block.startLine}-${idx}`}
-          block={block}
-        />
-      ))}
+      {segments.map((segment, sIdx) => {
+        if (segment.type === 'think') {
+          const thinkText = segment.content.trim();
+          if (!thinkText) return null;
+          return (
+            <Box key={`think-${sIdx}`} marginBottom={0}>
+              <Text dimColor>💭 {thinkText}</Text>
+            </Box>
+          );
+        }
+
+        const blocks = parseMarkdownBlocks(segment.content);
+        if (blocks.length === 0) return null;
+        return (
+          <Box key={`content-${sIdx}`} flexDirection="column">
+            {blocks.map((block, idx) => (
+              <RenderBlock
+                key={`${block.type}-${block.startLine}-${idx}`}
+                block={block}
+              />
+            ))}
+          </Box>
+        );
+      })}
     </Box>
   );
 });
