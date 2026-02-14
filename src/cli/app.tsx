@@ -536,7 +536,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
 
   return (
     <Box flexDirection="column" height="100%">
-      <Header workspace={config.workspace} model={defaultModel?.name || llmClient?.getModelName() || '未知'} />
+      <Header workspace={config.workspace} model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : llmClient?.getModelName() || '未知'} />
       
       <ChatArea 
         messages={messages} 
@@ -583,7 +583,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
         tokenUsage={statusInfo.tokenUsage}
         responseTime={statusInfo.responseTime}
         sessionId={statusInfo.sessionId}
-        model={defaultModel?.name || llmClient?.getModelName() || '未知'}
+        model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : llmClient?.getModelName() || '未知'}
       />
     </Box>
   );
