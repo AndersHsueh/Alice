@@ -43,6 +43,14 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 - 🎨 5 个可复用 UI 组件（Markdown、SelectList 等）
 - 📦 barrel export 统一导出
 
+**UI/显示优化**
+- 🎯 AI输出空行压缩 - 减少多余空行，优化显示区域 (#34)
+- 🔇 屏幕闪烁优化 - Header使用ink `<Static>` 组件只渲染一次 (#35)
+- 💭 思考内容区分 - `<think>` 标签内容以灰色显示，与正文区分
+- 📊 表格渲染优化 - 使用React组件替代cli-table3，支持CJK字符宽度
+- 🏷️ 聊天标签优化 - 用户输入用 `> ` 前缀，AI回复用 `Alice: ` 前缀，内容内联显示
+- 📺 模型信息完整显示 - Header显示完整 `provider/model` 格式
+
 **其他改进**
 - ⚙️ `maxIterations` 可配置（工具调用最大迭代次数）
 - 🔧 ajv-formats 支持 MCP schema 格式验证
@@ -528,7 +536,9 @@ alice-cli/
 │   │   └── session.ts    # 会话管理
 │   ├── utils/            # 工具函数
 │   │   ├── config.ts     # 配置管理（支持 JSONC）
-│   │   └── test-model.ts # 模型测速工具
+│   │   ├── test-model.ts # 模型测速工具
+│   │   ├── thinkParser.ts    # <think> 标签解析
+│   │   └── tableRenderer.tsx # 表格渲染组件（CJK支持）
 │   └── types/            # TypeScript 类型
 │       └── index.ts
 ├── dist/                 # 构建输出
@@ -596,7 +606,7 @@ npm run clean
 - [x] 会话导出（HTML/Markdown）
 - [x] 智能提问（ask_user 工具）
 - [x] 会话恢复基础（自动创建/保存会话，退出汇报）
-- [ ] 流式输出优化（完整版）
+- [x] 流式输出优化（完整版）
 
 ### 近期计划
 - [ ] 会话树结构（JSONL + 分支支持）
