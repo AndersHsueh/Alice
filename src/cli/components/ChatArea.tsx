@@ -18,18 +18,16 @@ interface ChatAreaProps {
 const MessageItem: React.FC<{ message: Message; index: number }> = React.memo(
   ({ message, index }) => (
     <Box key={index} flexDirection="column" marginBottom={1}>
-      <Box>
-        <Text bold color={message.role === 'user' ? 'cyan' : 'green'}>
-          {message.role === 'user' ? '> You' : 'Alice'}
-          {': '}
-        </Text>
-      </Box>
       {message.role === 'user' ? (
-        <Box marginLeft={2}>
+        <Box>
+          <Text bold color="cyan">{'> '}</Text>
           <Text wrap="wrap">{message.content}</Text>
         </Box>
       ) : (
-        <Markdown content={message.content} indent={2} />
+        <Box>
+          <Text bold color="green">{'Alice: '}</Text>
+          <Markdown content={message.content} />
+        </Box>
       )}
     </Box>
   ),
@@ -88,10 +86,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           
           {/* 流式内容显示 */}
           {streamingContent && (
-            <Box flexDirection="column" marginBottom={1}>
-              <Box>
-                <Text bold color="green">Alice: </Text>
-              </Box>
+            <Box marginBottom={1}>
+              <Text bold color="green">Alice: </Text>
               <StreamingMessage
                 content={streamingContent}
                 isStreaming={isStreaming}

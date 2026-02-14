@@ -146,7 +146,7 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({
   const lastBlockIdx = blocks.length - 1;
   
   return (
-    <Box flexDirection="column" marginLeft={2}>
+    <Box flexDirection="column">
       {blocks.map((block, idx) => {
         const isLastBlock = idx === lastBlockIdx;
         const showCursor = isStreaming && isLastBlock && !block.isComplete;
