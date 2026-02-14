@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Box, Text } from 'ink';
 import Spinner from 'ink-spinner';
 import type { Message } from '../../types/index.js';
 import { Markdown } from '../../components/Markdown.js';
 import { StreamingMessage } from '../../components/StreamingMessage.js';
-import { StreamingIndicator } from '../../components/StreamingIndicator.js';
 
 interface ChatAreaProps {
   messages: Message[];
@@ -46,32 +45,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   isProcessing,
   streamingContent = ''
 }) => {
-  const [streamStartTime, setStreamStartTime] = useState<number | undefined>();
-  const isStreaming = Boolean(streamingContent);  // 简化判断：有流式内容就显示
-  
-  // 记录流式开始时间
-  useEffect(() => {
-    if (streamingContent && !streamStartTime) {
-      setStreamStartTime(Date.now());
-    } else if (!streamingContent && streamStartTime) {
-      // 流式结束，延迟清除（等状态指示器显示完成）
-      const timeout = setTimeout(() => {
-        setStreamStartTime(undefined);
-      }, 2000);
-      return () => clearTimeout(timeout);
-    }
-  }, [streamingContent, streamStartTime]);
+  const isStreaming = Boolean(streamingContent);
   
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1} flexGrow={1}>
-      {/* 状态指示器 */}
-      {streamingContent && (
-        <StreamingIndicator
-          isStreaming={true}
-          startTime={streamStartTime}
-          tokenCount={streamingContent.length}
-        />
-      )}
       
       {messages.length === 0 && !streamingContent ? (
         <Box flexDirection="column" flexGrow={1}>
