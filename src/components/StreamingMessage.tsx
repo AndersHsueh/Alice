@@ -97,7 +97,10 @@ const RenderBlock: React.FC<{ block: MarkdownBlock; showCursor?: boolean }> = Re
       }
 
       // 统一使用 marked 渲染（非表格）
-      const rendered = marked.parse(block.content, { async: false }) as string;
+      const rendered = (marked.parse(block.content, { async: false }) as string)
+        .replace(/\n{3,}/g, '\n\n')  // 合并连续空行（3+个换行→2个）
+        .replace(/^\n+/, '')          // 去除开头空行
+        .replace(/\n+$/, '');         // 去除结尾空行
 
       return (
         <Box marginBottom={block.type === 'paragraph' ? 0 : 1}>
