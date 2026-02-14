@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, useApp, useInput } from 'ink';
+import { Box, Static, useApp, useInput } from 'ink';
 import { Banner } from './components/Banner.js';
 import { Header } from './components/Header.js';
 import { ChatArea } from './components/ChatArea.js';
@@ -536,7 +536,9 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
 
   return (
     <Box flexDirection="column" height="100%">
-      <Header workspace={config.workspace} model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : llmClient?.getModelName() || '未知'} />
+      <Static items={['header']}>
+        {() => <Header workspace={config.workspace} model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : llmClient?.getModelName() || '未知'} />}
+      </Static>
       
       <ChatArea 
         messages={messages} 
