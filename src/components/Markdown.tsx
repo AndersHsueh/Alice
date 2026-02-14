@@ -9,7 +9,7 @@ import { Box, Text } from 'ink';
 import { marked } from 'marked';
 import TerminalRenderer from 'marked-terminal';
 import { parseMarkdownBlocks, type MarkdownBlock } from '../utils/markdownParser.js';
-import { parseMarkdownTable, renderTable } from '../utils/tableRenderer.js';
+import { parseMarkdownTable, TableRendererComponent, getTerminalWidth } from '../utils/tableRenderer.js';
 import { splitThinkContent } from '../utils/thinkParser.js';
 import type { AliceComponentProps } from './types.js';
 
@@ -64,10 +64,16 @@ const RenderBlock: React.FC<{ block: MarkdownBlock; showCursor?: boolean }> = Re
     if (block.isComplete) {
       if (block.type === 'table') {
         const rows = parseMarkdownTable(block.content);
-        const renderedTable = renderTable(rows);
+        if (rows.length < 2) return null;
+        const headers = rows[0];
+        const dataRows = rows.slice(1).filter(row => !row[0]?.match(/^[-:]+$/));
         return (
           <Box marginBottom={1}>
-            <Text>{renderedTable}</Text>
+            <TableRendererComponent
+              headers={headers}
+              rows={dataRows}
+              contentWidth={getTerminalWidth()}
+            />
           </Box>
         );
       }
