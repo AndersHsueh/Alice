@@ -537,7 +537,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
   return (
     <Box flexDirection="column" height="100%">
       <Static items={['header']}>
-        {() => <Header workspace={config.workspace} model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : llmClient?.getModelName() || '未知'} />}
+        {(item) => <Header key={item} workspace={config.workspace} model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : llmClient?.getModelName() || '未知'} />}
       </Static>
       
       <ChatArea 
