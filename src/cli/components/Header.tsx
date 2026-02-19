@@ -19,7 +19,7 @@ const HeaderComponent: React.FC<HeaderProps> = ({ workspace, model }) => {
       flexDirection="column"
     >
       <Text bold color="cyan">
-        🤖 ALICE - Your Office AI Assistant
+        ✨ ALICE
       </Text>
 
       <Box marginTop={1} gap={2}>
