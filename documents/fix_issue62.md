@@ -4,7 +4,7 @@ aliases: [fix-62, 架构分离方案, CLI Daemon 分离]
 tags: [技术文档, 架构, issue, v0.6.0]
 date: 2026-02-20
 version: 1.0.0
-status: 方案
+status: 已完成 ✅
 ---
 
 # 解决 Issue #62：CLI 与 Daemon 架构分离
@@ -276,3 +276,148 @@ CLI 与 daemon 的协议可统一为 **JSON over HTTP**（即使底层是 socket
     • 如果 daemon 未运行，CLI 的行为是什么？（提示启动、降级模式、自动启动？）
   5. 配置路径统一（低优先级）
     • 统一使用 ~/.alice（小写）可以吗？（目前 mcpConfig.ts 使用 ~/.Alice）
+
+---
+
+## 10. 使用说明 ✅
+
+> [!success] Issue #62 已完成实施并通过测试！
+
+### 10.1 启动 Daemon
+
+#### 方式一：使用 `alice-service` 命令（推荐）
+
+```bash
+# 启动 daemon
+alice-service --start
+
+# 查看状态
+alice-service --status
+
+# 停止 daemon
+alice-service --stop
+
+# 重启 daemon（重新加载配置）
+alice-service --restart
+```
+
+#### 方式二：直接运行 daemon 入口（开发/调试）
+
+```bash
+# 直接运行 daemon（用于调试）
+node dist/daemon/index.js
+```
+
+#### 方式三：使用 systemd/launchd（生产环境）
+
+**Linux (systemd)**：
+```bash
+# 1. 复制服务文件并编辑路径
+sudo cp etc/systemd/alice-daemon.service /etc/systemd/system/
+sudo nano /etc/systemd/system/alice-daemon.service  # 编辑 ExecStart 路径
+
+# 2. 启用并启动
+sudo systemctl daemon-reload
+sudo systemctl enable alice-daemon
+sudo systemctl start alice-daemon
+
+# 3. 查看状态
+sudo systemctl status alice-daemon
+```
+
+**macOS (launchd)**：
+```bash
+# 1. 复制 plist 文件并编辑路径
+cp etc/launchd/com.alice.daemon.plist ~/Library/LaunchAgents/
+nano ~/Library/LaunchAgents/com.alice.daemon.plist  # 编辑 ProgramArguments 路径
+
+# 2. 加载并启动
+launchctl load ~/Library/LaunchAgents/com.alice.daemon.plist
+launchctl start com.alice.daemon
+
+# 3. 查看状态
+launchctl list | grep alice
+```
+
+### 10.2 CLI 如何使用 Daemon
+
+CLI **无需手动启动 daemon**！当 CLI 需要调用 daemon 时，会自动检测并启动：
+
+```bash
+# CLI 会自动处理 daemon 启动
+alice
+
+# 如果 daemon 未运行，CLI 会：
+# 1. 检测到 daemon 未运行
+# 2. 自动执行 `alice-service --start`
+# 3. 等待 3 秒后重试连接
+# 4. 如果启动失败，提示用户并退出
+```
+
+**CLI 调用 daemon 的示例**（在代码中）：
+
+```typescript
+import { DaemonClient } from './utils/daemonClient.js';
+
+const client = new DaemonClient();
+
+// Ping daemon（自动启动如果未运行）
+const pingResult = await client.ping();
+console.log(pingResult.message); // "HealthOk"
+
+// 获取状态
+const status = await client.getStatus();
+console.log(status.pid, status.uptime);
+```
+
+### 10.3 配置文件
+
+Daemon 配置文件位置：`~/.alice/daemon_settings.jsonc`
+
+**修改配置后，使用 `alice-service --restart` 使配置生效**：
+
+```bash
+# 1. 编辑配置文件
+vim ~/.alice/daemon_settings.jsonc
+
+# 2. 重启 daemon 使配置生效
+alice-service --restart
+```
+
+### 10.4 查看日志
+
+```bash
+# 查看 daemon 日志
+tail -f ~/.alice/logs/daemon.log
+
+# 或查看 systemd 日志（如果使用 systemd）
+sudo journalctl -u alice-daemon -f
+
+# 或查看 launchd 日志（如果使用 launchd）
+tail -f ~/Library/Logs/alice-daemon.log
+```
+
+### 10.5 故障排查
+
+**Daemon 无法启动**：
+1. 检查端口/Socket 是否被占用
+2. 查看日志文件：`~/.alice/logs/daemon.log`
+3. 检查 PID 文件：`~/.alice/run/daemon.pid`
+
+**CLI 无法连接到 Daemon**：
+1. 检查 daemon 是否运行：`alice-service --status`
+2. 检查配置：`cat ~/.alice/daemon_settings.jsonc`
+3. 手动启动：`alice-service --start`
+
+---
+
+## 11. 实施总结 ✅
+
+- ✅ **已完成**：所有验收标准已达成
+- ✅ **已测试**：所有功能测试通过
+- ✅ **已提交**：代码已提交到仓库
+- ✅ **已关闭**：Issue #62 已关闭
+
+详细实施总结请参考：[[fix_issue62_summary]]  
+测试结果请参考：[[fix_issue62_test_results]]  
+使用指南请参考：[[daemon-usage]]
