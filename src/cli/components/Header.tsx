@@ -14,7 +14,7 @@ const HeaderComponent: React.FC<HeaderProps> = ({ workspace, model }) => {
     <Box
       borderStyle="round"
       borderColor="cyan"
-      paddingX={2}
+      paddingX={1}
       paddingY={1}
       flexDirection="column"
     >
