@@ -8,6 +8,19 @@ import type { DaemonConfig } from '../types/daemon.js';
 import type { PingResponse, StatusResponse, ReloadConfigResponse } from '../types/daemon.js';
 import { daemonConfigManager } from './config.js';
 import { DaemonLogger } from './logger.js';
+import { getConfig, getSessionManager } from './services.js';
+import { runChatStream, type ChatStreamRequest } from './chatHandler.js';
+
+function readBody(req: IncomingMessage): Promise<string> {
+  const withBody = (req as IncomingMessage & { bodyPromise?: Promise<string> }).bodyPromise;
+  if (withBody) return withBody;
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => resolve(body));
+    req.on('error', reject);
+  });
+}
 
 export class DaemonRoutes {
   private config: DaemonConfig;
@@ -54,6 +67,15 @@ export class DaemonRoutes {
         await this.handleStatus(req, res);
       } else if (pathname === '/reload-config' && method === 'POST') {
         await this.handleReloadConfig(req, res);
+      } else if (pathname === '/config' && method === 'GET') {
+        await this.handleGetConfig(req, res);
+      } else if (pathname.startsWith('/session/') && method === 'GET') {
+        const sessionId = pathname.slice('/session/'.length).split('?')[0];
+        await this.handleGetSession(sessionId, res);
+      } else if (pathname === '/session' && method === 'POST') {
+        await this.handleCreateSession(req, res);
+      } else if (pathname === '/chat-stream' && method === 'POST') {
+        await this.handleChatStream(req, res);
       } else {
         res.writeHead(404);
         res.end(JSON.stringify({ error: 'Not Found' }));
@@ -70,16 +92,27 @@ export class DaemonRoutes {
    */
   async handleSocketRequest(socket: Socket, data: Buffer): Promise<void> {
     try {
-      // 解析 HTTP 请求
       const requestStr = data.toString();
-      const [requestLine, ...headerLines] = requestStr.split('\r\n');
+      const [head, ...rest] = requestStr.split('\r\n\r\n');
+      const body = rest.join('\r\n\r\n').trim();
+      const [requestLine, ...headerLines] = head.split('\r\n');
       const [method, pathname] = requestLine.split(' ');
 
-      // 构造简单的请求对象
+      let contentLength = 0;
+      for (const line of headerLines) {
+        if (line.toLowerCase().startsWith('content-length:')) {
+          contentLength = parseInt(line.split(':')[1].trim(), 10);
+          break;
+        }
+      }
+      const bodyStr = contentLength > 0 ? body.slice(0, contentLength) : body;
+
       const req = {
         method,
         url: pathname,
-      } as IncomingMessage;
+        headers: { host: 'localhost' },
+        bodyPromise: Promise.resolve(bodyStr),
+      } as IncomingMessage & { bodyPromise?: Promise<string> };
 
       // 构造响应对象
       let responseBody = '';
@@ -170,6 +203,86 @@ export class DaemonRoutes {
       this.logger.error('配置重新加载失败', error.message);
       res.writeHead(500);
       res.end(JSON.stringify(response));
+    }
+  }
+
+  /**
+   * GET /config - 返回 CLI 所需的配置（供界面展示与命令使用）
+   */
+  private async handleGetConfig(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const config = getConfig();
+    res.writeHead(200);
+    res.end(JSON.stringify(config));
+  }
+
+  /**
+   * GET /session/:id - 获取会话
+   */
+  private async handleGetSession(sessionId: string, res: ServerResponse): Promise<void> {
+    const sessionManager = getSessionManager();
+    const session = await sessionManager.loadSession(sessionId);
+    if (!session) {
+      res.writeHead(404);
+      res.end(JSON.stringify({ error: 'Session not found' }));
+      return;
+    }
+    res.writeHead(200);
+    res.end(JSON.stringify(session));
+  }
+
+  /**
+   * POST /session - 创建新会话
+   */
+  private async handleCreateSession(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const sessionManager = getSessionManager();
+    const session = await sessionManager.createSession();
+    res.writeHead(200);
+    res.end(JSON.stringify(session));
+  }
+
+  /**
+   * POST /chat-stream - 流式对话，请求体 JSON，响应 NDJSON 流
+   */
+  private async handleChatStream(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    let body: string;
+    try {
+      body = await readBody(req);
+    } catch (error: any) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'Failed to read body', message: error.message }));
+      return;
+    }
+    let payload: ChatStreamRequest;
+    try {
+      payload = JSON.parse(body) as ChatStreamRequest;
+    } catch {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+      return;
+    }
+    if (!payload.message) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'Missing field: message' }));
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'application/x-ndjson',
+      'Transfer-Encoding': 'chunked',
+    });
+    res.flushHeaders?.();
+
+    try {
+      for await (const event of runChatStream(payload, this.logger)) {
+        const line = JSON.stringify(event) + '\n';
+        res.write(line);
+        res.flushHeaders?.();
+      }
+    } catch (error: any) {
+      this.logger.error('Chat stream 错误', error.message);
+      res.write(JSON.stringify({ type: 'error', message: error.message }) + '\n');
+    } finally {
+      res.end();
     }
   }
 

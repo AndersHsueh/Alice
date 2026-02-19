@@ -5,6 +5,7 @@
  */
 
 import { daemonConfigManager } from './config.js';
+import { initServices } from './services.js';
 import { DaemonLogger } from './logger.js';
 import { DaemonRoutes } from './routes.js';
 import { DaemonServer } from './server.js';
@@ -29,6 +30,9 @@ async function startDaemon(): Promise<void> {
     logger.info('Daemon 服务启动中...');
     logger.info(`配置路径: ${daemonConfigManager.getConfigPath()}`);
     logger.info(`通信方式: ${config.transport}`);
+
+    await initServices(logger);
+    logger.info('业务服务已初始化（config、LLM、tools、session、MCP）');
 
     // 创建路由和服务器
     const routes = new DaemonRoutes(config, logger);

@@ -9,7 +9,7 @@ import { ToolCallStatus } from './components/ToolCallStatus.js';
 import { DangerousCommandConfirm } from './components/DangerousCommandConfirm.js';
 import { QuestionPrompt } from './components/QuestionPrompt.js';
 import { ExitReport } from './components/ExitReport.js';
-import { LLMClient } from '../core/llm.js';
+import { DaemonClient } from '../utils/daemonClient.js';
 import { CommandRegistry } from '../core/commandRegistry.js';
 import { builtinCommands } from '../core/builtinCommands.js';
 import { configManager } from '../utils/config.js';
@@ -18,12 +18,9 @@ import { statusManager } from '../core/statusManager.js';
 import { sessionManager } from '../core/session.js';
 import { StatsTracker } from '../core/statsTracker.js';
 import type { SessionStats } from '../core/statsTracker.js';
-import { toolRegistry, builtinTools, setQuestionDialogCallback } from '../tools/index.js';
-import { mcpManager } from '../core/mcp.js';
-import { mcpConfigManager } from '../utils/mcpConfig.js';
-import { skillManager } from '../core/skillManager.js';
+import { setQuestionDialogCallback } from '../tools/index.js';
 import { KeyAction } from '../core/keybindings.js';
-import type { Message, Session } from '../types/index.js';
+import type { Message, Session, Config } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
 import type { StatusInfo } from '../core/statusManager.js';
 import type { CLIOptions } from '../utils/cliArgs.js';
@@ -37,7 +34,8 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
   const [showBanner, setShowBanner] = useState(!skipBanner);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [llmClient, setLlmClient] = useState<LLMClient | null>(null);
+  const [daemonClient] = useState(() => new DaemonClient());
+  const [appConfig, setAppConfig] = useState<Config | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [toolRecords, setToolRecords] = useState<ToolCallRecord[]>([]);
@@ -123,194 +121,72 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
 
   const initializeApp = async () => {
     statusManager.updateConnectionStatus('connecting');
-    
-    // 如果指定了 --config，使用自定义配置路径
+
     if (cliOptions.config) {
       await configManager.init(cliOptions.config);
     } else {
       await configManager.init();
     }
-
-    // 初始化主题系统
     await themeManager.init();
-
-    // 初始化会话系统
-    await sessionManager.init();
     statsTrackerRef.current = new StatsTracker();
 
     const applySession = (session: Session) => {
       const tracker = statsTrackerRef.current;
-      lastPersistedIndexRef.current = session.messages.length;
-      setMessages(session.messages);
-      setHistory(session.messages.filter(msg => msg.role === 'user').map(msg => msg.content));
-
+      const msgs = session.messages.map((m) => ({
+        ...m,
+        timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(String(m.timestamp)),
+      }));
+      lastPersistedIndexRef.current = msgs.length;
+      setMessages(msgs);
+      setHistory(msgs.filter((msg) => msg.role === 'user').map((msg) => msg.content));
       if (tracker) {
-        for (const message of session.messages) {
-          if (message.role === 'user') {
-            tracker.recordUserMessage();
-          } else if (message.role === 'assistant') {
-            tracker.recordAssistantMessage();
-          }
+        for (const message of msgs) {
+          if (message.role === 'user') tracker.recordUserMessage();
+          else if (message.role === 'assistant') tracker.recordAssistantMessage();
         }
       }
     };
 
-    const resolveSession = async (): Promise<Session | null> => {
+    try {
+      const config = await daemonClient.getConfig();
+      if (cliOptions.workspace) {
+        try {
+          process.chdir(cliOptions.workspace);
+        } catch (error) {
+          console.error(`❌ 无法切换到目录: ${cliOptions.workspace}`);
+        }
+      }
+      setAppConfig(config);
+
+      let session: Session;
       if (cliOptions.session) {
-        const loaded = await sessionManager.openSession(cliOptions.session);
+        const loaded = await daemonClient.getSession(cliOptions.session);
         if (!loaded) {
           console.error(`❌ 未找到会话: ${cliOptions.session}`);
-          exit(new Error(`Session not found: ${cliOptions.session}`));
-          return null;
+          statusManager.updateConnectionStatus('disconnected');
+          return;
         }
-        return loaded;
-      }
-
-      const sessions = await sessionManager.listSessions();
-
-      if (cliOptions.resume) {
-        if (sessions.length === 0) {
-          console.log('ℹ️ 未找到历史会话，已创建新会话');
-          return sessionManager.createSession();
-        }
-
-        const choices = sessions.map(session => (
-          `${session.id} (${session.messages.length} msgs, ${session.createdAt.toLocaleString()})`
-        ));
-        const answer = await showQuestionDialog('请选择要恢复的会话', choices, true);
-        const selected = sessions.find(session => answer.startsWith(session.id));
-        const sessionId = selected?.id || answer.trim();
-        const loaded = await sessionManager.openSession(sessionId);
-        if (!loaded) {
-          console.error(`❌ 未找到会话: ${sessionId}`);
-          return sessionManager.createSession();
-        }
-        return loaded;
-      }
-
-      if (cliOptions.continue) {
-        if (sessions.length === 0) {
-          console.log('ℹ️ 未找到历史会话，已创建新会话');
-          return sessionManager.createSession();
-        }
-        const latest = sessions[0];
-        const loaded = await sessionManager.openSession(latest.id);
-        return loaded || sessionManager.createSession();
-      }
-
-      return sessionManager.createSession();
-    };
-
-    const session = await resolveSession();
-    if (!session) {
-      statusManager.updateConnectionStatus('disconnected');
-      return;
-    }
-    sessionIdRef.current = session.id;
-    statusManager.updateSessionId(session.id);
-    applySession(session);
-
-    let config = configManager.get();
-    const baseSystemPrompt = await configManager.loadSystemPrompt();
-
-    // 初始化 Skills 系统（三阶段：Discovery）
-    let skillsSummary = '';
-    try {
-      await skillManager.ensureDefaultSkills();
-      await skillManager.discover();
-      skillsSummary = skillManager.buildSkillsSummary();
-    } catch (error: any) {
-      console.warn(`⚠️  Skills 初始化失败: ${error.message}`);
-    }
-
-    const systemPrompt = skillsSummary
-      ? baseSystemPrompt + '\n' + skillsSummary
-      : baseSystemPrompt;
-    
-    // 应用 CLI 参数覆盖
-    // 1. 处理 --workspace
-    if (cliOptions.workspace) {
-      config = { ...config, workspace: cliOptions.workspace };
-      try {
-        process.chdir(cliOptions.workspace);
-      } catch (error) {
-        console.error(`❌ 无法切换到目录: ${cliOptions.workspace}`);
-      }
-    }
-
-    // 2. 处理 --model
-    let defaultModel = configManager.getDefaultModel();
-    if (cliOptions.model) {
-      const selectedModel = configManager.getModel(cliOptions.model);
-      if (selectedModel) {
-        defaultModel = selectedModel;
+        session = loaded as Session;
       } else {
-        const availableModels = config.models.map(m => m.name).join(', ');
-        console.error(`❌ 模型 '${cliOptions.model}' 未找到。可用模型: ${availableModels}`);
-        statusManager.updateConnectionStatus('disconnected');
-        return;
+        session = (await daemonClient.createSession()) as Session;
       }
-    }
 
-    if (!defaultModel) {
-      console.error('❌ 错误：未找到默认模型配置');
-      statusManager.updateConnectionStatus('disconnected');
-      return;
-    }
-    
-    // 3. 处理 --verbose / --debug
-    if (cliOptions.verbose) {
-      // 可以在此处设置全局日志级别（如果实现了日志系统）
-      console.log('ℹ️ 详细日志输出已启用');
-    }
-    if (cliOptions.debug) {
-      console.log('🐛 调试模式已启用');
-    }
-    
-    toolRegistry.registerAll(builtinTools);
+      sessionIdRef.current = session.id;
+      statusManager.updateSessionId(session.id);
+      applySession(session);
 
-    // 初始化 MCP 服务器
-    try {
-      const mcpSettings = await mcpConfigManager.load();
-      const enabledServers = Object.fromEntries(
-        Object.entries(mcpSettings.servers).filter(([, c]) => c.enabled !== false)
-      );
-      if (Object.keys(enabledServers).length > 0) {
-        console.log('🔌 连接 MCP 服务器...');
-        await mcpManager.connectAll(enabledServers);
-      }
+      const defaultModel = config.models.find((m) => m.name === config.default_model) ?? config.models[0];
+      statusManager.updateConnectionStatus('connected', defaultModel?.provider);
     } catch (error: any) {
-      console.warn(`⚠️  MCP 初始化失败: ${error.message}`);
+      console.error('❌ 连接 Daemon 失败:', error.message);
+      statusManager.updateConnectionStatus('disconnected');
     }
-    
-    const client = new LLMClient(defaultModel, systemPrompt);
-    
-    client.enableTools(config);
-    
-    client.setConfirmHandler(async (message: string, command: string) => {
-      return new Promise((resolve) => {
-        setConfirmDialog({
-          message,
-          command,
-          onConfirm: (confirmed) => {
-            setConfirmDialog(null);
-            resolve(confirmed);
-          }
-        });
-      });
-    });
-    
-    setLlmClient(client);
-    statusManager.updateConnectionStatus('connected', defaultModel.provider);
   };
 
   const requestExit = (code?: number | Error) => {
     if (isExitingRef.current) return;
     isExitingRef.current = true;
     exitCodeRef.current = code instanceof Error ? code : undefined;
-
-    // 断开 MCP 服务器
-    mcpManager.disconnectAll().catch(() => {});
 
     const stats = statsTrackerRef.current?.endSession();
     if (!stats) {
@@ -330,7 +206,6 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     return () => clearTimeout(timer);
   }, [showExitReport, exitStats, exit]);
 
-  // 全局键绑定（Quit等）
   const keybindingManager = configManager.getKeybindingManager();
   useInput((input, key) => {
     const action = keybindingManager.match(input, key);
@@ -340,28 +215,24 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
   });
 
   const handleSubmit = async (input: string) => {
-    if (!llmClient || isProcessing) {
-      // 但命令可以在没有 llmClient 的情况下执行
-      if (!input.startsWith('/') || !llmClient) return;
+    if (!appConfig || isProcessing) {
+      if (!input.startsWith('/')) return;
     }
 
-    // 处理命令
     if (input.startsWith('/')) {
       await handleCommand(input);
       return;
     }
 
-    // 添加到历史
-    setHistory(prev => [...prev, input]);
+    setHistory((prev) => [...prev, input]);
     setHistoryIndex(-1);
 
-    // 添加用户消息
     const userMsg: Message = {
       role: 'user',
       content: input,
       timestamp: new Date(),
     };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
 
     setIsProcessing(true);
     setStreamingContent('');
@@ -369,80 +240,87 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     const requestStart = Date.now();
 
     try {
-      // 流式输出节流：缓存 chunk，每 50ms 批量刷新一次
       const THROTTLE_MS = 50;
       let buffer = '';
       let lastFlush = Date.now();
 
       const flushBuffer = () => {
         if (buffer.length > 0) {
-          setStreamingContent(prev => prev + buffer);
+          setStreamingContent((prev) => prev + buffer);
           buffer = '';
           lastFlush = Date.now();
         }
       };
 
-      for await (const chunk of llmClient.chatStreamWithTools(
-        [...messages, userMsg],
-        (record) => {
-          setToolRecords(prev => {
-            const index = prev.findIndex(r => r.id === record.id);
+      for await (const event of daemonClient.chatStream({
+        sessionId: sessionIdRef.current ?? undefined,
+        message: input,
+        model: appConfig?.default_model,
+        workspace: cliOptions.workspace || appConfig?.workspace,
+      })) {
+        if (event.type === 'text') {
+          buffer += event.content;
+          const now = Date.now();
+          if (now - lastFlush >= THROTTLE_MS) flushBuffer();
+        } else if (event.type === 'tool_call') {
+          setToolRecords((prev) => {
+            const index = prev.findIndex((r) => r.id === event.record.id);
             if (index >= 0) {
               const updated = [...prev];
-              updated[index] = record;
+              updated[index] = event.record;
               return updated;
             }
-            return [...prev, record];
+            return [...prev, event.record];
           });
-
-          if ((record.status === 'success' || record.status === 'error')
-            && !toolStatsRecordedRef.current.has(record.id)) {
-            toolStatsRecordedRef.current.add(record.id);
-            const duration = record.endTime && record.startTime
-              ? record.endTime - record.startTime
-              : undefined;
+          if (
+            (event.record.status === 'success' || event.record.status === 'error') &&
+            !toolStatsRecordedRef.current.has(event.record.id)
+          ) {
+            toolStatsRecordedRef.current.add(event.record.id);
+            const duration =
+              event.record.endTime && event.record.startTime
+                ? event.record.endTime - event.record.startTime
+                : undefined;
             statsTrackerRef.current?.recordToolCall(
-              record.toolName,
-              record.status === 'success',
+              event.record.toolName,
+              event.record.status === 'success',
               duration
             );
           }
-        }
-      )) {
-        buffer += chunk;
-
-        // 定期刷新缓冲区
-        const now = Date.now();
-        if (now - lastFlush >= THROTTLE_MS) {
-          flushBuffer();
+        } else if (event.type === 'done') {
+          sessionIdRef.current = event.sessionId;
+          if (event.messages?.length) {
+            const msgs = event.messages.map((m) => ({
+              ...m,
+              timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(String(m.timestamp)),
+            }));
+            setMessages(msgs);
+          }
+          setStreamingContent('');
         }
       }
 
-      // 最后确保所有剩余的 chunk 都被刷新
       flushBuffer();
-
-      // 使用函数式更新获取最新的 streamingContent 值
-      // （闭包中的 streamingContent 是旧值，必须通过 setState 回调获取最新值）
-      setStreamingContent(currentContent => {
+      // 若服务端未发 done（异常断开等），用当前流式内容补一条 assistant 消息
+      setStreamingContent((currentContent) => {
         if (currentContent) {
-          const assistantMsg: Message = {
-            role: 'assistant',
-            content: currentContent,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, assistantMsg]);
+          setMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: currentContent, timestamp: new Date() },
+          ]);
         }
         return '';
       });
     } catch (error) {
       statusManager.updateConnectionStatus('disconnected');
-      
-      const errorMsg: Message = {
-        role: 'assistant',
-        content: `❌ 抱歉，遇到了问题：${error instanceof Error ? error.message : '未知错误'}`,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMsg]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `❌ 抱歉，遇到了问题：${error instanceof Error ? error.message : '未知错误'}`,
+          timestamp: new Date(),
+        },
+      ]);
       setStreamingContent('');
     } finally {
       const responseTime = Date.now() - requestStart;
@@ -455,16 +333,13 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
 
   const handleCommand = async (cmd: string) => {
     try {
-      // 解析命令名和参数（去掉前面的 /）
       const [cmdName, ...args] = cmd.slice(1).split(/\s+/);
-
-      // 使用命令注册表执行命令
       await commandRegistry.execute(cmdName, args, {
         messages,
         setMessages,
-        config: configManager.get(),
-        workspace: configManager.get().workspace,
-        llmClient,
+        config: appConfig ?? configManager.get(),
+        workspace: appConfig?.workspace ?? configManager.get().workspace,
+        llmClient: null,
         exit: (code?: any) => requestExit(code),
       });
     } catch (error: any) {
@@ -531,13 +406,13 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     return <Banner onComplete={() => setShowBanner(false)} />;
   }
 
-  const config = configManager.get();
-  const defaultModel = configManager.getDefaultModel();
+  const config = appConfig ?? configManager.get();
+  const defaultModel = config.models.find((m) => m.name === config.default_model) ?? config.models[0];
 
   return (
     <Box flexDirection="column" height="100%">
       <Static items={['header']}>
-        {(item) => <Header key={item} workspace={config.workspace} model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : llmClient?.getModelName() || '未知'} />}
+        {(item) => <Header key={item} workspace={config.workspace} model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : '未知'} />}
       </Static>
       
       <ChatArea 
@@ -585,7 +460,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
         tokenUsage={statusInfo.tokenUsage}
         responseTime={statusInfo.responseTime}
         sessionId={statusInfo.sessionId}
-        model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : llmClient?.getModelName() || '未知'}
+        model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : '未知'}
       />
     </Box>
   );

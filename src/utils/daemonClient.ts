@@ -10,7 +10,15 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import type { DaemonConfig, PingResponse, StatusResponse, ReloadConfigResponse } from '../types/daemon.js';
+import type { Config } from '../types/index.js';
+import type { Session } from '../types/index.js';
 import { daemonConfigManager } from '../daemon/config.js';
+
+export type ChatStreamEvent =
+  | { type: 'text'; content: string }
+  | { type: 'tool_call'; record: any }
+  | { type: 'done'; sessionId: string; messages: any[] }
+  | { type: 'error'; message: string };
 
 export class DaemonClient {
   private config: DaemonConfig;
@@ -104,9 +112,9 @@ export class DaemonClient {
   }
 
   /**
-   * 发送 HTTP 请求
+   * 发送 HTTP 请求（可选 body）
    */
-  private async httpRequest(path: string, method: string = 'GET'): Promise<any> {
+  private async httpRequest(path: string, method: string = 'GET', body?: string): Promise<any> {
     return new Promise((resolve, reject) => {
       const options = {
         hostname: '127.0.0.1',
@@ -114,6 +122,7 @@ export class DaemonClient {
         path,
         method,
         timeout: this.timeout,
+        headers: body ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } : {},
       };
 
       const req = http.request(options, (res) => {
@@ -125,7 +134,7 @@ export class DaemonClient {
 
         res.on('end', () => {
           try {
-            const json = JSON.parse(data);
+            const json = data ? JSON.parse(data) : {};
             if (res.statusCode === 200) {
               resolve(json);
             } else {
@@ -146,16 +155,16 @@ export class DaemonClient {
         reject(new Error('请求超时'));
       });
 
+      if (body) req.write(body);
       req.end();
     });
   }
 
   /**
-   * 发送 Unix socket 请求
+   * 发送 Unix socket 请求（可选 body）
    */
-  private async socketRequest(path: string, method: string = 'GET'): Promise<any> {
+  private async socketRequest(path: string, method: string = 'GET', body?: string): Promise<any> {
     return new Promise((resolve, reject) => {
-      // 展开路径中的 ~ 符号
       let socketPath = this.config.socketPath;
       if (socketPath.startsWith('~')) {
         socketPath = socketPath.replace('~', os.homedir());
@@ -170,7 +179,11 @@ export class DaemonClient {
       let responseData = '';
 
       socket.on('connect', () => {
-        const request = `${method} ${path} HTTP/1.1\r\nHost: localhost\r\n\r\n`;
+        const contentLength = body ? Buffer.byteLength(body) : 0;
+        const headers = body
+          ? 'Content-Type: application/json\r\nContent-Length: ' + contentLength + '\r\n'
+          : '';
+        const request = `${method} ${path} HTTP/1.1\r\nHost: localhost\r\n${headers}\r\n${body || ''}`;
         socket.write(request);
       });
 
@@ -181,10 +194,9 @@ export class DaemonClient {
       socket.on('end', () => {
         clearTimeout(timeout);
         try {
-          // 解析 HTTP 响应
           const [headers, ...bodyParts] = responseData.split('\r\n\r\n');
-          const body = bodyParts.join('\r\n\r\n');
-          const json = JSON.parse(body);
+          const bodyStr = bodyParts.join('\r\n\r\n');
+          const json = bodyStr ? JSON.parse(bodyStr) : {};
           resolve(json);
         } catch (error) {
           reject(new Error('响应解析失败'));
@@ -201,15 +213,163 @@ export class DaemonClient {
   /**
    * 发送请求（根据配置选择 HTTP 或 Socket）
    */
-  private async request(path: string, method: string = 'GET'): Promise<any> {
-    // 确保 daemon 运行
+  private async request(path: string, method: string = 'GET', body?: string): Promise<any> {
     await this.ensureDaemonRunning();
+    if (this.config.transport === 'http') {
+      return this.httpRequest(path, method, body);
+    }
+    return this.socketRequest(path, method, body);
+  }
+
+  /**
+   * POST /chat-stream 流式请求，返回事件异步迭代器
+   */
+  private async *requestChatStream(payload: {
+    sessionId?: string;
+    message: string;
+    model?: string;
+    workspace?: string;
+  }): AsyncGenerator<ChatStreamEvent> {
+    await this.ensureDaemonRunning();
+    const body = JSON.stringify(payload);
 
     if (this.config.transport === 'http') {
-      return this.httpRequest(path, method);
+      yield* this.httpChatStream(body);
     } else {
-      return this.socketRequest(path, method);
+      yield* this.socketChatStream(body);
     }
+  }
+
+  private async *httpChatStream(body: string): AsyncGenerator<ChatStreamEvent> {
+    const options = {
+      hostname: '127.0.0.1',
+      port: this.config.httpPort,
+      path: '/chat-stream',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+    };
+
+    const req = http.request(options);
+    req.write(body);
+    req.end();
+
+    const res = await new Promise<http.IncomingMessage>((resolve, reject) => {
+      req.on('response', resolve);
+      req.on('error', reject);
+    });
+
+    if (res.statusCode !== 200) {
+      throw new Error(`HTTP ${res.statusCode}`);
+    }
+
+    let buffer = '';
+    for await (const chunk of res as unknown as AsyncIterable<Buffer>) {
+      buffer += chunk.toString();
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const event = JSON.parse(line) as ChatStreamEvent;
+          if (event.type === 'error') throw new Error(event.message);
+          yield event;
+        } catch (e) {
+          if (e instanceof SyntaxError) continue;
+          throw e;
+        }
+      }
+    }
+    if (buffer.trim()) {
+      const event = JSON.parse(buffer) as ChatStreamEvent;
+      if (event.type === 'error') throw new Error(event.message);
+      yield event;
+    }
+  }
+
+  private async *socketChatStream(body: string): AsyncGenerator<ChatStreamEvent> {
+    let socketPath = this.config.socketPath;
+    if (socketPath.startsWith('~')) socketPath = socketPath.replace('~', os.homedir());
+
+    const socket = net.createConnection(socketPath);
+    const request = `POST /chat-stream HTTP/1.1\r\nHost: localhost\r\nContent-Type: application/json\r\nContent-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`;
+    socket.write(request);
+
+    let buffer = '';
+    let resolveNext: (() => void) | null = null;
+    let done = false;
+    let headersDone = false;
+    const queue: Buffer[] = [];
+    socket.on('data', (chunk: Buffer) => {
+      queue.push(chunk);
+      if (resolveNext) {
+        resolveNext();
+        resolveNext = null;
+      }
+    });
+    socket.on('end', () => { done = true; if (resolveNext) resolveNext(); });
+    socket.on('error', () => { done = true; if (resolveNext) resolveNext(); });
+
+    const nextChunk = (): Promise<Buffer | null> => {
+      if (queue.length > 0) return Promise.resolve(queue.shift() ?? null);
+      if (done) return Promise.resolve(null);
+      return new Promise((r) => { resolveNext = () => r(queue.shift() ?? null); });
+    };
+
+    while (true) {
+      const chunk = await nextChunk();
+      if (chunk === null) break;
+      buffer += chunk.toString();
+      if (!headersDone) {
+        const idx = buffer.indexOf('\r\n\r\n');
+        if (idx >= 0) {
+          buffer = buffer.slice(idx + 4);
+          headersDone = true;
+        } else continue;
+      }
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const event = JSON.parse(line) as ChatStreamEvent;
+          if (event.type === 'error') throw new Error(event.message);
+          yield event;
+        } catch (e) {
+          if (e instanceof SyntaxError) continue;
+          throw e;
+        }
+      }
+    }
+    if (buffer.trim()) {
+      const event = JSON.parse(buffer) as ChatStreamEvent;
+      if (event.type === 'error') throw new Error(event.message);
+      yield event;
+    }
+  }
+
+  async getConfig(): Promise<Config> {
+    return await this.request('/config', 'GET');
+  }
+
+  async getSession(sessionId: string): Promise<Session | null> {
+    try {
+      return await this.request(`/session/${sessionId}`, 'GET');
+    } catch {
+      return null;
+    }
+  }
+
+  async createSession(): Promise<Session> {
+    return await this.request('/session', 'POST');
+  }
+
+  async *chatStream(payload: {
+    sessionId?: string;
+    message: string;
+    model?: string;
+    workspace?: string;
+  }): AsyncGenerator<ChatStreamEvent> {
+    yield* this.requestChatStream(payload);
   }
 
   /**

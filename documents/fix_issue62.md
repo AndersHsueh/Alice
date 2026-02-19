@@ -442,12 +442,231 @@ tail -f ~/Library/Logs/alice-daemon.log
 
 ---
 
-## 11. 实施总结 ✅
+## 11. 对话流程迁移 ✅
+
+> [!success] **重要更新**：CLI 对话逻辑已完全迁移到 daemon
+
+### 11.1 迁移范围
+
+**已迁移到 daemon 的功能**：
+- ✅ **配置读取**：`getConfig()` API，daemon 统一管理配置
+- ✅ **LLM 调用**：所有模型调用在 daemon 中执行
+- ✅ **System Prompt**：daemon 负责加载和应用 system prompt
+- ✅ **工具调用**：工具注册、执行、结果处理均在 daemon
+- ✅ **会话管理**：会话创建、加载、保存由 daemon 统一管理
+- ✅ **MCP 集成**：MCP 服务器连接和管理在 daemon 中
+- ✅ **流式对话**：`/chat-stream` API 提供完整的流式对话能力
+
+**CLI 保留的功能**：
+- ✅ **UI 渲染**：Ink 组件、流式内容展示、工具调用状态显示
+- ✅ **用户输入**：命令解析、历史记录、快捷键处理
+- ✅ **交互反馈**：状态栏、错误提示、退出报告
+
+### 11.2 架构变化
+
+**迁移前**：
+```
+CLI (app.tsx)
+├── 读取配置 (configManager)
+├── 初始化 LLM (LLMClient)
+├── 加载 system prompt
+├── 初始化工具 (toolRegistry)
+├── 初始化 MCP (mcpManager)
+├── 会话管理 (sessionManager)
+└── 对话处理 (handleSubmit)
+    └── llmClient.chatStreamWithTools()
+```
+
+**迁移后**：
+```
+CLI (app.tsx)                    Daemon
+├── UI 渲染                      ├── 配置管理 (services.ts)
+├── 用户输入                     ├── LLM 客户端 (getLLMClient)
+├── daemonClient.chatStream()    ├── System Prompt (getSystemPrompt)
+│   └── POST /chat-stream ──────►├── 工具注册 (toolRegistry)
+│                                 ├── MCP 管理 (mcpManager)
+│                                 ├── 会话管理 (sessionManager)
+│                                 └── 对话处理 (chatHandler.ts)
+│                                     └── chatStreamWithTools()
+```
+
+### 11.3 实现细节
+
+#### 11.3.1 Daemon 服务层 (`src/daemon/services.ts`)
+
+```typescript
+// 初始化所有服务
+initServices(logger) {
+  // 配置管理
+  const config = loadConfig();
+  
+  // System Prompt
+  const systemPrompt = loadSystemPrompt(config);
+  
+  // 工具注册
+  const toolRegistry = initToolRegistry();
+  
+  // MCP 集成
+  const mcpManager = initMCP(config);
+  
+  // 会话管理
+  const sessionManager = initSessionManager(config);
+  
+  // LLM 客户端（按模型缓存）
+  const llmClients = new Map();
+  
+  return {
+    getConfig(),
+    getSystemPrompt(),
+    getLLMClient(modelConfig, systemPrompt),
+    getSessionManager(),
+  };
+}
+```
+
+#### 11.3.2 对话处理 (`src/daemon/chatHandler.ts`)
+
+```typescript
+async function* runChatStream(req: ChatStreamRequest) {
+  // 1. 获取或创建会话
+  const session = req.sessionId
+    ? await sessionManager.loadSession(req.sessionId)
+    : await sessionManager.createSession();
+  
+  // 2. 获取 LLM 客户端
+  const llmClient = getLLMClient(modelConfig, systemPrompt);
+  
+  // 3. 流式对话 + 工具调用循环
+  for await (const chunk of llmClient.chatStreamWithTools(
+    session.messages,
+    onToolUpdate
+  )) {
+    yield { type: 'text', content: chunk };
+  }
+  
+  // 4. 保存会话
+  await sessionManager.saveSession({ ...session, messages: finalMessages });
+  
+  // 5. 返回完成事件
+  yield { type: 'done', sessionId: session.id, messages: finalMessages };
+}
+```
+
+#### 11.3.3 CLI 客户端 (`src/cli/app.tsx`)
+
+```typescript
+const handleSubmit = async (input: string) => {
+  // 使用 daemonClient 发起对话
+  for await (const event of daemonClient.chatStream({
+    sessionId: sessionIdRef.current,
+    message: input,
+    model: appConfig?.default_model,
+    workspace: appConfig?.workspace,
+  })) {
+    if (event.type === 'text') {
+      // 流式文本展示
+      setStreamingContent(prev => prev + event.content);
+    } else if (event.type === 'tool_call') {
+      // 工具调用状态更新
+      setToolRecords(prev => [...prev, event.record]);
+    } else if (event.type === 'done') {
+      // 会话更新
+      sessionIdRef.current = event.sessionId;
+      setMessages(event.messages);
+    }
+  }
+};
+```
+
+### 11.4 API 接口
+
+**新增的 daemon API**：
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/config` | GET | 获取配置 |
+| `/session/:id` | GET | 获取会话 |
+| `/session` | POST | 创建会话 |
+| `/chat-stream` | POST | 流式对话（NDJSON） |
+
+**`/chat-stream` 请求格式**：
+```typescript
+{
+  sessionId?: string;      // 可选，不提供则创建新会话
+  message: string;          // 用户消息
+  model?: string;           // 模型名称（可选，使用默认模型）
+  workspace?: string;       // 工作空间路径（可选）
+}
+```
+
+**`/chat-stream` 响应格式**（NDJSON 流）：
+```typescript
+// 文本块
+{ "type": "text", "content": "..." }
+
+// 工具调用更新
+{ "type": "tool_call", "record": ToolCallRecord }
+
+// 完成事件
+{ "type": "done", "sessionId": "...", "messages": Message[] }
+```
+
+### 11.5 验证方法
+
+**验证对话是否走 daemon**：
+
+1. **启动 daemon**：
+   ```bash
+   alice-service start
+   ```
+
+2. **查看 daemon 日志**：
+   ```bash
+   tail -f ~/.alice/logs/daemon.log
+   ```
+
+3. **运行 CLI**：
+   ```bash
+   npm run dev
+   ```
+
+4. **发送消息**：在 CLI 中输入任意消息
+
+5. **检查日志**：daemon 日志应显示：
+   ```
+   [INFO] POST /chat-stream - sessionId: xxx, message: "..."
+   [INFO] Tool call: xxx - toolName: ...
+   [INFO] Session saved: xxx
+   ```
+
+**如果日志中没有 `/chat-stream` 请求**，说明对话仍在 CLI 中执行，需要检查：
+- `daemonClient` 是否正确初始化
+- `handleSubmit` 是否使用 `daemonClient.chatStream()`
+- daemon 是否正常运行
+
+### 11.6 清理工作
+
+**已移除的 CLI 代码**：
+- ❌ `LLMClient` 初始化（迁移到 daemon）
+- ❌ `skillManager` 初始化（迁移到 daemon）
+- ❌ `mcpManager` 初始化（迁移到 daemon）
+- ❌ `toolRegistry` 初始化（迁移到 daemon）
+- ❌ `llmClient.chatStreamWithTools()` 调用（改为 `daemonClient.chatStream()`）
+
+**CLI 仍保留**：
+- ✅ `configManager`（用于本地配置路径，如主题、快捷键）
+- ✅ `themeManager`（UI 主题管理）
+- ✅ UI 组件和交互逻辑
+
+---
+
+## 12. 实施总结 ✅
 
 - ✅ **已完成**：所有验收标准已达成
 - ✅ **已测试**：所有功能测试通过
 - ✅ **已提交**：代码已提交到仓库
 - ✅ **已关闭**：Issue #62 已关闭
+- ✅ **对话迁移**：CLI 对话逻辑已完全迁移到 daemon
 
 详细实施总结请参考：[[fix_issue62_summary]]  
 测试结果请参考：[[fix_issue62_test_results]]  
