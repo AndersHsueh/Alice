@@ -132,7 +132,8 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
 
     const applySession = (session: Session) => {
       const tracker = statsTrackerRef.current;
-      const msgs = session.messages.map((m) => ({
+      const messages = session.messages ?? [];
+      const msgs = messages.map((m) => ({
         ...m,
         timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(String(m.timestamp)),
       }));
@@ -175,7 +176,8 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       statusManager.updateSessionId(session.id);
       applySession(session);
 
-      const defaultModel = config.models.find((m) => m.name === config.default_model) ?? config.models[0];
+      const modelList = config.models ?? [];
+      const defaultModel = modelList.find((m) => m.name === config.default_model) ?? modelList[0];
       statusManager.updateConnectionStatus('connected', defaultModel?.provider);
     } catch (error: any) {
       console.error('❌ 连接 Daemon 失败:', error.message);
@@ -407,7 +409,8 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
   }
 
   const config = appConfig ?? configManager.get();
-  const defaultModel = config.models.find((m) => m.name === config.default_model) ?? config.models[0];
+  const models = config.models ?? [];
+  const defaultModel = models.find((m) => m.name === config.default_model) ?? models[0];
 
   return (
     <Box flexDirection="column" height="100%">

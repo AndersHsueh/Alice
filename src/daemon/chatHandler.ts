@@ -5,6 +5,10 @@
 import type { Message } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
 import { configManager } from '../utils/config.js';
+import { splitThinkContent } from '../utils/thinkParser.js';
+
+/** 闭合标签，用于判断是否已出现 think 块结束（避免在未出现 </think> 前误把思考当正文下发） */
+const THINK_CLOSE_TAG = '</think>';
 import { getConfig, getSystemPrompt, getLLMClient, getSessionManager } from './services.js';
 import type { DaemonLogger } from './logger.js';
 
@@ -13,6 +17,8 @@ export interface ChatStreamRequest {
   message: string;
   model?: string;
   workspace?: string;
+  /** 为 true 时流式输出包含 <think>...</think> 块；默认 false，只返回回复正文 */
+  includeThink?: boolean;
 }
 
 export type ChatStreamEvent =
@@ -67,6 +73,9 @@ export async function* runChatStream(
   ];
 
   let accumulatedContent = '';
+  /** 当 includeThink 为 false 时，已向客户端 yield 的 normal 文本长度 */
+  let lastYieldedNormalLength = 0;
+  const includeThink = req.includeThink === true;
   const finalMessages: Message[] = [...conversationMessages];
 
   try {
@@ -100,9 +109,23 @@ export async function* runChatStream(
         }
         toolRecordsBuffer.length = 0;
         accumulatedContent = '';
+        lastYieldedNormalLength = 0;
       }
       accumulatedContent += chunk;
-      yield { type: 'text' as const, content: chunk };
+      if (includeThink) {
+        yield { type: 'text' as const, content: chunk };
+      } else {
+        // 仅当已出现 </think> 后才下发 normal，避免把“思考中”的整段当正文
+        const hasSeenThinkClose = accumulatedContent.indexOf(THINK_CLOSE_TAG) !== -1;
+        if (!hasSeenThinkClose) continue;
+        const segments = splitThinkContent(accumulatedContent);
+        const normalContent = segments.filter((s) => s.type === 'normal').map((s) => s.content).join('');
+        if (normalContent.length > lastYieldedNormalLength) {
+          const slice = normalContent.slice(lastYieldedNormalLength);
+          lastYieldedNormalLength = normalContent.length;
+          yield { type: 'text' as const, content: slice };
+        }
+      }
     }
 
     if (toolRecordsBuffer.length > 0) {

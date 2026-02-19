@@ -55,6 +55,7 @@ export class DaemonRoutes {
     }
     
     method = req.method || 'GET';
+    this.logger.info(`收到请求: ${method} ${pathname}`);
 
     // 设置 CORS 头（本地请求，但为了兼容性）
     res.setHeader('Content-Type', 'application/json');
@@ -116,6 +117,7 @@ export class DaemonRoutes {
 
       // 构造响应对象
       let responseBody = '';
+      let headersWritten = false;
       const responseHeaders: Record<string, string> = {};
       const res = {
         setHeader: (name: string, value: string) => {
@@ -126,10 +128,30 @@ export class DaemonRoutes {
           const allHeaders = { ...responseHeaders, ...headers };
           const headersStr = Object.entries(allHeaders).map(([k, v]) => `${k}: ${v}`).join('\r\n');
           socket.write(`HTTP/1.1 ${statusCode} ${statusText}\r\n${headersStr}\r\n\r\n`);
+          headersWritten = true;
         },
-        end: (body: string) => {
-          responseBody = body;
-          socket.write(body);
+        write: (chunk: string | Buffer) => {
+          if (!headersWritten) {
+            // 如果还没写 headers，先写默认 headers
+            const allHeaders = { ...responseHeaders, 'Content-Type': 'application/x-ndjson' };
+            const headersStr = Object.entries(allHeaders).map(([k, v]) => `${k}: ${v}`).join('\r\n');
+            socket.write(`HTTP/1.1 200 OK\r\n${headersStr}\r\n\r\n`);
+            headersWritten = true;
+          }
+          socket.write(chunk);
+        },
+        flushHeaders: () => {
+          // Socket 不需要 flush，已实时写入
+        },
+        end: (body?: string) => {
+          if (body) {
+            if (!headersWritten) {
+              const allHeaders = { ...responseHeaders };
+              const headersStr = Object.entries(allHeaders).map(([k, v]) => `${k}: ${v}`).join('\r\n');
+              socket.write(`HTTP/1.1 200 OK\r\n${headersStr}\r\n\r\n`);
+            }
+            socket.write(body);
+          }
           socket.end();
         },
       } as ServerResponse;
@@ -211,6 +233,7 @@ export class DaemonRoutes {
    */
   private async handleGetConfig(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const config = getConfig();
+    this.logger.info(`GET /config - 返回配置，default_model: ${config.default_model}`);
     res.writeHead(200);
     res.end(JSON.stringify(config));
   }
@@ -236,6 +259,7 @@ export class DaemonRoutes {
   private async handleCreateSession(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const sessionManager = getSessionManager();
     const session = await sessionManager.createSession();
+    this.logger.info(`POST /session - 创建会话: ${session.id}`);
     res.writeHead(200);
     res.end(JSON.stringify(session));
   }
@@ -271,6 +295,8 @@ export class DaemonRoutes {
       'Transfer-Encoding': 'chunked',
     });
     res.flushHeaders?.();
+
+    this.logger.info(`POST /chat-stream - 会话: ${payload.sessionId || 'new'}, 消息: "${payload.message.substring(0, 50)}${payload.message.length > 50 ? '...' : ''}"`);
 
     try {
       for await (const event of runChatStream(payload, this.logger)) {

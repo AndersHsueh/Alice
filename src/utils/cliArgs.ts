@@ -13,6 +13,7 @@ export interface CLIOptions {
   continue?: boolean;
   resume?: boolean;
   session?: string;
+  prompt?: string; // 一次性对话模式的消息
 }
 
 /**
@@ -35,6 +36,7 @@ export async function parseArgs(): Promise<{ options: CLIOptions; shouldExit: bo
     .version('0.2.0')
     .option('--no-banner', 'Skip startup animation')
     .option('--test-model', 'Run model speed test and exit')
+    .option('-p, --prompt <message>', 'Execute a single prompt and exit (non-interactive mode)')
     .option('--model <name>', 'Specify model to use (overrides config)')
     .option('--provider <name>', 'Specify LLM provider')
     .option('--workspace <path>', 'Set working directory')
@@ -62,6 +64,7 @@ export async function parseArgs(): Promise<{ options: CLIOptions; shouldExit: bo
   const cliOptions: CLIOptions = {
     skipBanner: opts.banner === false, // commander 自动转换 --no-banner 为 banner: false
     testModel: false,
+    prompt: opts.prompt,
     model: opts.model,
     provider: opts.provider,
     workspace: opts.workspace,

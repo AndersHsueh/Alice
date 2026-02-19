@@ -229,6 +229,7 @@ export class DaemonClient {
     message: string;
     model?: string;
     workspace?: string;
+    includeThink?: boolean;
   }): AsyncGenerator<ChatStreamEvent> {
     await this.ensureDaemonRunning();
     const body = JSON.stringify(payload);
@@ -368,6 +369,8 @@ export class DaemonClient {
     message: string;
     model?: string;
     workspace?: string;
+    /** 为 true 时流式输出包含 <think>...</think> 块；默认 false，只返回回复正文 */
+    includeThink?: boolean;
   }): AsyncGenerator<ChatStreamEvent> {
     yield* this.requestChatStream(payload);
   }
