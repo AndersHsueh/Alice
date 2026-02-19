@@ -283,23 +283,54 @@ CLI 与 daemon 的协议可统一为 **JSON over HTTP**（即使底层是 socket
 
 > [!success] Issue #62 已完成实施并通过测试！
 
-### 10.1 启动 Daemon
+### 10.1 安装 `alice-service` 命令
+
+在使用 `alice-service` 命令之前，需要先安装或链接到全局：
+
+**方式一：开发环境（推荐）**
+```bash
+# 在项目根目录执行
+cd /path/to/Alice
+npm run build  # 确保已构建
+npm link       # 链接到全局
+```
+
+**方式二：全局安装**
+```bash
+# 如果项目已发布到 npm
+npm install -g alice-cli
+```
+
+**方式三：使用 npx（无需安装）**
+```bash
+# 在项目根目录执行
+npx alice-service --start
+# 或使用完整路径
+node dist/daemon/cli.js --start
+```
+
+安装后，可以通过 `which alice-service` 检查命令是否可用。
+
+### 10.2 启动 Daemon
 
 #### 方式一：使用 `alice-service` 命令（推荐）
 
 ```bash
 # 启动 daemon
-alice-service --start
+alice-service start
 
 # 查看状态
-alice-service --status
+alice-service status
 
 # 停止 daemon
-alice-service --stop
+alice-service stop
 
 # 重启 daemon（重新加载配置）
-alice-service --restart
+alice-service restart
 ```
+
+> [!note] 注意
+> `alice-service` 命令使用子命令格式（`start`、`stop` 等），而不是 `--start`、`--stop` 格式。
 
 #### 方式二：直接运行 daemon 入口（开发/调试）
 
@@ -339,7 +370,7 @@ launchctl start com.alice.daemon
 launchctl list | grep alice
 ```
 
-### 10.2 CLI 如何使用 Daemon
+### 10.3 CLI 如何使用 Daemon
 
 CLI **无需手动启动 daemon**！当 CLI 需要调用 daemon 时，会自动检测并启动：
 
@@ -370,7 +401,7 @@ const status = await client.getStatus();
 console.log(status.pid, status.uptime);
 ```
 
-### 10.3 配置文件
+### 10.4 配置文件
 
 Daemon 配置文件位置：`~/.alice/daemon_settings.jsonc`
 
@@ -384,7 +415,7 @@ vim ~/.alice/daemon_settings.jsonc
 alice-service --restart
 ```
 
-### 10.4 查看日志
+### 10.5 查看日志
 
 ```bash
 # 查看 daemon 日志
@@ -397,7 +428,7 @@ sudo journalctl -u alice-daemon -f
 tail -f ~/Library/Logs/alice-daemon.log
 ```
 
-### 10.5 故障排查
+### 10.6 故障排查
 
 **Daemon 无法启动**：
 1. 检查端口/Socket 是否被占用
