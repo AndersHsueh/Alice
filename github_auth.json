@@ -1,0 +1,75 @@
+{
+  "cookies": [
+    {
+      "name": "_gh_sess",
+      "value": "Y2911PxJDzAQXsHXfHnM9JmSgYoDe7FOD5%2FtMDqOAUDczB1fWHCFZeMkk7K5AtSkuReHU3pz0D12uNthBjzw1yczoVIk%2FSXZuD5%2Bfwxu9zPpqeNgr7x1SBB0AfLetVJ%2B6rxFk9fZMIph%2F6HpO88dolvF1u0cTW%2BQNVFftXQA4hzQ%2FeBDf4Omb0Ppo8dPY3gsok%2F3TOiYX6YQp%2Ftdk3zOPrgI4YoAAiBLCpZ1piHRba5f6Po5IxU%2BOZk7GRopv%2B%2FROMsO6ivIflR1NZL%2FBeQEbQ%3D%3D--Z9QP1X9Wz6lbNujJ--0k7VpreaE7SXhTW%2BeARS8w%3D%3D",
+      "domain": "github.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_octo",
+      "value": "GH1.1.1487564635.1771134098",
+      "domain": ".github.com",
+      "path": "/",
+      "expires": 1802670098.577015,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "logged_in",
+      "value": "no",
+      "domain": ".github.com",
+      "path": "/",
+      "expires": 1802670098.577245,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "cpu_bucket",
+      "value": "xlg",
+      "domain": ".github.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "preferred_color_mode",
+      "value": "light",
+      "domain": ".github.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "tz",
+      "value": "Asia%2FShanghai",
+      "domain": ".github.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://github.com",
+      "localStorage": [
+        {
+          "name": "jump_to:page_views",
+          "value": "{\"project:users/AndersHsueh/3\":{\"lastVisitedAt\":1771134099,\"visitCount\":1}}"
+        }
+      ]
+    }
+  ]
+}

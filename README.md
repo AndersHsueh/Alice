@@ -146,7 +146,35 @@ npx skills find  # 交互式搜索
 
 ALICE 支持通过 MCP 连接外部工具服务器，大幅扩展能力：
 
-- 独立配置文件 `~/.Alice/mcp_settings.jsonc`
+- 独立配置文件 `~/.alice/mcp_settings.jsonc`
+
+### 🎯 Daemon 服务（v0.6.0）
+
+ALICE 采用 CLI 与 Daemon 架构分离设计：
+
+- **CLI**：交互式前端，用完即走
+- **Daemon**：后台常驻服务，处理心跳、定时任务等
+- **独立命令**：`alice-service` 用于管理 daemon 服务
+- **自动启动**：CLI 需要时会自动启动 daemon
+
+**快速使用**：
+```bash
+# 启动 daemon
+alice-service --start
+
+# 查看状态
+alice-service --status
+
+# 停止 daemon
+alice-service --stop
+
+# 重启 daemon（重新加载配置）
+alice-service --restart
+```
+
+**配置文件**：`~/.alice/daemon_settings.jsonc`
+
+详细文档请参考：[[documents/daemon-usage]]
 - 最多 3 个 MCP 服务器同时连接
 - 自动发现工具并注册到 Function Calling 系统
 - 默认内置 `fetch` MCP 服务器（网页抓取）

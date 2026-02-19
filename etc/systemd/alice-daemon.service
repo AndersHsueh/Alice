@@ -1,0 +1,19 @@
+[Unit]
+Description=ALICE Daemon Service
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i/.alice
+ExecStart=/usr/bin/node /path/to/alice/dist/daemon/index.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# 环境变量
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

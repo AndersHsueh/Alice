@@ -4,7 +4,8 @@
   "description": "ALICE - AI-powered office assistant CLI with Function Calling support",
   "type": "module",
   "bin": {
-    "alice": "./dist/index.js"
+    "alice": "./dist/index.js",
+    "alice-service": "./dist/daemon/cli.js"
   },
   "scripts": {
     "dev": "tsx src/index.tsx",

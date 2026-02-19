@@ -1,6 +1,6 @@
 /**
  * MCP 配置管理
- * 独立配置文件 ~/.Alice/mcp_settings.jsonc
+ * 独立配置文件 ~/.alice/mcp_settings.jsonc
  * 最多 3 个 MCP 服务器生效
  */
 
@@ -36,7 +36,7 @@ export class MCPConfigManager {
   private configPath: string;
 
   constructor() {
-    this.configPath = path.join(os.homedir(), '.Alice', 'mcp_settings.jsonc');
+    this.configPath = path.join(os.homedir(), '.alice', 'mcp_settings.jsonc');
   }
 
   /**
