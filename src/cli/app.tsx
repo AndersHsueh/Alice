@@ -245,6 +245,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       const THROTTLE_MS = 50;
       let buffer = '';
       let lastFlush = Date.now();
+      let receivedDone = false;
 
       const flushBuffer = () => {
         if (buffer.length > 0) {
@@ -290,6 +291,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
             );
           }
         } else if (event.type === 'done') {
+          receivedDone = true;
           sessionIdRef.current = event.sessionId;
           if (event.messages?.length) {
             const msgs = event.messages.map((m) => ({
@@ -302,17 +304,22 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
         }
       }
 
-      flushBuffer();
-      // 若服务端未发 done（异常断开等），用当前流式内容补一条 assistant 消息
-      setStreamingContent((currentContent) => {
-        if (currentContent) {
-          setMessages((prev) => [
-            ...prev,
-            { role: 'assistant', content: currentContent, timestamp: new Date() },
-          ]);
-        }
-        return '';
-      });
+      if (receivedDone) {
+        // 已收到 done，消息列表已由服务端提供，只需清空流式区域，不再把 buffer 或 streamingContent 当作新消息追加
+        setStreamingContent('');
+      } else {
+        flushBuffer();
+        // 若服务端未发 done（异常断开等），用当前流式内容补一条 assistant 消息
+        setStreamingContent((currentContent) => {
+          if (currentContent) {
+            setMessages((prev) => [
+              ...prev,
+              { role: 'assistant', content: currentContent, timestamp: new Date() },
+            ]);
+          }
+          return '';
+        });
+      }
     } catch (error) {
       statusManager.updateConnectionStatus('disconnected');
       setMessages((prev) => [
