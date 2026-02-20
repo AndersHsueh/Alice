@@ -3,6 +3,8 @@
  */
 
 export { readFileTool } from './readFile.js';
+export { writeFileTool } from './writeFile.js';
+export { editFileTool } from './editFile.js';
 export { listFilesTool } from './listFiles.js';
 export { searchFilesTool } from './searchFiles.js';
 export { getCurrentDirectoryTool } from './getCurrentDirectory.js';
@@ -13,6 +15,8 @@ export { askUserTool, setQuestionDialogCallback } from './askUser.js';
 export { loadSkillTool } from './loadSkill.js';
 
 import { readFileTool } from './readFile.js';
+import { writeFileTool } from './writeFile.js';
+import { editFileTool } from './editFile.js';
 import { listFilesTool } from './listFiles.js';
 import { searchFilesTool } from './searchFiles.js';
 import { getCurrentDirectoryTool } from './getCurrentDirectory.js';
@@ -27,6 +31,8 @@ import { loadSkillTool } from './loadSkill.js';
  */
 export const builtinTools = [
   readFileTool,
+  writeFileTool,
+  editFileTool,
   listFilesTool,
   searchFilesTool,
   getCurrentDirectoryTool,
