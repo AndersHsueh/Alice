@@ -88,8 +88,10 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 - 📊 会话统计 (#23)
 
 ### 🔧 工具系统（Function Calling）
-- **8 个内置工具**: 文件操作、系统信息、命令执行、技能加载等
+- **10 个内置工具**: 文件操作、系统信息、命令执行、技能加载等
   - `readFile` - 读取文件内容
+  - `writeFile` - 将内容写入文件（整文件覆盖或新建）
+  - `editFile` - 按行号编辑已有文件（替换/插入/删除行，支持批量），适用于大文件少量修改
   - `listFiles` - 列出目录文件
   - `searchFiles` - 搜索文件（支持 glob 模式）
   - `getCurrentDirectory` - 获取当前目录
