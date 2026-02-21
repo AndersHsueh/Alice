@@ -9,6 +9,7 @@ import chalk from 'chalk';
 import figlet from 'figlet';
 import { ProcessManager } from './processManager.js';
 import { daemonConfigManager } from './config.js';
+import { getErrorMessage } from '../utils/error.js';
 
 // 显示 TUI Banner
 function showBanner() {
@@ -38,7 +39,8 @@ program
 program
   .command('start')
   .description('启动 daemon 服务')
-  .action(async () => {
+  .option('--http', '使用 HTTP 通信（适用于 Windows，默认使用 Unix socket）')
+  .action(async (opts: { http?: boolean }) => {
     try {
       const isRunning = await processManager.isRunning();
       if (isRunning) {
@@ -48,11 +50,16 @@ program
       }
 
       await daemonConfigManager.init();
+      if (opts.http) {
+        await daemonConfigManager.setTransport('http');
+      } else {
+        await daemonConfigManager.setTransport('unix-socket');
+      }
       const pid = await processManager.start();
-      console.log(`✓ Daemon 已启动 (PID: ${pid})`);
+      console.log(`✓ Daemon 已启动 (PID: ${pid})${opts.http ? ' [HTTP]' : ''}`);
       process.exit(0);
-    } catch (error: any) {
-      console.error(`✗ 启动失败: ${error.message}`);
+    } catch (error: unknown) {
+      console.error(`✗ 启动失败: ${getErrorMessage(error)}`);
       process.exit(1);
     }
   });
@@ -71,8 +78,8 @@ program
       await processManager.stop();
       console.log('✓ Daemon 已停止');
       process.exit(0);
-    } catch (error: any) {
-      console.error(`✗ 停止失败: ${error.message}`);
+    } catch (error: unknown) {
+      console.error(`✗ 停止失败: ${getErrorMessage(error)}`);
       process.exit(1);
     }
   });
@@ -80,14 +87,18 @@ program
 program
   .command('restart')
   .description('重启 daemon 服务（重新加载配置）')
-  .action(async () => {
+  .option('--http', '切换为 HTTP 通信（适用于 Windows）')
+  .action(async (opts: { http?: boolean }) => {
     try {
       await daemonConfigManager.init();
+      if (opts.http !== undefined) {
+        await daemonConfigManager.setTransport(opts.http ? 'http' : 'unix-socket');
+      }
       await processManager.restart();
       console.log('✓ Daemon 已重启，配置已重新加载');
       process.exit(0);
-    } catch (error: any) {
-      console.error(`✗ 重启失败: ${error.message}`);
+    } catch (error: unknown) {
+      console.error(`✗ 重启失败: ${getErrorMessage(error)}`);
       process.exit(1);
     }
   });
@@ -123,14 +134,14 @@ program
         if (status.httpPort) {
           console.log(`HTTP 端口: ${status.httpPort}`);
         }
-      } catch (error: any) {
+      } catch (_error: unknown) {
         // 无法连接到 daemon，仅显示基本信息
         console.log('（无法连接到 daemon 获取详细信息）');
       }
 
       process.exit(0);
-    } catch (error: any) {
-      console.error(`✗ 查询状态失败: ${error.message}`);
+    } catch (error: unknown) {
+      console.error(`✗ 查询状态失败: ${getErrorMessage(error)}`);
       process.exit(1);
     }
   });

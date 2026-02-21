@@ -6,7 +6,7 @@
 
 🤖 **ALICE** - 基于大语言模型的智能办公助手
 
-[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/AndersHsueh/Alice)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue.svg)](https://github.com/AndersHsueh/Alice)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 
@@ -23,7 +23,25 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 - ⚡ 轻量高效，开箱即用
 - 🔄 智能降级，保障可用性
 
+### 🤖 Agent 产品体系
+
+本仓库是一套完整的 Agent 产品体系，目前 **VERONICA** 与 **ALICE** 已上线运行；**DIANA**、**ANDERS** 仍在规划中。
+
+| 名称 | 全称（英文） | 中文意涵 | 角色 | 状态 |
+|------|----------------|----------|------|------|
+| **VERONICA** | **V**erified **E**mbedded **R**esilient **O**rchestration **N**eural **I**ntelligent **C**ontrol **A**gent | 经验证的嵌入式弹性神经智能控制代理 | daemon 服务，常驻运行、会话与推理编排（`veronica` 命令管理） | ✅ 已上线 |
+| **ALICE** | **A**ccelerated **L**ogic **I**nference **C**ore **E**xecutor | 加速逻辑推理核心执行器 | 主 CLI（TUI + 一次性对话），与 VERONICA 配合（`alice` 命令） | ✅ 已上线 |
+| **DIANA** | **D**ynamic **I**ntelligent **A**ccessible **N**etworked **A**gent | 动态智能可及网络化代理 | 移动端 Agent，直接与用户快速沟通 | 📋 规划中 |
+| **ANDERS** | **A**rchitectural **N**exus **D**isciplined **E**ngineering **R**easoning **S**ystem | 架构枢纽以及纪律化工程推理系统 | 架构师 Agent，专门用于处理复杂代码 | 📋 规划中 |
+
 ## ✨ 特性
+
+### 🚀 v0.4.0 新功能
+
+**TUI 结构优化**
+- 📐 主界面布局组件化：`ChatLayout` 统一承载 Header、ChatArea、确认/问答浮层、InputBox、StatusBar
+- 📄 退出汇报全屏组件：`ExitReportScreen` 独立展示会话统计
+- 📋 开发结构规范：根目录新增 `DEVELOPMENT_STRUCTURE.md`，约定目录职责与新增代码放置规则，便于后续按结构延续开发
 
 ### 🚀 v0.3.0 新功能
 
@@ -546,32 +564,25 @@ ALICE 内置智能降级功能：
 
 ### 项目结构
 
+目录与模块职责详见根目录 **[DEVELOPMENT_STRUCTURE.md](DEVELOPMENT_STRUCTURE.md)**，以下为简要结构：
+
 ```
 alice-cli/
 ├── src/
 │   ├── index.tsx           # 入口文件
-│   ├── cli/                # UI 层
-│   │   ├── app.tsx        # 主应用
-│   │   └── components/    # React 组件
-│   │       ├── Banner.tsx
-│   │       ├── Header.tsx
-│   │       ├── ChatArea.tsx
-│   │       └── InputBox.tsx
-│   ├── core/              # 核心逻辑
-│   │   ├── llm.ts        # LLM 客户端（支持降级）
-│   │   ├── providers/    # Provider 适配器
-│   │   │   ├── base.ts
-│   │   │   ├── openai-compatible.ts
-│   │   │   └── index.ts
-│   │   └── session.ts    # 会话管理
-│   ├── utils/            # 工具函数
-│   │   ├── config.ts     # 配置管理（支持 JSONC）
-│   │   ├── test-model.ts # 模型测速工具
-│   │   ├── thinkParser.ts    # <think> 标签解析
-│   │   └── tableRenderer.tsx # 表格渲染组件（CJK支持）
-│   └── types/            # TypeScript 类型
-│       └── index.ts
-├── dist/                 # 构建输出
+│   ├── cli/                # TUI 应用层
+│   │   ├── app.tsx         # 主应用（状态与业务编排）
+│   │   ├── components/      # TUI 组件（ChatLayout、Header、ChatArea、InputBox、StatusBar 等）
+│   │   ├── hooks/          # TUI 专用 Hooks
+│   │   └── context/        # React Context
+│   ├── components/         # 可复用 UI 组件（Markdown、SelectList、Overlay 等）
+│   ├── core/               # 核心逻辑（LLM、会话、主题、命令、状态等）
+│   ├── daemon/             # VERONICA 后台服务
+│   ├── tools/              # 工具系统（builtin、executor、MCP 等）
+│   ├── utils/              # 工具函数与配置
+│   ├── types/              # 全局类型定义
+│   └── scripts/            # 独立脚本（test-model 等）
+├── dist/                   # 构建输出
 └── package.json
 ```
 

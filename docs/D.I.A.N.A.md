@@ -2,6 +2,9 @@
 ---
 
 ### ✅ 推荐方案（专为 Diana 移动终端定制）：
+
+D.I.A.N.A
+
 **D**ynamic  
 **I**ntelligent  
 **A**ccessible  

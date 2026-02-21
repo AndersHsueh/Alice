@@ -8,6 +8,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { toolRegistry } from '../tools/registry.js';
 import type { MCPServerConfig } from '../utils/mcpConfig.js';
 import type { AliceTool, ToolResult } from '../types/tool.js';
+import { getErrorMessage } from '../utils/error.js';
 
 interface MCPConnection {
   name: string;
@@ -82,8 +83,8 @@ export class MCPManager {
         } else {
           console.log(`  ✓ ${name}: 已连接（无工具）`);
         }
-      } catch (error: any) {
-        const msg = error.message || '未知错误';
+      } catch (error: unknown) {
+        const msg = getErrorMessage(error) || '未知错误';
         failed.push({ name, error: msg });
         console.warn(`  ✗ ${name}: ${msg}`);
       }
@@ -167,10 +168,10 @@ export class MCPManager {
             data: output,
             error: isError ? output : undefined,
           } as ToolResult;
-        } catch (error: any) {
+        } catch (error: unknown) {
           return {
             success: false,
-            error: error.message || '工具调用失败',
+            error: getErrorMessage(error) || '工具调用失败',
           } as ToolResult;
         }
       },

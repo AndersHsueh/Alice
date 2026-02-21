@@ -5,6 +5,7 @@ import { App } from './cli/app.js';
 import { parseArgs } from './utils/cliArgs.js';
 import { DaemonClient } from './utils/daemonClient.js';
 import { configManager } from './utils/config.js';
+import { getErrorMessage } from './utils/error.js';
 
 /**
  * 执行一次性对话模式（-p 参数）
@@ -86,9 +87,9 @@ async function executePromptMode(prompt: string, cliOptions: any): Promise<void>
         process.exit(1);
       }
     }
-  } catch (error: any) {
-    console.error(`❌ 执行失败: ${error.message}`);
-    if (cliOptions.debug) {
+  } catch (error: unknown) {
+    console.error(`❌ 执行失败: ${getErrorMessage(error)}`);
+    if (cliOptions.debug && error instanceof Error && error.stack) {
       console.error(error.stack);
     }
     process.exit(1);

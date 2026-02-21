@@ -5,6 +5,7 @@
 
 import { spawn } from 'child_process';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
+import { getErrorMessage } from '../../utils/error.js';
 
 /**
  * 危险命令模式（跨平台）
@@ -97,10 +98,10 @@ export const executeCommandTool: AliceTool = {
           hasOutput = true;
         });
 
-        proc.on('error', (error) => {
+        proc.on('error', (error: unknown) => {
           resolve({
             success: false,
-            error: `命令执行失败: ${error.message}`
+            error: `命令执行失败: ${getErrorMessage(error)}`
           });
         });
 
@@ -145,10 +146,10 @@ export const executeCommandTool: AliceTool = {
           });
         });
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: `命令执行异常: ${error.message}`
+        error: `命令执行异常: ${getErrorMessage(error)}`
       };
     }
   }

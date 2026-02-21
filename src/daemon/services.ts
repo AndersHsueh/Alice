@@ -12,6 +12,7 @@ import { mcpManager } from '../core/mcp.js';
 import { LLMClient } from '../core/llm.js';
 import type { Config, ModelConfig } from '../types/index.js';
 import type { DaemonLogger } from './logger.js';
+import { getErrorMessage } from '../utils/error.js';
 
 let initialized = false;
 const llmClientCache = new Map<string, LLMClient>();
@@ -39,8 +40,8 @@ export async function initServices(logger: DaemonLogger): Promise<void> {
       await skillManager.ensureDefaultSkills();
       await skillManager.discover();
       logger.info('Skills 已发现');
-    } catch (error: any) {
-      logger.warn('Skills 初始化失败', error.message);
+    } catch (error: unknown) {
+      logger.warn('Skills 初始化失败', getErrorMessage(error));
     }
 
     toolRegistry.registerAll(builtinTools);
@@ -55,13 +56,13 @@ export async function initServices(logger: DaemonLogger): Promise<void> {
         await mcpManager.connectAll(enabledServers);
         logger.info('MCP 服务器已连接');
       }
-    } catch (error: any) {
-      logger.warn('MCP 初始化失败', error.message);
+    } catch (error: unknown) {
+      logger.warn('MCP 初始化失败', getErrorMessage(error));
     }
 
     initialized = true;
-  } catch (error: any) {
-    logger.error('服务初始化失败', error.message);
+  } catch (error: unknown) {
+    logger.error('服务初始化失败', getErrorMessage(error));
     throw error;
   }
 }

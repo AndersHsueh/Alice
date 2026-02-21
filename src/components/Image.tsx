@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Text } from 'ink';
 import fs from 'fs/promises';
 import type { AliceComponentProps, ImageProtocol } from './types.js';
+import { getErrorMessage } from '../utils/error.js';
 
 export interface ImageProps extends AliceComponentProps {
   /** 图片路径 */
@@ -93,8 +94,8 @@ export const Image: React.FC<ImageProps> = ({
           // kitty / sixel 协议暂时降级
           setOutput(fallbackRender(src, alt));
         }
-      } catch (err: any) {
-        setError(`无法加载图像: ${err.message}`);
+      } catch (err: unknown) {
+        setError(`无法加载图像: ${getErrorMessage(err)}`);
       }
     };
 

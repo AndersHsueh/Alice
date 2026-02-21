@@ -3,6 +3,7 @@
  */
 
 import type { AliceTool, ToolResult } from '../../types/tool.js';
+import { getErrorMessage } from '../../utils/error.js';
 
 export const getCurrentDateTimeTool: AliceTool = {
   name: 'getCurrentDateTime',
@@ -53,16 +54,16 @@ export const getCurrentDateTimeTool: AliceTool = {
           }
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       onUpdate?.({
         success: false,
-        error: `获取时间失败: ${error.message}`,
+        error: `获取时间失败: ${getErrorMessage(error)}`,
         progress: 0
       });
 
       return {
         success: false,
-        error: `获取时间失败: ${error.message}`
+        error: `获取时间失败: ${getErrorMessage(error)}`
       };
     }
   }

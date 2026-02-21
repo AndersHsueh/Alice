@@ -7,6 +7,7 @@ import axios from 'axios';
 import { BaseProvider, type ProviderConfig, type ChatResponse } from './base.js';
 import type { Message, ProviderSpecificConfig } from '../../types/index.js';
 import type { OpenAIFunction, ToolCall } from '../../types/tool.js';
+import { getErrorMessage } from '../../utils/error.js';
 
 /**
  * Anthropic Provider 实现
@@ -171,11 +172,11 @@ export class AnthropicProvider extends BaseProvider {
 
       const speed = (Date.now() - startTime) / 1000;
       return { success: true, speed };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
         speed: 0,
-        error: error.message || '连接失败'
+        error: getErrorMessage(error) || '连接失败'
       };
     }
   }

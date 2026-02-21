@@ -6,6 +6,7 @@
 import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
+import { getErrorMessage } from '../../utils/error.js';
 
 type EditAction = 'replace-lines' | 'insert-after' | 'delete-lines';
 
@@ -205,10 +206,10 @@ export const editFileTool: AliceTool = {
           lineCountAfter: newLines.length
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: `编辑文件失败: ${error.message}`
+        error: `编辑文件失败: ${getErrorMessage(error)}`
       };
     }
   }

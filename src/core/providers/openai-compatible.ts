@@ -121,7 +121,27 @@ export class OpenAICompatibleProvider extends BaseProvider {
     }
   }
 
-  private handleError(error: any): Error {
+  /**
+   * 从 API 响应体中提取错误信息（兼容 OpenAI / xAI 等不同结构）
+   */
+  private getResponseErrorMessage(data: unknown): string {
+    if (data == null) return '未知错误';
+    if (typeof data === 'string') return data;
+    if (typeof data === 'object') {
+      const obj = data as Record<string, unknown>;
+      const msg =
+        (obj.error as Record<string, unknown> | undefined)?.message ??
+        obj.message ??
+        (typeof obj.error === 'string' ? obj.error : null);
+      if (msg != null && typeof msg === 'string') return msg;
+      if (obj.error && typeof obj.error === 'object' && (obj.error as Record<string, unknown>).message != null) {
+        return String((obj.error as Record<string, unknown>).message);
+      }
+    }
+    return '未知错误';
+  }
+
+  private handleError(error: unknown): Error {
     if (axios.isAxiosError(error)) {
       if (error.code === 'ECONNREFUSED') {
         return new Error('无法连接到服务器，请检查服务是否正在运行');
@@ -131,7 +151,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
       }
       if (error.response) {
         const status = error.response.status;
-        const message = error.response.data?.error?.message || '未知错误';
+        const message = this.getResponseErrorMessage(error.response.data);
         
         if (status === 401) {
           return new Error('API 密钥无效或未配置');

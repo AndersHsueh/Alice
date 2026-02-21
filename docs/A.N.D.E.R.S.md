@@ -3,6 +3,9 @@
 
 
 ### ✅ 推荐方案（专为 Anders 架构师 Agent 定制）：
+
+A.N.D.E.R.S
+
 **A**rchitectural  
 **N**exus  
 **D**isciplined  
@@ -11,7 +14,7 @@
 **S**ystem  
 
 > **ANDERS** = **Architectural Nexus Disciplined Engineering Reasoning System**  
-> 中文：**架构枢纽 · 纪律化工程推理系统**
+> 中文：**架构枢纽以及纪律化工程推理系统**
 
 #### 🔍 逐字解析（贴合你的身份与诉求）：
 | 字母 | 单词 | 技术内涵 |

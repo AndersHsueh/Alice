@@ -4,6 +4,7 @@
 
 import simpleGit from 'simple-git';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
+import { getErrorMessage } from '../../utils/error.js';
 
 export const getGitInfoTool: AliceTool = {
   name: 'getGitInfo',
@@ -85,10 +86,10 @@ export const getGitInfoTool: AliceTool = {
           }))
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: `获取 Git 信息失败: ${error.message}`
+        error: `获取 Git 信息失败: ${getErrorMessage(error)}`
       };
     }
   }

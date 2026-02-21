@@ -18,9 +18,10 @@ const HeaderComponent: React.FC<HeaderProps> = ({ workspace, model }) => {
       paddingY={1}
       flexDirection="column"
     >
-      <Text bold color="cyan">
-        ✨ ALICE
-      </Text>
+      <Box flexDirection="column">
+        <Text bold color="cyan">✨ ALICE</Text>
+        <Text dimColor>加速逻辑推理核心执行器</Text>
+      </Box>
 
       <Box marginTop={1} gap={2}>
         <Box>

@@ -10,6 +10,7 @@ import { daemonConfigManager } from './config.js';
 import { DaemonLogger } from './logger.js';
 import { getConfig, getSessionManager } from './services.js';
 import { runChatStream, type ChatStreamRequest } from './chatHandler.js';
+import { getErrorMessage } from '../utils/error.js';
 
 function readBody(req: IncomingMessage): Promise<string> {
   const withBody = (req as IncomingMessage & { bodyPromise?: Promise<string> }).bodyPromise;
@@ -81,10 +82,11 @@ export class DaemonRoutes {
         res.writeHead(404);
         res.end(JSON.stringify({ error: 'Not Found' }));
       }
-    } catch (error: any) {
-      this.logger.error('处理请求失败', error.message);
+    } catch (error: unknown) {
+      const msg = getErrorMessage(error);
+      this.logger.error('处理请求失败', msg);
       res.writeHead(500);
-      res.end(JSON.stringify({ error: 'Internal Server Error', message: error.message }));
+      res.end(JSON.stringify({ error: 'Internal Server Error', message: msg }));
     }
   }
 
@@ -157,8 +159,8 @@ export class DaemonRoutes {
       } as ServerResponse;
 
       await this.handleHttpRequest(req, res);
-    } catch (error: any) {
-      this.logger.error('处理 socket 请求失败', error.message);
+    } catch (error: unknown) {
+      this.logger.error('处理 socket 请求失败', getErrorMessage(error));
       socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
       socket.end();
     }
@@ -216,13 +218,14 @@ export class DaemonRoutes {
       this.logger.info('配置已重新加载');
       res.writeHead(200);
       res.end(JSON.stringify(response));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const msg = getErrorMessage(error);
       const response: ReloadConfigResponse = {
         status: 'error',
-        message: `配置重新加载失败: ${error.message}`,
+        message: `配置重新加载失败: ${msg}`,
       };
 
-      this.logger.error('配置重新加载失败', error.message);
+      this.logger.error('配置重新加载失败', msg);
       res.writeHead(500);
       res.end(JSON.stringify(response));
     }
@@ -271,9 +274,9 @@ export class DaemonRoutes {
     let body: string;
     try {
       body = await readBody(req);
-    } catch (error: any) {
+    } catch (error: unknown) {
       res.writeHead(400);
-      res.end(JSON.stringify({ error: 'Failed to read body', message: error.message }));
+      res.end(JSON.stringify({ error: 'Failed to read body', message: getErrorMessage(error) }));
       return;
     }
     let payload: ChatStreamRequest;
@@ -304,9 +307,10 @@ export class DaemonRoutes {
         res.write(line);
         res.flushHeaders?.();
       }
-    } catch (error: any) {
-      this.logger.error('Chat stream 错误', error.message);
-      res.write(JSON.stringify({ type: 'error', message: error.message }) + '\n');
+    } catch (error: unknown) {
+      const msg = getErrorMessage(error);
+      this.logger.error('Chat stream 错误', msg);
+      res.write(JSON.stringify({ type: 'error', message: msg }) + '\n');
     } finally {
       res.end();
     }

@@ -4,6 +4,7 @@
 
 import { cwd } from 'process';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
+import { getErrorMessage } from '../../utils/error.js';
 
 export const getCurrentDirectoryTool: AliceTool = {
   name: 'getCurrentDirectory',
@@ -40,16 +41,16 @@ export const getCurrentDirectoryTool: AliceTool = {
           platform: process.platform
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       onUpdate?.({
         success: false,
-        error: `获取当前目录失败: ${error.message}`,
+        error: `获取当前目录失败: ${getErrorMessage(error)}`,
         progress: 0
       });
 
       return {
         success: false,
-        error: `获取当前目录失败: ${error.message}`
+        error: `获取当前目录失败: ${getErrorMessage(error)}`
       };
     }
   }

@@ -1,14 +1,16 @@
 /**
  * Function Calling 集成测试
  * 测试 LLM 与工具系统的完整集成
- * 
+ *
  * 注意：需要 LM Studio 运行并支持 Function Calling
+ * 运行: npx tsx src/scripts/test-function-calling.ts
  */
 
 import { LLMClient } from '../core/llm.js';
 import { configManager } from '../utils/config.js';
 import { toolRegistry, builtinTools } from '../tools/index.js';
 import type { Message } from '../types/index.js';
+import { getErrorMessage } from '../utils/error.js';
 
 async function testFunctionCalling() {
   console.log('🧪 Function Calling 集成测试\n');
@@ -53,11 +55,12 @@ async function testFunctionCalling() {
       console.log(`[${record.toolLabel}] ${record.status}`, record.result?.status || '');
     });
     console.log('\nAI 回复:', response1.content);
-  } catch (error: any) {
-    console.error('错误:', error.message);
-    
+  } catch (error: unknown) {
+    const msg = getErrorMessage(error);
+    console.error('错误:', msg);
+
     // 检查是否是 Function Calling 不支持的错误
-    if (error.message.includes('tools') || error.message.includes('function')) {
+    if (msg.includes('tools') || msg.includes('function')) {
       console.log('\n⚠️  LM Studio 可能不支持 Function Calling');
       console.log('💡 请确保：');
       console.log('   1. LM Studio 已更新到最新版本');
@@ -81,7 +84,7 @@ async function testFunctionCalling() {
   try {
     console.log('发送请求（流式）...\n');
     let fullResponse = '';
-    
+
     for await (const chunk of llmClient.chatStreamWithTools(test2Messages, (record) => {
       if (record.status === 'running' && record.result?.status) {
         console.log(`[${record.toolLabel}] ${record.result.status}`);
@@ -92,10 +95,10 @@ async function testFunctionCalling() {
       process.stdout.write(chunk);
       fullResponse += chunk;
     }
-    
+
     console.log('\n\n✅ 流式对话完成');
-  } catch (error: any) {
-    console.error('错误:', error.message);
+  } catch (error: unknown) {
+    console.error('错误:', getErrorMessage(error));
   }
 
   console.log('\n--- 测试完成 ---');

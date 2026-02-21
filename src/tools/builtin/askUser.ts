@@ -4,6 +4,7 @@
  */
 
 import type { AliceTool, ToolResult } from '../../types/tool.js';
+import { getErrorMessage } from '../../utils/error.js';
 
 // 全局回调队列 - 用于从 App.tsx 传递 showQuestionDialog 函数
 let showQuestionDialogCallback: ((
@@ -104,16 +105,17 @@ export const askUserTool: AliceTool = {
           answer: answer.trim()
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const msg = getErrorMessage(error);
       onUpdate?.({
         success: false,
-        error: `提问失败: ${error.message}`,
+        error: `提问失败: ${msg}`,
         progress: 0
       });
 
       return {
         success: false,
-        error: `提问失败: ${error.message}`
+        error: `提问失败: ${msg}`
       };
     }
   }

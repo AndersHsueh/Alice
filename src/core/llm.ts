@@ -5,6 +5,7 @@ import { ToolExecutor } from '../tools/index.js';
 import type { ModelConfig, Config } from '../types/index.js';
 import type { Message } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
+import { getErrorMessage } from '../utils/error.js';
 
 export class LLMClient {
   private provider: BaseProvider;
@@ -96,10 +97,8 @@ export class LLMClient {
     }
   }
 
-  private shouldFallback(error: any): boolean {
-    if (!(error instanceof Error)) return false;
-    
-    const errorMessage = error.message.toLowerCase();
+  private shouldFallback(error: unknown): boolean {
+    const errorMessage = getErrorMessage(error).toLowerCase();
     
     // 应该触发降级的错误类型
     const fallbackTriggers = [

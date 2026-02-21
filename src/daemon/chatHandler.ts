@@ -4,6 +4,7 @@
 
 import type { Message } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
+import type { ChatStreamRequest, ChatStreamEvent } from '../types/chatStream.js';
 import { configManager } from '../utils/config.js';
 import { splitThinkContent } from '../utils/thinkParser.js';
 
@@ -11,20 +12,9 @@ import { splitThinkContent } from '../utils/thinkParser.js';
 const THINK_CLOSE_TAG = '</think>';
 import { getConfig, getSystemPrompt, getLLMClient, getSessionManager } from './services.js';
 import type { DaemonLogger } from './logger.js';
+import { getErrorMessage } from '../utils/error.js';
 
-export interface ChatStreamRequest {
-  sessionId?: string;
-  message: string;
-  model?: string;
-  workspace?: string;
-  /** 为 true 时流式输出包含 <think>...</think> 块；默认 false，只返回回复正文 */
-  includeThink?: boolean;
-}
-
-export type ChatStreamEvent =
-  | { type: 'text'; content: string }
-  | { type: 'tool_call'; record: ToolCallRecord }
-  | { type: 'done'; sessionId: string; messages: Message[] };
+export type { ChatStreamRequest, ChatStreamEvent };
 
 function serializeMessage(m: Message): Message {
   return {
@@ -147,8 +137,8 @@ export async function* runChatStream(
     await sessionManager.saveSession({ ...session, messages: finalMessages });
     const messages = finalMessages.map((m) => serializeMessage(m));
     yield { type: 'done' as const, sessionId: session.id, messages };
-  } catch (error: any) {
-    logger.error('Chat stream 错误', error.message);
+  } catch (error: unknown) {
+    logger.error('Chat stream 错误', getErrorMessage(error));
     toolRecordsBuffer.length = 0;
     throw error;
   }

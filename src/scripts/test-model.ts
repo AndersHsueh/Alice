@@ -1,6 +1,7 @@
 import { configManager } from '../utils/config.js';
 import { ProviderFactory } from '../core/providers/index.js';
 import type { ModelConfig } from '../types/index.js';
+import { getErrorMessage } from '../utils/error.js';
 
 interface TestResult {
   model: ModelConfig;
@@ -49,10 +50,10 @@ export async function testAllModels(): Promise<void> {
 
       if (result.success) {
         console.log(`      ✓ 连接成功  ⏱️  ${result.speed.toFixed(1)}s`);
-        
+
         // 更新模型速度信息
         await configManager.updateModelSpeed(model.name, result.speed);
-        
+
         results.push({
           model,
           success: true,
@@ -67,8 +68,8 @@ export async function testAllModels(): Promise<void> {
           error: result.error,
         });
       }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : '未知错误';
+    } catch (error: unknown) {
+      const errorMsg = getErrorMessage(error);
       console.log(`      ✗ 连接失败  ❌ ${errorMsg}`);
       results.push({
         model,
@@ -87,7 +88,7 @@ export async function testAllModels(): Promise<void> {
     const fastest = successfulResults.reduce((prev, current) =>
       current.speed < prev.speed ? current : prev
     );
-    
+
     await configManager.updateSuggestModel(fastest.model.name);
   }
 

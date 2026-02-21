@@ -10,42 +10,42 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import type { DaemonConfig, PingResponse, StatusResponse, ReloadConfigResponse } from '../types/daemon.js';
+import type { ChatStreamEvent } from '../types/chatStream.js';
 import type { Config } from '../types/index.js';
 import type { Session } from '../types/index.js';
-import { daemonConfigManager } from '../daemon/config.js';
+import { readDaemonConfig } from './daemonConfigReader.js';
 
-export type ChatStreamEvent =
-  | { type: 'text'; content: string }
-  | { type: 'tool_call'; record: any }
-  | { type: 'done'; sessionId: string; messages: any[] }
-  | { type: 'error'; message: string };
+export type { ChatStreamEvent };
 
 export class DaemonClient {
-  private config: DaemonConfig;
+  private config: DaemonConfig | null = null;
   private timeout: number;
 
   constructor(timeout: number = 10000) {
     this.timeout = timeout;
-    // 初始化配置（同步获取，避免异步问题）
-    daemonConfigManager.init().catch(() => {
-      // 忽略初始化错误，使用默认配置
-    });
-    this.config = daemonConfigManager.get();
+  }
+
+  /** 获取 daemon 连接配置（懒加载，仅依赖 types/daemon 与 daemonConfigReader） */
+  private async getDaemonConfig(): Promise<DaemonConfig> {
+    if (this.config == null) {
+      this.config = await readDaemonConfig();
+    }
+    return this.config;
   }
 
   /**
    * 确保 daemon 运行（如果未运行则启动）
    */
   private async ensureDaemonRunning(): Promise<void> {
-    // 检查 daemon 是否运行
+    const config = await this.getDaemonConfig();
+
     const isRunning = await this.checkDaemonRunning();
     if (isRunning) {
       return;
     }
 
-    // 尝试启动 daemon
     console.log('Daemon 未运行，正在启动...');
-    await this.startDaemon();
+    await this.startDaemon(config.transport);
 
     // 等待 3 秒后重试（daemon 启动通常很快）
     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -62,8 +62,8 @@ export class DaemonClient {
    */
   private async checkDaemonRunning(): Promise<boolean> {
     try {
-      // 直接尝试连接，不通过 ping() 避免递归
-      if (this.config.transport === 'http') {
+      const config = await this.getDaemonConfig();
+      if (config.transport === 'http') {
         await this.httpRequest('/ping', 'GET');
       } else {
         await this.socketRequest('/ping', 'GET');
@@ -75,22 +75,20 @@ export class DaemonClient {
   }
 
   /**
-   * 启动 daemon
+   * 启动 daemon（根据当前配置的 transport 决定是否传 --http）
    */
-  private async startDaemon(): Promise<void> {
+  private async startDaemon(transport: 'unix-socket' | 'http'): Promise<void> {
     return new Promise((resolve, reject) => {
-      // 获取 veronica 命令路径
-      // 优先使用全局安装的命令，否则使用本地构建的版本
-      const serviceCommand = 'veronica';
       const currentFile = new URL(import.meta.url).pathname;
       const currentDir = path.dirname(currentFile);
       const projectRoot = path.resolve(currentDir, '../..');
       const serviceScript = path.join(projectRoot, 'dist', 'daemon', 'cli.js');
-      
-      // 检查本地脚本是否存在，如果不存在则使用全局命令
       const useLocalScript = fs.existsSync(serviceScript);
-      const command = useLocalScript ? 'node' : serviceCommand;
+      const command = useLocalScript ? 'node' : 'veronica';
       const args = useLocalScript ? [serviceScript, 'start'] : ['start'];
+      if (transport === 'http') {
+        args.push('--http');
+      }
 
       const child = spawn(command, args, {
         stdio: 'inherit',
@@ -115,10 +113,11 @@ export class DaemonClient {
    * 发送 HTTP 请求（可选 body）
    */
   private async httpRequest(path: string, method: string = 'GET', body?: string): Promise<any> {
+    const config = await this.getDaemonConfig();
     return new Promise((resolve, reject) => {
       const options = {
         hostname: '127.0.0.1',
-        port: this.config.httpPort,
+        port: config.httpPort,
         path,
         method,
         timeout: this.timeout,
@@ -164,8 +163,9 @@ export class DaemonClient {
    * 发送 Unix socket 请求（可选 body）
    */
   private async socketRequest(path: string, method: string = 'GET', body?: string): Promise<any> {
+    const config = await this.getDaemonConfig();
     return new Promise((resolve, reject) => {
-      let socketPath = this.config.socketPath;
+      let socketPath = config.socketPath;
       if (socketPath.startsWith('~')) {
         socketPath = socketPath.replace('~', os.homedir());
       }
@@ -215,7 +215,8 @@ export class DaemonClient {
    */
   private async request(path: string, method: string = 'GET', body?: string): Promise<any> {
     await this.ensureDaemonRunning();
-    if (this.config.transport === 'http') {
+    const config = await this.getDaemonConfig();
+    if (config.transport === 'http') {
       return this.httpRequest(path, method, body);
     }
     return this.socketRequest(path, method, body);
@@ -232,9 +233,10 @@ export class DaemonClient {
     includeThink?: boolean;
   }): AsyncGenerator<ChatStreamEvent> {
     await this.ensureDaemonRunning();
+    const config = await this.getDaemonConfig();
     const body = JSON.stringify(payload);
 
-    if (this.config.transport === 'http') {
+    if (config.transport === 'http') {
       yield* this.httpChatStream(body);
     } else {
       yield* this.socketChatStream(body);
@@ -242,9 +244,10 @@ export class DaemonClient {
   }
 
   private async *httpChatStream(body: string): AsyncGenerator<ChatStreamEvent> {
+    const config = await this.getDaemonConfig();
     const options = {
       hostname: '127.0.0.1',
-      port: this.config.httpPort,
+      port: config.httpPort,
       path: '/chat-stream',
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
@@ -288,7 +291,8 @@ export class DaemonClient {
   }
 
   private async *socketChatStream(body: string): AsyncGenerator<ChatStreamEvent> {
-    let socketPath = this.config.socketPath;
+    const config = await this.getDaemonConfig();
+    let socketPath = config.socketPath;
     if (socketPath.startsWith('~')) socketPath = socketPath.replace('~', os.homedir());
 
     const socket = net.createConnection(socketPath);

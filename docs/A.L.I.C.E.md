@@ -26,6 +26,9 @@
 ---
 
 ### ⚡ 备选版本 2（极致性能导向）：
+
+A.L.I.C.E
+
 **A**ccelerated  
 **L**ogic  
 **I**nference  

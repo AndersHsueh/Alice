@@ -1,6 +1,6 @@
 /**
  * 工具系统测试示例
- * 运行: npm run dev -- --test-tools
+ * 运行: npx tsx src/scripts/test-tools.ts 或 npm run build && node dist/scripts/test-tools.js
  */
 
 import { toolRegistry, builtinTools, ToolExecutor } from '../tools/index.js';

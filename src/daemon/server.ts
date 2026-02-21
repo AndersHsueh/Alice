@@ -8,6 +8,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import type { DaemonConfig } from '../types/daemon.js';
 import { DaemonRoutes } from './routes.js';
+import { getErrorMessage } from '../utils/error.js';
 import { DaemonLogger } from './logger.js';
 
 export class DaemonServer {
@@ -74,9 +75,9 @@ export class DaemonServer {
       // 如果 socket 文件已存在，尝试删除
       try {
         await fs.unlink(socketPath);
-      } catch (error: any) {
-        if (error.code !== 'ENOENT') {
-          this.logger.warn('删除旧 socket 文件失败', error.message);
+      } catch (error: unknown) {
+        if (!(error && typeof error === 'object' && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT')) {
+          this.logger.warn('删除旧 socket 文件失败', getErrorMessage(error));
         }
       }
 
@@ -150,9 +151,9 @@ export class DaemonServer {
 
       // 删除 socket 文件
       const socketPath = this.config.socketPath;
-      fs.unlink(socketPath).catch((error: any) => {
-        if (error.code !== 'ENOENT') {
-          this.logger.warn('删除 socket 文件失败', error.message);
+      fs.unlink(socketPath).catch((error: unknown) => {
+        if (!(error && typeof error === 'object' && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT')) {
+          this.logger.warn('删除 socket 文件失败', getErrorMessage(error));
         }
       });
     }

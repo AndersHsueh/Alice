@@ -10,6 +10,7 @@ import { isDangerousCommand } from './builtin/executeCommand.js';
 import { eventBus } from '../core/events.js';
 import { createToolCallEvent } from '../types/events.js';
 import type { ToolExecuteEvent, ToolErrorEvent } from '../types/events.js';
+import { getErrorMessage } from '../utils/error.js';
 
 export class ToolExecutor {
   private config: Config;
@@ -152,10 +153,11 @@ export class ToolExecutor {
       await eventBus.emit('tool:after_call', afterEvent);
 
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const msg = getErrorMessage(error);
       const result: ToolResult = {
         success: false,
-        error: error.message || '工具执行失败'
+        error: msg || '工具执行失败'
       };
 
       record.status = 'error';
@@ -169,7 +171,7 @@ export class ToolExecutor {
         toolName,
         toolCallId: id,
         params,
-        error: error instanceof Error ? error : new Error(error.message || '未知错误'),
+        error: error instanceof Error ? error : new Error(msg || '未知错误'),
         duration: Date.now() - startTime
       };
       await eventBus.emit('tool:error', errorEvent);

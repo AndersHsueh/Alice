@@ -5,6 +5,7 @@
 import { writeFile as fsWriteFile, mkdir } from 'fs/promises';
 import path from 'path';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
+import { getErrorMessage } from '../../utils/error.js';
 
 export const writeFileTool: AliceTool = {
   name: 'writeFile',
@@ -59,10 +60,10 @@ export const writeFileTool: AliceTool = {
           encoding
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: `写入文件失败: ${error.message}`
+        error: `写入文件失败: ${getErrorMessage(error)}`
       };
     }
   }

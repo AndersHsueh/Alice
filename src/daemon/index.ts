@@ -10,6 +10,7 @@ import { DaemonLogger } from './logger.js';
 import { DaemonRoutes } from './routes.js';
 import { DaemonServer } from './server.js';
 import type { DaemonConfig } from '../types/daemon.js';
+import { getErrorMessage } from '../utils/error.js';
 
 let server: DaemonServer | null = null;
 let logger: DaemonLogger | null = null;
@@ -57,8 +58,8 @@ async function startDaemon(): Promise<void> {
     process.on('unhandledRejection', (reason) => {
       logger?.error('未处理的 Promise 拒绝', String(reason));
     });
-  } catch (error: any) {
-    console.error('Daemon 启动失败:', error.message);
+  } catch (error: unknown) {
+    console.error('Daemon 启动失败:', getErrorMessage(error));
     process.exit(1);
   }
 }
@@ -91,8 +92,8 @@ async function handleReloadConfig(): Promise<void> {
       await server.updateConfig(newConfig);
       logger?.info('配置已重新加载');
     }
-  } catch (error: any) {
-    logger?.error('配置重新加载失败', error.message);
+  } catch (error: unknown) {
+    logger?.error('配置重新加载失败', getErrorMessage(error));
   }
 }
 

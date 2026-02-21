@@ -5,6 +5,7 @@
 import { readdir, stat } from 'fs/promises';
 import { join } from 'path';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
+import { getErrorMessage } from '../../utils/error.js';
 
 export const listFilesTool: AliceTool = {
   name: 'listFiles',
@@ -77,10 +78,10 @@ export const listFilesTool: AliceTool = {
           items: files
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: `列出目录失败: ${error.message}`
+        error: `列出目录失败: ${getErrorMessage(error)}`
       };
     }
   }

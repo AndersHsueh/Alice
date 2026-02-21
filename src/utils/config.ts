@@ -4,24 +4,10 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import * as jsonc from 'jsonc-parser';
 import type { Config, ModelConfig, UIConfig } from '../types/index.js';
+import type { LegacyConfig } from '../types/legacyConfig.js';
 import { KeybindingManager, parseKeybindings } from '../core/keybindings.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// 旧配置接口（向后兼容）
-interface LegacyLLMConfig {
-  baseURL: string;
-  model: string;
-  temperature: number;
-  maxTokens: number;
-}
-
-interface LegacyConfig {
-  llm: LegacyLLMConfig;
-  ui: UIConfig;
-  workspace: string;
-  obsidianPath?: string;
-}
 
 const DEFAULT_CONFIG: Config = {
   default_model: 'lmstudio-local',
@@ -265,6 +251,10 @@ export class ConfigManager {
     return lines.join('\n');
   }
 
+  /**
+   * 从旧版 config.json 迁移到 settings.jsonc，仅首次存在 config.json 且无 settings.jsonc 时调用。
+   * 类型见 types/legacyConfig.ts，新代码勿依赖 Legacy 类型。
+   */
   private async migrateLegacyConfig(): Promise<void> {
     try {
       const data = await fs.readFile(this.legacyConfigPath, 'utf-8');

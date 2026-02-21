@@ -4,6 +4,7 @@
 
 import { glob } from 'glob';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
+import { getErrorMessage } from '../../utils/error.js';
 
 export const searchFilesTool: AliceTool = {
   name: 'searchFiles',
@@ -66,10 +67,10 @@ export const searchFilesTool: AliceTool = {
           files
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: `搜索文件失败: ${error.message}`
+        error: `搜索文件失败: ${getErrorMessage(error)}`
       };
     }
   }

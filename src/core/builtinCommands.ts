@@ -7,6 +7,7 @@ import path from 'path';
 import type { AliceCommand, CommandContext } from './commandRegistry.js';
 import { exportToHTML, exportToMarkdown, generateDefaultFilename } from '../utils/exporter.js';
 import { themeManager } from './theme.js';
+import { getErrorMessage } from '../utils/error.js';
 
 /**
  * /help 命令 - 显示帮助信息
@@ -141,10 +142,10 @@ export const exportCommand: AliceCommand = {
         timestamp: new Date(),
       };
       ctx.setMessages([...ctx.messages, successMsg]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMsg: any = {
         role: 'assistant',
-        content: `❌ 导出失败: ${error.message}`,
+        content: `❌ 导出失败: ${getErrorMessage(error)}`,
         timestamp: new Date(),
       };
       ctx.setMessages([...ctx.messages, errorMsg]);
@@ -195,10 +196,10 @@ export const themeCommand: AliceCommand = {
         
         ctx.setMessages([...ctx.messages, successMsg]);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMsg: any = {
         role: 'assistant',
-        content: `❌ 主题操作失败: ${error.message}`,
+        content: `❌ 主题操作失败: ${getErrorMessage(error)}`,
         timestamp: new Date(),
       };
       ctx.setMessages([...ctx.messages, errorMsg]);

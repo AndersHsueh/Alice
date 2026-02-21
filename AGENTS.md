@@ -4,6 +4,15 @@
 
 ALICE 是一个基于大语言模型的智能办公助手 CLI 工具，采用 Node.js + TypeScript + Ink (React for CLI) 技术栈。
 
+### Agent 产品体系
+
+- **VERONICA**（daemon）：**V**erified **E**mbedded **R**esilient **O**rchestration **N**eural **I**ntelligent **C**ontrol **A**gent（经验证的嵌入式弹性神经智能控制代理）。常驻服务，通过 `veronica` 命令管理。
+- **ALICE**（主 CLI）：**A**ccelerated **L**ogic **I**nference **C**ore **E**xecutor（加速逻辑推理核心执行器）。`alice` 命令入口，与 VERONICA 配合。
+- **DIANA**（规划中）：移动端 Agent。**D**ynamic **I**ntelligent **A**ccessible **N**etworked **A**gent（动态智能可及网络化代理）。
+- **ANDERS**（规划中）：架构师 Agent。**A**rchitectural **N**exus **D**isciplined **E**ngineering **R**easoning **S**ystem（架构枢纽以及纪律化工程推理系统）。
+
+Banner 与 TUI 中应体现 **VERONICA、ALICE** 的全称或中文意涵（副标题、状态栏、关于信息等）；详见 `docs/REFACTOR_PLAN.md` 产品与品牌概念。
+
 ## 核心命令
 
 ### 开发与构建
@@ -92,15 +101,23 @@ async function execute(params: Params): Promise<ToolResult> {
 
 ### 错误处理
 
-- 使用 try/catch 捕获异步错误
-- 错误消息应清晰描述问题
+- 使用 try/catch 捕获异步错误，**catch 参数统一为 `unknown`**（禁止 `error: any`）
+- 需要可读错误信息时使用 `getErrorMessage(error)`（`utils/error.js`），避免直接访问 `error.message`
+- 错误消息应清晰描述问题；内部 throw 的 Error 建议格式：`模块/操作: 简要原因`
 - 工具函数返回统一格式：
 
 ```typescript
-return {
-  success: false,
-  error: `错误描述: ${error.message}`
-};
+import { getErrorMessage } from '../utils/error.js';
+
+// catch 使用 unknown，用 getErrorMessage 提取信息
+try {
+  // ...
+} catch (error: unknown) {
+  return {
+    success: false,
+    error: `错误描述: ${getErrorMessage(error)}`
+  };
+}
 ```
 
 ### 异步编程
@@ -163,9 +180,9 @@ interface ToolConfig {
 
 ### 注释规范
 
-- JSDoc 注释用于导出函数和类
-- 中文注释优先（项目语言）
-- 复杂逻辑添加说明
+- **导出**：所有导出函数、类、常量均应有 JSDoc（`@param` / `@returns` 等视情况添加）
+- **语言**：中文注释优先（项目语言），与业务相关的说明避免纯英文
+- **复杂逻辑**：分支、迁移、兼容逻辑需简要说明用途
 
 ```typescript
 /**
@@ -197,12 +214,23 @@ alice-cli/
 │   │   └── theme.ts        # 主题系统
 │   ├── tools/              # 工具系统
 │   │   └── builtin/        # 内置工具
-│   ├── daemon/             # 后台服务
+│   ├── daemon/             # 后台服务（VERONICA）
+│   ├── scripts/            # 测试/脚本（test-model、test-tools 等），会编译到 dist/scripts
 │   ├── utils/              # 工具函数
 │   └── types/              # TypeScript 类型
 ├── dist/                   # 构建输出
 └── package.json
 ```
+
+### 配置与 Daemon 边界
+
+- **主应用配置**（`utils/config.ts`）：负责模型、UI、工作区、键绑定等；配置文件 `~/.alice/settings.jsonc`。供 CLI 与 daemon 内业务逻辑共用。
+- **Daemon 运行时配置**（`daemon/config.ts`）：仅负责 daemon 进程的通信方式（transport）、socket 路径、心跳、日志等；配置文件 `~/.alice/daemon_settings.jsonc`。两者文件与用途分离，不重叠。
+
+### CLI 与 Daemon 的会话边界
+
+- **会话与消息由 daemon 持有**：TUI 下当前会话 ID 与消息列表由 daemon 管理，CLI 通过 `DaemonClient` 拉取（`getSession` / 初始化时 `createSession`）和推送（`chatStream` 的 `done` 事件带回最新 messages）。
+- **CLI 侧 `sessionManager`**：用于本地持久化与统计（如退出汇报、消息数），与 daemon 的 session 在初始化时通过 `applySession` 同步，在每次 `done` 事件时用服务端下发的 `event.messages` 更新本地 state；不作为会话的单一数据源。
 
 ## 已有规则文件
 

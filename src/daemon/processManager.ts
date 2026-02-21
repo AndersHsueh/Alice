@@ -38,7 +38,7 @@ export class ProcessManager {
       try {
         process.kill(pid, 0); // 发送信号 0 检查进程是否存在
         return true;
-      } catch (error: any) {
+      } catch (_error: unknown) {
         // 进程不存在，删除无效的 PID 文件
         await this.removePidFile();
         return false;
@@ -76,8 +76,8 @@ export class ProcessManager {
   async removePidFile(): Promise<void> {
     try {
       await fs.unlink(this.pidFile);
-    } catch (error: any) {
-      if (error.code !== 'ENOENT') {
+    } catch (error: unknown) {
+      if (!(error && typeof error === 'object' && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT')) {
         throw error;
       }
     }
@@ -143,8 +143,8 @@ export class ProcessManager {
     // 发送 SIGTERM 信号
     try {
       process.kill(pid, 'SIGTERM');
-    } catch (error: any) {
-      if (error.code === 'ESRCH') {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && (error as NodeJS.ErrnoException).code === 'ESRCH') {
         // 进程不存在
         await this.removePidFile();
         throw new Error('Daemon 进程不存在');

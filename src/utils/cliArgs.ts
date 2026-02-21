@@ -1,5 +1,6 @@
 import { Command } from 'commander';
-import { testAllModels } from './test-model.js';
+import { testAllModels } from '../scripts/test-model.js';
+import packageJson from '../../package.json' with { type: 'json' };
 
 export interface CLIOptions {
   skipBanner?: boolean;
@@ -33,7 +34,7 @@ export async function parseArgs(): Promise<{ options: CLIOptions; shouldExit: bo
   program
     .name('alice')
     .description('ALICE - AI-powered CLI assistant')
-    .version('0.2.0')
+    .version((packageJson as { version?: string }).version || '0.0.0')
     .option('--no-banner', 'Skip startup animation')
     .option('--test-model', 'Run model speed test and exit')
     .option('-p, --prompt <message>', 'Execute a single prompt and exit (non-interactive mode)')

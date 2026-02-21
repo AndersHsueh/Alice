@@ -4,6 +4,7 @@
 
 import { readFile as fsReadFile } from 'fs/promises';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
+import { getErrorMessage } from '../../utils/error.js';
 
 export const readFileTool: AliceTool = {
   name: 'readFile',
@@ -53,10 +54,10 @@ export const readFileTool: AliceTool = {
           encoding
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        error: `读取文件失败: ${error.message}`
+        error: `读取文件失败: ${getErrorMessage(error)}`
       };
     }
   }

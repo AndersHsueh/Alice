@@ -8,6 +8,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import * as jsonc from 'jsonc-parser';
+import { getErrorMessage } from './error.js';
 
 const MAX_MCP_SERVERS = 3;
 
@@ -52,14 +53,14 @@ export class MCPConfigManager {
       }
 
       return this.applyLimit(parsed);
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
         // 文件不存在，创建默认配置
         await this.save(DEFAULT_MCP_SETTINGS);
         return this.applyLimit(DEFAULT_MCP_SETTINGS);
       }
       // 解析错误不应影响主程序启动
-      console.warn(`⚠️  MCP 配置加载失败: ${error.message}`);
+      console.warn(`⚠️  MCP 配置加载失败: ${getErrorMessage(error)}`);
       return { servers: {} };
     }
   }

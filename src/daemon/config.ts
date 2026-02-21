@@ -7,8 +7,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import * as jsonc from 'jsonc-parser';
-import type { DaemonConfig } from '../types/daemon.js';
+import type { DaemonConfig, TransportType } from '../types/daemon.js';
 import { DEFAULT_DAEMON_CONFIG } from '../types/daemon.js';
+import { getErrorMessage } from '../utils/error.js';
 
 export class DaemonConfigManager {
   private configPath: string;
@@ -64,14 +65,14 @@ export class DaemonConfigManager {
       }
 
       return this.config;
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
         // 文件不存在，使用默认配置
         this.config = DEFAULT_DAEMON_CONFIG;
         await this.save(this.config);
         return this.config;
       }
-      console.error(`⚠️  Daemon 配置加载失败: ${error.message}`);
+      console.error(`⚠️  Daemon 配置加载失败: ${getErrorMessage(error)}`);
       this.config = DEFAULT_DAEMON_CONFIG;
       return this.config;
     }
@@ -97,7 +98,7 @@ export class DaemonConfigManager {
     const content = [
       '{',
       '  // Daemon 服务配置',
-      '  // 通信方式：unix-socket (Linux/macOS) 或 http (Windows)',
+      '  // 通信方式由 veronica start / veronica start -http 控制，此处为当前生效值',
       `  "transport": "${configToSave.transport}",`,
       `  "socketPath": "${configToSave.socketPath}",`,
       `  "httpPort": ${configToSave.httpPort},`,
@@ -124,6 +125,16 @@ export class DaemonConfigManager {
 
     await fs.writeFile(this.configPath, content, 'utf-8');
     this.config = config;
+  }
+
+  /**
+   * 设置通信方式并保存（由 veronica start -http 等参数驱动）
+   */
+  async setTransport(transport: TransportType): Promise<void> {
+    await this.load();
+    const current = this.get();
+    this.config = { ...current, transport };
+    await this.save(this.config);
   }
 
   /**

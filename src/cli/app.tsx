@@ -1,13 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Static, useApp, useInput } from 'ink';
+import { useApp, useInput } from 'ink';
 import { Banner } from './components/Banner.js';
-import { Header } from './components/Header.js';
-import { ChatArea } from './components/ChatArea.js';
-import { InputBox } from './components/InputBox.js';
-import { StatusBar } from './components/StatusBar.js';
-import { DangerousCommandConfirm } from './components/DangerousCommandConfirm.js';
-import { QuestionPrompt } from './components/QuestionPrompt.js';
-import { ExitReport } from './components/ExitReport.js';
+import { ChatLayout } from './components/ChatLayout.js';
+import { ExitReportScreen } from './components/ExitReportScreen.js';
 import { DaemonClient } from '../utils/daemonClient.js';
 import { CommandRegistry } from '../core/commandRegistry.js';
 import { builtinCommands } from '../core/builtinCommands.js';
@@ -23,6 +18,9 @@ import type { Message, Session, Config } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
 import type { StatusInfo } from '../core/statusManager.js';
 import type { CLIOptions } from '../utils/cliArgs.js';
+import { getErrorMessage } from '../utils/error.js';
+import { useInputHistory } from './hooks/useInputHistory.js';
+import { useDialogs } from './hooks/useDialogs.js';
 
 interface AppProps {
   skipBanner?: boolean;
@@ -35,20 +33,9 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
   const [isProcessing, setIsProcessing] = useState(false);
   const [daemonClient] = useState(() => new DaemonClient());
   const [appConfig, setAppConfig] = useState<Config | null>(null);
-  const [history, setHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const { history, setHistory, setHistoryIndex, handleHistoryUp, handleHistoryDown } = useInputHistory();
+  const { confirmDialog, setConfirmDialog, questionDialog, setQuestionDialog, showQuestionDialog } = useDialogs();
   const [toolRecords, setToolRecords] = useState<ToolCallRecord[]>([]);
-  const [confirmDialog, setConfirmDialog] = useState<{
-    message: string;
-    command: string;
-    onConfirm: (confirmed: boolean) => void;
-  } | null>(null);
-  const [questionDialog, setQuestionDialog] = useState<{
-    question: string;
-    choices: string[];
-    allowFreeform: boolean;
-    onAnswer: (answer: string) => void;
-  } | null>(null);
   const [streamingContent, setStreamingContent] = useState('');
   const [statusInfo, setStatusInfo] = useState<StatusInfo>({
     connectionStatus: { type: 'disconnected' },
@@ -138,7 +125,9 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       }));
       lastPersistedIndexRef.current = msgs.length;
       setMessages(msgs);
-      setHistory(msgs.filter((msg) => msg.role === 'user').map((msg) => msg.content));
+      const userContents = msgs.filter((msg) => msg.role === 'user').map((msg) => msg.content);
+      setHistory(userContents);
+      setHistoryIndex(-1);
       if (tracker) {
         for (const message of msgs) {
           if (message.role === 'user') tracker.recordUserMessage();
@@ -178,8 +167,8 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       const modelList = config.models ?? [];
       const defaultModel = modelList.find((m) => m.name === config.default_model) ?? modelList[0];
       statusManager.updateConnectionStatus('connected', defaultModel?.provider);
-    } catch (error: any) {
-      console.error('❌ 连接 Daemon 失败:', error.message);
+    } catch (error: unknown) {
+      console.error('❌ 连接 Daemon 失败:', getErrorMessage(error));
       statusManager.updateConnectionStatus('disconnected');
     }
   };
@@ -350,64 +339,19 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
         llmClient: null,
         exit: (code?: any) => requestExit(code),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // 显示错误信息
       const errorMsg: Message = {
         role: 'assistant',
-        content: `❌ ${error.message}`,
+        content: `❌ ${getErrorMessage(error)}`,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMsg]);
     }
   };
 
-  /**
-   * 显示问题对话框并等待用户回答
-   * 此函数被 ask_user 工具调用
-   */
-  const showQuestionDialog = (
-    question: string,
-    choices: string[],
-    allowFreeform: boolean
-  ): Promise<string> => {
-    return new Promise((resolve) => {
-      setQuestionDialog({
-        question,
-        choices,
-        allowFreeform,
-        onAnswer: (answer: string) => {
-          setQuestionDialog(null);
-          resolve(answer);
-        }
-      });
-    });
-  };
-
-  const handleHistoryUp = (): string | undefined => {
-    if (history.length === 0) return undefined;
-    
-    const newIndex = historyIndex < history.length - 1 ? historyIndex + 1 : historyIndex;
-    setHistoryIndex(newIndex);
-    return history[history.length - 1 - newIndex];
-  };
-
-  const handleHistoryDown = (): string | undefined => {
-    if (historyIndex <= 0) {
-      setHistoryIndex(-1);
-      return '';
-    }
-    
-    const newIndex = historyIndex - 1;
-    setHistoryIndex(newIndex);
-    return history[history.length - 1 - newIndex];
-  };
-
   if (showExitReport && exitStats) {
-    return (
-      <Box flexDirection="column" height="100%" justifyContent="center">
-        <ExitReport sessionId={sessionIdRef.current} stats={exitStats} />
-      </Box>
-    );
+    return <ExitReportScreen sessionId={sessionIdRef.current} stats={exitStats} />;
   }
 
   if (showBanner) {
@@ -417,53 +361,23 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
   const config = appConfig ?? configManager.get();
   const models = config.models ?? [];
   const defaultModel = models.find((m) => m.name === config.default_model) ?? models[0];
+  const modelLabel = defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : '未知';
 
   return (
-    <Box flexDirection="column" height="100%">
-      <Static items={['header']}>
-        {(item) => <Header key={item} workspace={config.workspace} model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : '未知'} />}
-      </Static>
-      
-      <ChatArea 
-        messages={messages} 
-        isProcessing={isProcessing}
-        streamingContent={streamingContent}
-      />
-      
-      {confirmDialog && (
-        <DangerousCommandConfirm
-          message={confirmDialog.message}
-          command={confirmDialog.command}
-          onConfirm={confirmDialog.onConfirm}
-        />
-      )}
-      
-      {questionDialog && (
-        <Box marginLeft={2} marginRight={2}>
-          <QuestionPrompt
-            question={questionDialog.question}
-            choices={questionDialog.choices}
-            allowFreeform={questionDialog.allowFreeform}
-            onAnswer={questionDialog.onAnswer}
-          />
-        </Box>
-      )}
-      
-      <InputBox
-        onSubmit={handleSubmit}
-        disabled={isProcessing || !!confirmDialog || !!questionDialog}
-        onHistoryUp={handleHistoryUp}
-        onHistoryDown={handleHistoryDown}
-      />
-      
-      <StatusBar 
-        connectionStatus={statusInfo.connectionStatus}
-        tokenUsage={statusInfo.tokenUsage}
-        responseTime={statusInfo.responseTime}
-        sessionId={statusInfo.sessionId}
-        model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : '未知'}
-        latestToolRecord={toolRecords.length > 0 ? toolRecords[toolRecords.length - 1] : undefined}
-      />
-    </Box>
+    <ChatLayout
+      workspace={config.workspace}
+      modelLabel={modelLabel}
+      messages={messages}
+      isProcessing={isProcessing}
+      streamingContent={streamingContent}
+      confirmDialog={confirmDialog}
+      questionDialog={questionDialog}
+      statusInfo={statusInfo}
+      latestToolRecord={toolRecords.length > 0 ? toolRecords[toolRecords.length - 1] : undefined}
+      statusBarEnabled={config.ui?.statusBar?.enabled !== false}
+      onSubmit={handleSubmit}
+      onHistoryUp={handleHistoryUp}
+      onHistoryDown={handleHistoryDown}
+    />
   );
 };

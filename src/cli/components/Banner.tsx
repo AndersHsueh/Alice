@@ -62,6 +62,9 @@ export const Banner: React.FC<BannerProps> = ({ onComplete }) => {
           </Text>
         ))}
         <Box marginTop={1}>
+          <Text dimColor>Accelerated Logic Inference Core Executor · 加速逻辑推理核心执行器</Text>
+        </Box>
+        <Box marginTop={1}>
           <Text dimColor italic>
             对齐你的项目颗粒度，拉通你的办公流程 👩‍💻 ✨
           </Text>
