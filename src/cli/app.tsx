@@ -5,7 +5,6 @@ import { Header } from './components/Header.js';
 import { ChatArea } from './components/ChatArea.js';
 import { InputBox } from './components/InputBox.js';
 import { StatusBar } from './components/StatusBar.js';
-import { ToolCallStatus } from './components/ToolCallStatus.js';
 import { DangerousCommandConfirm } from './components/DangerousCommandConfirm.js';
 import { QuestionPrompt } from './components/QuestionPrompt.js';
 import { ExitReport } from './components/ExitReport.js';
@@ -431,14 +430,6 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
         streamingContent={streamingContent}
       />
       
-      {toolRecords.length > 0 && (
-        <Box flexDirection="column" marginX={2} marginBottom={1}>
-          {toolRecords.map(record => (
-            <ToolCallStatus key={record.id} record={record} />
-          ))}
-        </Box>
-      )}
-      
       {confirmDialog && (
         <DangerousCommandConfirm
           message={confirmDialog.message}
@@ -471,6 +462,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
         responseTime={statusInfo.responseTime}
         sessionId={statusInfo.sessionId}
         model={defaultModel ? `${defaultModel.provider}/${defaultModel.model}` : '未知'}
+        latestToolRecord={toolRecords.length > 0 ? toolRecords[toolRecords.length - 1] : undefined}
       />
     </Box>
   );

@@ -22,6 +22,12 @@ const MessageItem: React.FC<{ message: Message; index: number }> = React.memo(
           <Text bold color="cyan">{'> '}</Text>
           <Text wrap="wrap">{message.content}</Text>
         </Box>
+      ) : message.role === 'tool' ? (
+        <Box>
+          <Text dimColor>
+            {'<'}使用 {message.name || 'unknown'} 工具/技能 处理中...{'>'}
+          </Text>
+        </Box>
       ) : (
         <Box>
           <Text bold color="green">{'Alice: '}</Text>

@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  body {
+    @apply bg-claude-cream text-claude-ink antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+
+  #root {
+    @apply h-screen w-screen;
+  }
+}
+
+@layer components {
+  /* Claude-style gradient text (warm amber) */
+  .gradient-text {
+    @apply bg-gradient-to-r from-claude-amber-dark via-claude-amber to-claude-orange bg-clip-text text-transparent font-semibold;
+  }
+
+  /* User message bubble - warm, right-aligned */
+  .chat-bubble-user {
+    @apply bg-claude-ink text-claude-cream rounded-claude-lg px-4 py-3 max-w-[80%] ml-auto;
+    box-shadow: 0 1px 3px 0 rgb(28 25 23 / 0.12);
+  }
+
+  /* Assistant message bubble - soft surface */
+  .chat-bubble-assistant {
+    @apply bg-white text-claude-stone-750 rounded-claude-lg px-4 py-3 max-w-[80%] mr-auto border border-claude-border;
+    box-shadow: 0 1px 3px 0 rgb(28 25 23 / 0.06);
+  }
+
+  /* Tool call badge - amber accent */
+  .tool-call-badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-claude-amber-soft text-claude-amber-dark border border-claude-amber/30;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply px-5 py-2.5 rounded-claude font-medium text-white bg-claude-amber hover:bg-claude-amber-dark active:bg-claude-amber-dark transition-colors shadow-claude;
+  }
+
+  /* Scrollbar - warm theme */
+  .scroll-warm::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scroll-warm::-webkit-scrollbar-track {
+    @apply bg-claude-surface;
+  }
+
+  .scroll-warm::-webkit-scrollbar-thumb {
+    @apply bg-claude-muted rounded-full;
+  }
+
+  .scroll-warm::-webkit-scrollbar-thumb:hover {
+    @apply bg-claude-stone-550;
+  }
+}

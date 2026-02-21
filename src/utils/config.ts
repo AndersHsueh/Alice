@@ -55,7 +55,7 @@ const DEFAULT_CONFIG: Config = {
   },
   workspace: process.cwd(),
   dangerous_cmd: true,  // 默认开启危险命令确认
-  maxIterations: 10,    // 工具调用最大迭代次数
+  maxIterations: 15,    // 工具调用最大迭代次数
 };
 
 export class ConfigManager {
@@ -166,13 +166,13 @@ export class ConfigManager {
   }
 
   /**
-   * 获取工具调用最大迭代次数（5-20，超出范围默认10）
+   * 获取工具调用最大迭代次数（5-20，超出范围默认15）
    */
   getMaxIterations(): number {
     const config = this.get();
     const val = config.maxIterations;
-    if (val === undefined || val === null) return 10;
-    if (val < 5 || val > 20) return 10;
+    if (val === undefined || val === null) return 15;
+    if (val < 5 || val > 20) return 15;
     return val;
   }
 
@@ -258,8 +258,8 @@ export class ConfigManager {
     lines.push('  // 危险命令确认（true: 执行前需确认 | false: 直接执行）');
     lines.push(`  "dangerous_cmd": ${config.dangerous_cmd},`);
     lines.push('');
-    lines.push('  // 工具调用最大迭代次数（最小 5，最大 20，超出范围默认 10）');
-    lines.push(`  "maxIterations": ${config.maxIterations ?? 10}`);
+    lines.push('  // 工具调用最大迭代次数（最小 5，最大 20，超出范围默认 15）');
+    lines.push(`  "maxIterations": ${config.maxIterations ?? 15}`);
     lines.push('}');
     
     return lines.join('\n');
@@ -290,7 +290,7 @@ export class ConfigManager {
         ui: legacy.ui,
         workspace: legacy.workspace,
         dangerous_cmd: true,  // 迁移时默认开启
-        maxIterations: 10,
+        maxIterations: 15,
       };
       
       // 保存新配置
