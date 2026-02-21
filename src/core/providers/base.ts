@@ -46,11 +46,12 @@ export abstract class BaseProvider {
 
   protected buildMessages(messages: Message[]): Array<any> {
     const enableCaching = this.config.promptCaching !== false; // 默认开启
+    const useCacheFormat = enableCaching && this.shouldUseCacheFormat();
     
     const result: any[] = [];
     
-    // System prompt - 支持 prompt caching
-    if (enableCaching) {
+    // System prompt - 根据 provider 决定是否使用 cache 格式
+    if (useCacheFormat) {
       // Anthropic/OpenAI 的 prompt caching 格式
       result.push({
         role: 'system',
@@ -63,7 +64,7 @@ export abstract class BaseProvider {
         ]
       });
     } else {
-      // 标准格式（不支持缓存的提供商会忽略 cache_control 字段）
+      // 标准格式
       result.push({
         role: 'system',
         content: this.systemPrompt,
@@ -96,5 +97,17 @@ export abstract class BaseProvider {
     }
 
     return result;
+  }
+
+  /**
+   * 判断是否使用 cache 格式（部分 provider 不支持）
+   */
+  protected shouldUseCacheFormat(): boolean {
+    // xAI 不支持 cache_control 格式
+    const model = this.config.model?.toLowerCase() || '';
+    if (model.includes('grok')) {
+      return false;
+    }
+    return true;
   }
 }

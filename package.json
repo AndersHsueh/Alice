@@ -1,6 +1,6 @@
 {
   "name": "alice-cli",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "ALICE - AI-powered office assistant CLI with Function Calling support",
   "type": "module",
   "bin": {

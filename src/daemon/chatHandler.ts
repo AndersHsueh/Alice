@@ -115,9 +115,10 @@ export async function* runChatStream(
       if (includeThink) {
         yield { type: 'text' as const, content: chunk };
       } else {
-        // 仅当已出现 </think> 后才下发 normal，避免把“思考中”的整段当正文
+        // 存在未闭合的 <think> 块时不输出，避免把思考当正文；无 think 块或已闭合则输出 normal 部分
+        const hasThinkOpen = accumulatedContent.indexOf('<think>') !== -1;
         const hasSeenThinkClose = accumulatedContent.indexOf(THINK_CLOSE_TAG) !== -1;
-        if (!hasSeenThinkClose) continue;
+        if (hasThinkOpen && !hasSeenThinkClose) continue;
         const segments = splitThinkContent(accumulatedContent);
         const normalContent = segments.filter((s) => s.type === 'normal').map((s) => s.content).join('');
         if (normalContent.length > lastYieldedNormalLength) {

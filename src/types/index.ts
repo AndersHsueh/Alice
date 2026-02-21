@@ -21,6 +21,8 @@ export type Provider =
   | 'openai' 
   | 'azure' 
   | 'custom'
+  | 'xai'
+  | 'grok'
   | 'anthropic'
   | 'claude'
   | 'google'

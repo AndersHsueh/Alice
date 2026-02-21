@@ -94,6 +94,8 @@ providerRegistry.registerAll({
   'openai': OpenAICompatibleProvider,
   'azure': OpenAICompatibleProvider,
   'custom': OpenAICompatibleProvider,
+  'xai': OpenAICompatibleProvider,
+  'grok': OpenAICompatibleProvider,  // 别名
   
   // 新增 Providers
   'anthropic': AnthropicProvider,
