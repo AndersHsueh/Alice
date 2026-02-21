@@ -79,9 +79,9 @@ export class DaemonClient {
    */
   private async startDaemon(): Promise<void> {
     return new Promise((resolve, reject) => {
-      // 获取 alice-service 命令路径
+      // 获取 veronica 命令路径
       // 优先使用全局安装的命令，否则使用本地构建的版本
-      const serviceCommand = 'alice-service';
+      const serviceCommand = 'veronica';
       const currentFile = new URL(import.meta.url).pathname;
       const currentDir = path.dirname(currentFile);
       const projectRoot = path.resolve(currentDir, '../..');
@@ -101,7 +101,7 @@ export class DaemonClient {
         if (code === 0) {
           resolve();
         } else {
-          reject(new Error(`alice-service start 退出码: ${code}`));
+          reject(new Error(`veronica start 退出码: ${code}`));
         }
       });
 

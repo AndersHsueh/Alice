@@ -5,7 +5,7 @@
   "type": "module",
   "bin": {
     "alice": "./dist/index.js",
-    "alice-service": "./dist/daemon/cli.js"
+    "veronica": "./dist/daemon/cli.js"
   },
   "scripts": {
     "dev": "tsx src/index.tsx",

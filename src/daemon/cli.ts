@@ -1,20 +1,39 @@
 #!/usr/bin/env node
 /**
- * alice-service 命令行工具
+ * Veronica 命令行工具
  * 用于管理 daemon 服务
  */
 
 import { Command } from 'commander';
+import chalk from 'chalk';
+import figlet from 'figlet';
 import { ProcessManager } from './processManager.js';
 import { daemonConfigManager } from './config.js';
+
+// 显示 TUI Banner
+function showBanner() {
+  const banner = figlet.textSync('Veronica', {
+    font: 'Standard',
+    horizontalLayout: 'default',
+    verticalLayout: 'default',
+  });
+
+  console.log(chalk.cyan(banner));
+  console.log(chalk.gray('  - Verified Embedded Resilient Orchestration Neural Intelligent Control Agent'));
+  console.log(chalk.gray('  - Core component of Alice\n'));
+}
 
 const program = new Command();
 const processManager = new ProcessManager();
 
 program
-  .name('alice-service')
-  .description('ALICE Daemon 服务管理工具')
-  .version('0.6.0');
+  .name('veronica')
+  .description('Veronica - ALICE Daemon 服务管理工具')
+  .version('0.6.0')
+  .hook('preAction', () => {
+    // 在每个命令前显示 banner
+    showBanner();
+  });
 
 program
   .command('start')
@@ -116,8 +135,10 @@ program
     }
   });
 
-// 如果没有提供命令，显示帮助
+// 如果没有提供命令，显示 banner 和帮助
 if (process.argv.length === 2) {
+  showBanner();
+  console.log('');
   program.help();
 }
 
