@@ -42,8 +42,13 @@ export async function* runChatStream(
     const selected = config.models.find((m) => m.name === req.model);
     if (selected) modelConfig = selected;
   }
+  if (!modelConfig && config.models?.length) {
+    modelConfig = config.models[0];
+  }
   if (!modelConfig) {
-    throw new Error('未找到默认模型配置');
+    throw new Error(
+      '未找到默认模型配置。请在 ~/.alice/settings.jsonc 中设置 default_model 为某个 models[].name（如 "lmstudio-local"），并确保 models 列表非空。'
+    );
   }
 
   const systemPrompt = await getSystemPrompt();
@@ -138,7 +143,11 @@ export async function* runChatStream(
     const messages = finalMessages.map((m) => serializeMessage(m));
     yield { type: 'done' as const, sessionId: session.id, messages };
   } catch (error: unknown) {
-    logger.error('Chat stream 错误', getErrorMessage(error));
+    const msg = getErrorMessage(error);
+    logger.error('Chat stream 错误', msg);
+    if (error instanceof Error && error.stack) {
+      logger.error('堆栈', error.stack);
+    }
     toolRecordsBuffer.length = 0;
     throw error;
   }

@@ -135,7 +135,12 @@ export class ConfigManager {
   }
 
   getDefaultModel(): ModelConfig | undefined {
-    return this.getModel(this.get().default_model);
+    const config = this.get();
+    const byName = this.getModel(config.default_model);
+    if (byName) return byName;
+    // default_model 与任意 models[].name 不匹配时（例如误填成 "provider/model"），回退到第一个模型
+    if (config.models?.length) return config.models[0];
+    return undefined;
   }
 
   getSuggestModel(): ModelConfig | undefined {

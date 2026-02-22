@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ALICE CLI 技术介绍</title>
+  <style>
+    :root {
+      --alice-cyan: #00D9FF;
+      --alice-cyan-dim: #00a8cc;
+      --alice-bg: #0a0e14;
+      --alice-bg-card: #12181f;
+      --alice-gray: #808080;
+      --alice-gray-light: #a0a8b0;
+      --alice-border: rgba(0, 217, 255, 0.25);
+      --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; font-family: var(--font-sans); background: var(--alice-bg); color: #e0e4e8; }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 48px 64px;
+      background: var(--alice-bg);
+    }
+    .slide.active { display: flex; }
+    .slide h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 16px; background: linear-gradient(135deg, var(--alice-cyan), #60e8ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .slide h2 { font-size: 1.5rem; color: var(--alice-cyan); margin-bottom: 24px; font-weight: 600; }
+    .slide h3 { font-size: 1.1rem; color: var(--alice-gray-light); margin: 16px 0 8px; font-weight: 600; }
+    .slide p, .slide li { color: var(--alice-gray-light); line-height: 1.6; margin-bottom: 8px; font-size: 0.95rem; }
+    .slide ul { list-style: none; padding-left: 0; }
+    .slide ul li::before { content: "▸ "; color: var(--alice-cyan); font-weight: bold; margin-right: 8px; }
+    .slide .sub { color: var(--alice-gray); font-size: 0.85rem; margin-top: 8px; }
+    .slide .card { background: var(--alice-bg-card); border: 1px solid var(--alice-border); border-radius: 12px; padding: 20px 24px; margin: 12px 0; max-width: 90%; }
+    .slide .mono { font-family: var(--font-mono); font-size: 0.88rem; color: var(--alice-cyan); }
+    .slide .center { text-align: center; }
+    .slide .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; width: 100%; max-width: 1000px; align-items: start; }
+    .slide .full-width { width: 100%; max-width: 960px; }
+
+    /* Chart container */
+    .chart-wrap { margin: 20px 0; width: 100%; max-width: 700px; }
+    .chart-title { font-size: 0.9rem; color: var(--alice-gray); margin-bottom: 12px; }
+    table.compare { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    table.compare th, table.compare td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--alice-border); }
+    table.compare th { color: var(--alice-cyan); font-weight: 600; }
+    table.compare td { color: var(--alice-gray-light); }
+    table.compare tr:hover td { background: rgba(0, 217, 255, 0.06); }
+
+    /* Footer */
+    .footer { position: fixed; bottom: 16px; right: 24px; font-size: 0.75rem; color: var(--alice-gray); }
+    .footer .key { color: var(--alice-cyan); }
+  </style>
+</head>
+<body>
+  <div class="footer"><span class="key">← →</span> 切换幻灯片</div>
+
+  <!-- Slide 1: 封面 -->
+  <section class="slide active" data-slide="1">
+    <h1 class="center">ALICE CLI</h1>
+    <p class="center sub">Accelerated Logic Inference Core Executor</p>
+    <p class="center" style="margin-top: 24px; color: var(--alice-gray);">基于 LLM 的智能办公助手 · 技术架构与特性概览</p>
+    <p class="center sub" style="margin-top: 48px;">Node.js · TypeScript · Ink · Function Calling · MCP · Daemon</p>
+  </section>
+
+  <!-- Slide 2: 项目简介 -->
+  <section class="slide" data-slide="2">
+    <h2>项目简介</h2>
+    <div class="card full-width">
+      <p><strong>ALICE</strong> 是面向终端的 AI 助手 CLI，采用 <strong>Node.js + TypeScript + Ink (React for CLI)</strong>，支持多模型、Function Calling、流式输出与常驻 Daemon。</p>
+      <p class="sub">目标：在终端内提供类似 GitHub Copilot CLI 的对话与工具调用体验，同时保持架构清晰、可扩展。</p>
+    </div>
+    <h3>产品体系</h3>
+    <ul>
+      <li><strong>VERONICA</strong>（daemon）：常驻服务，会话与推理由 daemon 持有，通过 <code class="mono">veronica</code> 管理</li>
+      <li><strong>ALICE</strong>（主 CLI）：<code class="mono">alice</code> 入口，TUI 与用户交互，与 VERONICA 配合</li>
+      <li>DIANA / ANDERS：规划中（移动端、架构师 Agent）</li>
+    </ul>
+  </section>
+
+  <!-- Slide 3: 架构特性 -->
+  <section class="slide" data-slide="3">
+    <h2>架构特性</h2>
+    <div class="chart-wrap">
+      <svg viewBox="0 0 640 280" width="100%" height="280" style="max-height: 280px;">
+        <defs>
+          <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#00D9FF"/><stop offset="100%" style="stop-color:#0a0e14"/></linearGradient>
+          <linearGradient id="g2" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#00D9FF;stop-opacity:0.3"/><stop offset="100%" style="stop-color:#00D9FF;stop-opacity:0"/></linearGradient>
+        </defs>
+        <!-- CLI -->
+        <rect x="20" y="20" width="140" height="56" rx="8" fill="#12181f" stroke="#00D9FF" stroke-width="1.5"/>
+        <text x="90" y="52" text-anchor="middle" fill="#00D9FF" font-size="13" font-weight="600">CLI (alice)</text>
+        <text x="90" y="68" text-anchor="middle" fill="#808080" font-size="11">Ink TUI · 输入/展示</text>
+        <!-- Daemon -->
+        <rect x="260" y="20" width="120" height="56" rx="8" fill="#12181f" stroke="#00D9FF" stroke-width="1.5"/>
+        <text x="320" y="52" text-anchor="middle" fill="#00D9FF" font-size="13" font-weight="600">VERONICA</text>
+        <text x="320" y="68" text-anchor="middle" fill="#808080" font-size="11">Daemon · 会话/推理</text>
+        <!-- Core -->
+        <rect x="440" y="20" width="180" height="56" rx="8" fill="#12181f" stroke="#00D9FF" stroke-width="1.5"/>
+        <text x="530" y="42" text-anchor="middle" fill="#00D9FF" font-size="13" font-weight="600">Core</text>
+        <text x="530" y="58" text-anchor="middle" fill="#808080" font-size="10">LLM · Provider · Session · Tools</text>
+        <!-- Arrows -->
+        <path d="M 160 48 L 256 48" stroke="#00D9FF" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+        <path d="M 380 48 L 436 48" stroke="#00D9FF" stroke-width="1.5" fill="none"/>
+        <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#00D9FF"/></marker></defs>
+        <!-- Tools layer -->
+        <rect x="20" y="120" width="600" height="72" rx="8" fill="#12181f" stroke="rgba(0,217,255,0.4)" stroke-width="1"/>
+        <text x="320" y="148" text-anchor="middle" fill="#00D9FF" font-size="12" font-weight="600">Tools 层</text>
+        <text x="320" y="168" text-anchor="middle" fill="#808080" font-size="10">Builtin (11) · MCP 桥接 · AJV 校验 · Function Calling</text>
+        <!-- Provider layer -->
+        <rect x="20" y="210" width="600" height="56" rx="8" fill="#12181f" stroke="rgba(0,217,255,0.4)" stroke-width="1"/>
+        <text x="320" y="238" text-anchor="middle" fill="#00D9FF" font-size="12" font-weight="600">Providers</text>
+        <text x="320" y="256" text-anchor="middle" fill="#808080" font-size="10">OpenAI / Azure / Anthropic / Google / Mistral / Ollama / xAI · 可扩展</text>
+      </svg>
+    </div>
+    <p class="sub">会话与消息由 Daemon 持有；CLI 通过 DaemonClient 拉取/推送，本地 sessionManager 仅做持久化与统计。</p>
+  </section>
+
+  <!-- Slide 4: 技术栈 -->
+  <section class="slide" data-slide="4">
+    <h2>技术栈与工程规范</h2>
+    <div class="grid2">
+      <div>
+        <h3>运行时与语言</h3>
+        <ul>
+          <li>Node.js ≥ 18，ESM (<code class="mono">"type": "module"</code>)</li>
+          <li>TypeScript 严格模式，ES2022 目标</li>
+          <li>导入路径带 <code class="mono">.js</code> 扩展名</li>
+        </ul>
+        <h3>UI 与交互</h3>
+        <ul>
+          <li>Ink（React for CLI），chalk，gradient-string</li>
+          <li>commander 解析参数，useInput 键盘</li>
+        </ul>
+      </div>
+      <div>
+        <h3>核心能力</h3>
+        <ul>
+          <li>流式响应（AsyncGenerator / SSE）</li>
+          <li>多 Provider 注册表，统一 BaseProvider</li>
+          <li>MCP SDK 桥接外部工具</li>
+          <li>AJV 校验工具参数 Schema</li>
+        </ul>
+        <h3>配置分离</h3>
+        <ul>
+          <li><code class="mono">~/.alice/settings.jsonc</code>：模型、UI、工作区</li>
+          <li><code class="mono">~/.alice/daemon_settings.jsonc</code>：Daemon 通信与日志</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Slide 5: 目录与规模 -->
+  <section class="slide" data-slide="5">
+    <h2>目录结构与代码规模</h2>
+    <div class="card full-width">
+      <pre class="mono" style="white-space: pre; font-size: 0.8rem; line-height: 1.5;">
+src/
+├── index.tsx              # CLI 入口
+├── cli/                   # UI 层 (app, components, context, hooks)
+├── components/            # 可复用 UI (Markdown, Loader, Editor, Overlay…)
+├── core/                  # 核心 (llm, providers, session, events, theme, mcp, skillManager…)
+├── tools/                 # 工具 (registry, executor, builtin 11 个)
+├── daemon/                # VERONICA (server, routes, chatHandler, processManager…)
+├── utils/                 # 配置、错误、daemonClient、mcpConfig…
+└── types/                 # 类型定义
+      </pre>
+    </div>
+    <p><strong>规模</strong>：约 64 个 .ts + 24 个 .tsx；内置工具 11 个；Provider 支持 4 类 + OpenAI 兼容多别名；MCP 可扩展。</p>
+  </section>
+
+  <!-- Slide 6: 与市面 CLI 对比 -->
+  <section class="slide" data-slide="6">
+    <h2>与常见 CLI 产品对比</h2>
+    <div class="chart-wrap full-width">
+      <table class="compare">
+        <thead>
+          <tr><th>维度</th><th>ALICE</th><th>GitHub Copilot CLI</th><th>aider</th><th>Cursor (CLI)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>多模型 / 自托管</td><td>✅ 多 Provider</td><td>❌ 限定</td><td>✅ 多模型</td><td>❌ 限定</td></tr>
+          <tr><td>Function Calling</td><td>✅ 原生 + 工具注册表</td><td>✅</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Daemon 常驻</td><td>✅ VERONICA</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>MCP 协议</td><td>✅ 内置桥接</td><td>❌</td><td>❌</td><td>部分</td></tr>
+          <tr><td>开源 / 可定制</td><td>✅ MIT</td><td>❌</td><td>✅</td><td>❌</td></tr>
+          <tr><td>TUI 交互</td><td>✅ Ink React</td><td>有限</td><td>终端对话</td><td>IDE 为主</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Slide 7: 能力对比条形图（并排） -->
+  <section class="slide" data-slide="7">
+    <h2>能力对比（综合评分示意）</h2>
+    <p class="sub">满分 10 分 · 左=ALICE，右=市面常见 CLI 典型值</p>
+    <div class="chart-wrap">
+      <svg viewBox="0 0 540 260" width="100%" style="max-width: 540px;">
+        <defs>
+          <linearGradient id="barAlice" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#00D9FF"/><stop offset="100%" style="stop-color:#00a8cc"/></linearGradient>
+        </defs>
+        <!-- 刻度 0-10 对应 0-200 -->
+        <text x="118" y="22" fill="#606060" font-size="9">0</text>
+        <text x="318" y="22" fill="#606060" font-size="9">10</text>
+        <line x1="120" y1="26" x2="320" y2="26" stroke="#333" stroke-width="1"/>
+        <!-- 多模型: ALICE 9.4, 其它 2.5 -->
+        <text x="0" y="58" fill="#a0a8b0" font-size="11">多模型/自托管</text>
+        <rect x="120" y="44" width="188" height="14" rx="3" fill="url(#barAlice)"/>
+        <text x="314" y="55" fill="#00D9FF" font-size="10">9.4</text>
+        <rect x="340" y="44" width="50" height="14" rx="3" fill="#505860"/>
+        <text x="398" y="55" fill="#808080" font-size="10">2.5</text>
+        <!-- Daemon: ALICE 10, 其它 0 -->
+        <text x="0" y="98" fill="#a0a8b0" font-size="11">Daemon 架构</text>
+        <rect x="120" y="84" width="200" height="14" rx="3" fill="url(#barAlice)"/>
+        <text x="326" y="95" fill="#00D9FF" font-size="10">10</text>
+        <rect x="340" y="84" width="0" height="14" rx="3" fill="#505860"/>
+        <text x="348" y="95" fill="#808080" font-size="10">0</text>
+        <!-- MCP: ALICE 8.8, 其它 3 -->
+        <text x="0" y="138" fill="#a0a8b0" font-size="11">MCP/扩展</text>
+        <rect x="120" y="124" width="176" height="14" rx="3" fill="url(#barAlice)"/>
+        <text x="302" y="135" fill="#00D9FF" font-size="10">8.8</text>
+        <rect x="340" y="124" width="60" height="14" rx="3" fill="#505860"/>
+        <text x="406" y="135" fill="#808080" font-size="10">3.0</text>
+        <!-- 开源: ALICE 9.5, 其它 5 -->
+        <text x="0" y="178" fill="#a0a8b0" font-size="11">开源可定制</text>
+        <rect x="120" y="164" width="190" height="14" rx="3" fill="url(#barAlice)"/>
+        <text x="316" y="175" fill="#00D9FF" font-size="10">9.5</text>
+        <rect x="340" y="164" width="100" height="14" rx="3" fill="#505860"/>
+        <text x="446" y="175" fill="#808080" font-size="10">5.0</text>
+        <!-- TUI: ALICE 8.5, 其它 6 -->
+        <text x="0" y="218" fill="#a0a8b0" font-size="11">TUI 体验</text>
+        <rect x="120" y="204" width="170" height="14" rx="3" fill="url(#barAlice)"/>
+        <text x="296" y="215" fill="#00D9FF" font-size="10">8.5</text>
+        <rect x="340" y="204" width="120" height="14" rx="3" fill="#505860"/>
+        <text x="466" y="215" fill="#808080" font-size="10">6.0</text>
+        <!-- 图例 -->
+        <rect x="120" y="232" width="16" height="10" rx="2" fill="url(#barAlice)"/>
+        <text x="140" y="240" fill="#808080" font-size="10">ALICE</text>
+        <rect x="200" y="232" width="16" height="10" rx="2" fill="#505860"/>
+        <text x="220" y="240" fill="#808080" font-size="10">其它 CLI</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- Slide 8: 技术优势 -->
+  <section class="slide" data-slide="8">
+    <h2>技术优势总结</h2>
+    <ul class="full-width" style="max-width: 700px;">
+      <li><strong>架构</strong>：CLI 与 Daemon 分离，会话与推理在 VERONICA 侧，便于多前端、资源隔离与稳定性</li>
+      <li><strong>多模型</strong>：Provider 注册表 + 统一 BaseProvider，支持 OpenAI / Azure / Anthropic / Google / Mistral / Ollama / xAI 等，可继续扩展</li>
+      <li><strong>工具生态</strong>：内置 11 个工具 + MCP 桥接，AJV 校验参数，与 LLM Function Calling 无缝对接</li>
+      <li><strong>工程质量</strong>：TypeScript 严格模式、ESM、JSDoc、统一错误处理与 getErrorMessage，便于维护与协作</li>
+      <li><strong>体验</strong>：科技蓝主色、极简 TUI、流式输出、键盘快捷键与加载反馈，符合产品调性</li>
+    </ul>
+  </section>
+
+  <!-- Slide 9: 结尾 -->
+  <section class="slide" data-slide="9">
+    <h1 class="center">ALICE CLI</h1>
+    <p class="center" style="margin-top: 16px; color: var(--alice-cyan);">Accelerated Logic Inference Core Executor</p>
+    <p class="center sub" style="margin-top: 32px;">感谢聆听 · 欢迎参与贡献</p>
+    <p class="center mono" style="margin-top: 16px;">npm run dev · alice --test-model · veronica</p>
+  </section>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    let idx = 0;
+    function show(i) {
+      idx = Math.max(0, Math.min(i, slides.length - 1));
+      slides.forEach((s, k) => s.classList.toggle('active', k === idx));
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); show(idx + 1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); show(idx - 1); }
+    });
+    show(0);
+  </script>
+</body>
+</html>

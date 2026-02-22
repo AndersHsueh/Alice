@@ -1,7 +1,21 @@
 import axios, { AxiosInstance } from 'axios';
+import { Readable } from 'stream';
 import { BaseProvider, ProviderConfig, ChatResponse } from './base.js';
 import type { Message } from '../../types/index.js';
 import type { OpenAIFunction } from '../../types/tool.js';
+
+/** 将 Node 可读流读成字符串（用于流式请求返回 4xx/5xx 时解析错误体） */
+function readStreamToString(stream: unknown): Promise<string> {
+  if (stream == null || typeof (stream as Readable).on !== 'function') {
+    return Promise.resolve('');
+  }
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    (stream as Readable).on('data', (chunk: Buffer) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    (stream as Readable).on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+    (stream as Readable).on('error', reject);
+  });
+}
 
 export class OpenAICompatibleProvider extends BaseProvider {
   private client: AxiosInstance;
@@ -88,8 +102,30 @@ export class OpenAICompatibleProvider extends BaseProvider {
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      await this.normalizeStreamErrorResponse(error);
       throw this.handleError(error);
+    }
+  }
+
+  /**
+   * 流式请求失败时，response.data 是流对象，需先读成字符串再解析错误信息
+   */
+  private async normalizeStreamErrorResponse(error: unknown): Promise<void> {
+    if (!axios.isAxiosError(error) || !error.response?.data) return;
+    const data = error.response.data as unknown;
+    if (typeof (data as Readable).on !== 'function') return;
+    try {
+      const body = await readStreamToString(data);
+      if (body.length > 0) {
+        try {
+          error.response.data = JSON.parse(body) as unknown;
+        } catch {
+          error.response.data = body;
+        }
+      }
+    } catch {
+      // 读取失败则保持原样，handleError 会退回「未知错误」
     }
   }
 
@@ -122,20 +158,34 @@ export class OpenAICompatibleProvider extends BaseProvider {
   }
 
   /**
-   * 从 API 响应体中提取错误信息（兼容 OpenAI / xAI 等不同结构）
+   * 从 API 响应体中提取错误信息（兼容 OpenAI / LM Studio / xAI 等不同结构）
+   * 尽量返回服务端真实原因，避免 500 时只显示「未知错误」
    */
   private getResponseErrorMessage(data: unknown): string {
     if (data == null) return '未知错误';
-    if (typeof data === 'string') return data;
+    if (typeof data === 'string') {
+      const trimmed = data.trim();
+      return trimmed.length > 0 ? trimmed.slice(0, 500) : '未知错误';
+    }
     if (typeof data === 'object') {
       const obj = data as Record<string, unknown>;
-      const msg =
+      const msg: unknown =
         (obj.error as Record<string, unknown> | undefined)?.message ??
         obj.message ??
+        obj.detail ?? // 常见 REST 错误字段
         (typeof obj.error === 'string' ? obj.error : null);
-      if (msg != null && typeof msg === 'string') return msg;
-      if (obj.error && typeof obj.error === 'object' && (obj.error as Record<string, unknown>).message != null) {
-        return String((obj.error as Record<string, unknown>).message);
+      if (msg != null && typeof msg === 'string') return msg.slice(0, 500);
+      if (msg != null) return String(msg).slice(0, 500);
+      if (obj.error && typeof obj.error === 'object') {
+        const errObj = obj.error as Record<string, unknown>;
+        if (errObj.message != null && typeof errObj.message === 'string') return errObj.message.slice(0, 500);
+      }
+      // 最后尝试：把响应体转成短字符串，便于排查非标准格式
+      try {
+        const raw = JSON.stringify(data);
+        if (raw.length > 10) return raw.slice(0, 300);
+      } catch {
+        // ignore
       }
     }
     return '未知错误';
@@ -327,7 +377,8 @@ export class OpenAICompatibleProvider extends BaseProvider {
           }
         }
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      await this.normalizeStreamErrorResponse(error);
       throw this.handleError(error);
     }
   }
