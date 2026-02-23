@@ -11,15 +11,24 @@ interface ChatAreaProps {
   streamingContent?: string;
 }
 
-function collapseToolMessages(messages: Message[]): Array<
+type CollapseItem =
   | { type: 'message'; message: Message }
-  | { type: 'toolSummary'; names: string[]; count: number }
-> {
-  const result: Array<
-    | { type: 'message'; message: Message }
-    | { type: 'toolSummary'; names: string[]; count: number }
-  > = [];
+  | { type: 'toolSummary'; names: string[]; count: number; callCounts: Record<string, number> };
+
+function collapseToolMessages(messages: Message[]): CollapseItem[] {
+  const result: CollapseItem[] = [];
   let toolBatch: string[] = [];
+
+  const flushBatch = () => {
+    if (toolBatch.length === 0) return;
+    const callCounts: Record<string, number> = {};
+    for (const name of toolBatch) {
+      callCounts[name] = (callCounts[name] ?? 0) + 1;
+    }
+    const names = Object.keys(callCounts);
+    result.push({ type: 'toolSummary', names, count: toolBatch.length, callCounts });
+    toolBatch = [];
+  };
 
   for (const msg of messages) {
     if (msg.role === 'system') continue;
@@ -27,36 +36,33 @@ function collapseToolMessages(messages: Message[]): Array<
       toolBatch.push(msg.name || 'unknown');
       continue;
     }
-    if (toolBatch.length > 0) {
-      const names = [...new Set(toolBatch)];
-      result.push({ type: 'toolSummary', names, count: toolBatch.length });
-      toolBatch = [];
-    }
+    flushBatch();
     result.push({ type: 'message', message: msg });
   }
-  if (toolBatch.length > 0) {
-    const names = [...new Set(toolBatch)];
-    result.push({ type: 'toolSummary', names, count: toolBatch.length });
-  }
+  flushBatch();
   return result;
 }
 
 const DisplayItem: React.FC<{
-  item:
-    | { type: 'message'; message: Message }
-    | { type: 'toolSummary'; names: string[]; count: number };
+  item: CollapseItem;
   index: number;
 }> = React.memo(
   ({ item, index }) => {
     if (item.type === 'toolSummary') {
       const { names, count } = item;
-      const nameList =
-        names.length <= 4 ? names.join(', ') : `${names.slice(0, 3).join(', ')} +${names.length - 3}`;
+      // 每个不同工具名单独一行，风格参考 Claude Code
       return (
-        <Box key={`tool-${index}`} marginBottom={1} paddingX={2}>
-          <Text color="#404040" dimColor>
-            {`  ${count > 1 ? `${count}x` : ''} ${nameList}`}
-          </Text>
+        <Box key={`tool-${index}`} flexDirection="column" marginBottom={1} paddingX={2}>
+          {names.map((name, i) => {
+            const callCount = item.callCounts?.[name];
+            const countLabel = callCount && callCount > 1 ? ` ×${callCount}` : '';
+            return (
+              <Box key={name} gap={2}>
+                <Text color="#555555">{'  ⏎'}</Text>
+                <Text color="#888888">{name}{countLabel}</Text>
+              </Box>
+            );
+          })}
         </Box>
       );
     }
