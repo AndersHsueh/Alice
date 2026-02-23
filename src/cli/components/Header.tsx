@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text, useStdout } from 'ink';
 import path from 'path';
 
 interface HeaderProps {
@@ -8,35 +8,26 @@ interface HeaderProps {
 }
 
 const HeaderComponent: React.FC<HeaderProps> = ({ workspace, model }) => {
+  const { stdout } = useStdout();
+  const terminalWidth = stdout?.columns || 80;
   const shortPath = path.basename(workspace);
 
   return (
-    <Box
-      borderStyle="round"
-      borderColor="cyan"
-      paddingX={1}
-      paddingY={1}
-      flexDirection="column"
-    >
-      <Box flexDirection="column">
-        <Text bold color="cyan">✨ ALICE</Text>
-        <Text dimColor>加速逻辑推理核心执行器</Text>
+    <Box flexDirection="column" paddingX={2} paddingTop={1} paddingBottom={0}>
+      {/* 顶行：品牌 + 工作区 + 模型 */}
+      <Box flexDirection="row" gap={3}>
+        <Text bold color="#00D9FF">Alice</Text>
+        <Text dimColor>{'·'}</Text>
+        <Text dimColor>{shortPath}</Text>
+        <Text dimColor>{'·'}</Text>
+        <Text color="#808080">{model}</Text>
       </Box>
-
-      <Box marginTop={1} gap={2}>
-        <Box>
-          <Text dimColor>Workspace: </Text>
-          <Text color="yellow">{shortPath}</Text>
-        </Box>
-        
-        <Box>
-          <Text dimColor>Model: </Text>
-          <Text color="green">{model}</Text>
-        </Box>
+      {/* 分隔线 */}
+      <Box marginTop={0}>
+        <Text color="#1a1a2e">{'─'.repeat(Math.min(terminalWidth - 4, 80))}</Text>
       </Box>
     </Box>
   );
 };
 
-// 用 memo 包裹，props 不变时跳过重渲染
 export const Header = React.memo(HeaderComponent);

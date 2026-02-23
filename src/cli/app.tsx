@@ -21,6 +21,7 @@ import type { CLIOptions } from '../utils/cliArgs.js';
 import { getErrorMessage } from '../utils/error.js';
 import { useInputHistory } from './hooks/useInputHistory.js';
 import { useDialogs } from './hooks/useDialogs.js';
+import type { GeneratingPhase } from './components/GeneratingStatus.js';
 
 interface AppProps {
   skipBanner?: boolean;
@@ -37,6 +38,8 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
   const { confirmDialog, setConfirmDialog, questionDialog, setQuestionDialog, showQuestionDialog } = useDialogs();
   const [toolRecords, setToolRecords] = useState<ToolCallRecord[]>([]);
   const [streamingContent, setStreamingContent] = useState('');
+  const [generatingPhase, setGeneratingPhase] = useState<GeneratingPhase>({ type: 'idle' });
+  const streamingCharCount = useRef(0);
   const [statusInfo, setStatusInfo] = useState<StatusInfo>({
     connectionStatus: { type: 'disconnected' },
     tokenUsage: { used: 0, total: 0 },
@@ -227,7 +230,9 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     setIsProcessing(true);
     setStreamingContent('');
     setToolRecords([]);
+    streamingCharCount.current = 0;
     const requestStart = Date.now();
+    setGeneratingPhase({ type: 'processing', startTime: Date.now() });
 
     try {
       const THROTTLE_MS = 50;
@@ -250,10 +255,17 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
         workspace: cliOptions.workspace || appConfig?.workspace,
       })) {
         if (event.type === 'text') {
+          // 第一个 text event 到达：从 processing 切到 generating
+          streamingCharCount.current += event.content.length;
+          setGeneratingPhase({ type: 'generating', tokenEstimate: streamingCharCount.current });
           buffer += event.content;
           const now = Date.now();
           if (now - lastFlush >= THROTTLE_MS) flushBuffer();
         } else if (event.type === 'tool_call') {
+          // tool call 阶段：显示工具名
+          if (event.record.status === 'running' || event.record.status === 'pending') {
+            setGeneratingPhase({ type: 'tool', toolName: event.record.toolLabel ?? event.record.toolName, tokenEstimate: streamingCharCount.current });
+          }
           setToolRecords((prev) => {
             const index = prev.findIndex((r) => r.id === event.record.id);
             if (index >= 0) {
@@ -325,6 +337,8 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       statsTrackerRef.current?.recordLLMTime(responseTime);
       setIsProcessing(false);
       setToolRecords([]);
+      setGeneratingPhase({ type: 'idle' });
+      streamingCharCount.current = 0;
     }
   };
 
@@ -375,6 +389,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       statusInfo={statusInfo}
       latestToolRecord={toolRecords.length > 0 ? toolRecords[toolRecords.length - 1] : undefined}
       statusBarEnabled={config.ui?.statusBar?.enabled !== false}
+      generatingPhase={generatingPhase}
       onSubmit={handleSubmit}
       onHistoryUp={handleHistoryUp}
       onHistoryDown={handleHistoryDown}

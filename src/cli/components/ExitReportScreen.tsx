@@ -1,5 +1,5 @@
 /**
- * 退出汇报全屏：展示会话统计后退出
+ * 退出汇报全屏
  */
 
 import React from 'react';
@@ -13,7 +13,7 @@ export interface ExitReportScreenProps {
 }
 
 export const ExitReportScreen: React.FC<ExitReportScreenProps> = ({ sessionId, stats }) => (
-  <Box flexDirection="column" height="100%" justifyContent="center">
+  <Box flexDirection="column">
     <ExitReport sessionId={sessionId} stats={stats} />
   </Box>
 );
