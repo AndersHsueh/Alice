@@ -277,11 +277,22 @@ export class DaemonRoutes {
 
   /**
    * POST /session - 创建新会话
+   * 请求体可包含 { workspace?: string }，绑定到此 session
    */
   private async handleCreateSession(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const sessionManager = getSessionManager();
-    const session = await sessionManager.createSession();
-    this.logger.info(`POST /session - 创建会话: ${session.id}`);
+    let workspace: string | undefined;
+    try {
+      const body = await readBody(req);
+      if (body) {
+        const parsed = JSON.parse(body);
+        workspace = parsed.workspace;
+      }
+    } catch {
+      // body 为空或非 JSON，忽略，workspace 使用默认值
+    }
+    const session = await sessionManager.createSession(workspace);
+    this.logger.info(`POST /session - 创建会话: ${session.id}, workspace: ${session.workspace}`);
     res.writeHead(200);
     res.end(JSON.stringify(session));
   }

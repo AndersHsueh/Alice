@@ -382,7 +382,9 @@ export class DaemonClient {
   }
 
   async createSession(): Promise<Session> {
-    return await this.request('/session', 'POST');
+    // 将当前目录传给 daemon，绑定到新 session
+    const body = JSON.stringify({ workspace: process.cwd() });
+    return await this.request('/session', 'POST', body);
   }
 
   async *chatStream(payload: {

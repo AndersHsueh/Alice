@@ -83,7 +83,8 @@ export async function getSystemPrompt(): Promise<string> {
 }
 
 export function getLLMClient(modelConfig: ModelConfig, systemPrompt: string): LLMClient {
-  const key = modelConfig.name;
+  // workspace 不同则 system prompt 不同，用 hash 区分缓存
+  const key = `${modelConfig.name}::${Buffer.from(systemPrompt).toString('base64').slice(-16)}`;
   let client = llmClientCache.get(key);
   if (!client) {
     client = new LLMClient(modelConfig, systemPrompt);

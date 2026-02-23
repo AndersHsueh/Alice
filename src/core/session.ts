@@ -16,10 +16,11 @@ export class SessionManager {
     await fs.mkdir(this.sessionDir, { recursive: true });
   }
 
-  async createSession(): Promise<Session> {
+  async createSession(workspace?: string): Promise<Session> {
     const session: Session = {
       id: randomUUID(),
       createdAt: new Date(),
+      workspace: workspace || configManager.get()?.workspace || process.cwd(),
       messages: [],
       metadata: {},
     };

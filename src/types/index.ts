@@ -13,6 +13,7 @@ export interface Session {
   createdAt: Date;
   updatedAt?: Date;
   caption?: string;          // 会话标题，如 "[Jan-02] 重构 chatHandler 架构"
+  workspace: string;         // 会话工作目录，创建时绑定，全程不变
   messages: Message[];
   metadata: Record<string, any>;
 }

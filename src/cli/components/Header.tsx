@@ -16,7 +16,7 @@ const HeaderComponent: React.FC<HeaderProps> = ({ workspace, model }) => {
     <Box flexDirection="column" paddingX={2} paddingTop={1} paddingBottom={0}>
       {/* 顶行：品牌 + 工作区 + 模型 */}
       <Box flexDirection="row" gap={3}>
-        <Text bold color="#00D9FF">Alice</Text>
+        <Text bold color="#00D9FF">A.L.I.C.E.</Text>
         <Text dimColor>{'·'}</Text>
         <Text dimColor>{shortPath}</Text>
         <Text dimColor>{'·'}</Text>

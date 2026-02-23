@@ -51,7 +51,10 @@ export async function* runChatStream(
     );
   }
 
-  const systemPrompt = await getSystemPrompt();
+  const baseSystemPrompt = await getSystemPrompt();
+  // 将 session.workspace 注入 system prompt，让模型生成工具调用时使用绝对路径
+  const workspaceNote = `\n\n## 当前工作目录\nworkspace: ${session.workspace}\n所有相对路径均相对于此目录。文件操作时请使用绝对路径或基于此目录的完整路径。`;
+  const systemPrompt = baseSystemPrompt + workspaceNote;
   const client = getLLMClient(modelConfig, systemPrompt);
 
   const userMsg: Message = {

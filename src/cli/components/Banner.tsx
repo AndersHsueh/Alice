@@ -11,7 +11,7 @@ export const Banner: React.FC<BannerProps> = ({ onComplete }) => {
   useEffect(() => {
     // 短暂延迟后显示，给终端初始化时间
     const showTimer = setTimeout(() => setVisible(true), 80);
-    const doneTimer = setTimeout(() => onComplete(), 1800);
+    const doneTimer = setTimeout(() => onComplete(), 2400);
     return () => {
       clearTimeout(showTimer);
       clearTimeout(doneTimer);
@@ -24,7 +24,7 @@ export const Banner: React.FC<BannerProps> = ({ onComplete }) => {
     <Box flexDirection="column" paddingX={3} paddingY={2}>
       {/* 品牌名：大字简洁 */}
       <Box flexDirection="row" gap={1} alignItems="center">
-        <Text bold color="#00D9FF">{'Alice'}</Text>
+        <Text bold color="#00D9FF">{'A.L.I.C.E'}</Text>
         <Text color="#303030">{'//'}</Text>
         <Text color="#505050">{'Accelerated Logic Inference Core Executor'}</Text>
       </Box>
@@ -39,7 +39,7 @@ export const Banner: React.FC<BannerProps> = ({ onComplete }) => {
       </Box>
 
       <Box marginTop={1}>
-        <Text color="#252525">{'v0.1.0'}</Text>
+        <Text color="#252525">{'v0.4.11'}</Text>
       </Box>
     </Box>
   );
