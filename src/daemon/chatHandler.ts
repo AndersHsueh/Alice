@@ -139,7 +139,14 @@ export async function* runChatStream(
       });
     }
 
-    await sessionManager.saveSession({ ...session, messages: finalMessages });
+    // 生成或更新 caption
+    const updatedCaption = await generateCaption(session.caption, finalMessages, client, logger);
+    await sessionManager.saveSession({
+      ...session,
+      messages: finalMessages,
+      caption: updatedCaption,
+      updatedAt: new Date(),
+    });
     const messages = finalMessages.map((m) => serializeMessage(m));
     yield { type: 'done' as const, sessionId: session.id, messages };
   } catch (error: unknown) {
@@ -154,3 +161,50 @@ export async function* runChatStream(
 }
 
 const toolRecordsBuffer: ToolCallRecord[] = [];
+
+/**
+ * 生成或更新会话 caption
+ * - 首次对话：生成标题
+ * - 后续对话：每次更新（反映最近内容）
+ * 不阻塞主流程，失败时保留旧标题
+ */
+async function generateCaption(
+  existingCaption: string | undefined,
+  messages: Message[],
+  client: any,
+  logger: DaemonLogger
+): Promise<string | undefined> {
+  try {
+    const userMessages = messages.filter(m => m.role === 'user');
+    if (userMessages.length === 0) return existingCaption;
+
+    // 只在首次对话或每隔 5 条消息更新一次，避免每次请求都调用 LLM
+    const shouldUpdate = !existingCaption || userMessages.length % 5 === 1;
+    if (!shouldUpdate) return existingCaption;
+
+    const date = new Date();
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const datePrefix = `[${monthNames[date.getMonth()]}-${String(date.getDate()).padStart(2,'0')}]`;
+
+    // 取最近的用户消息和助手回复做摘要
+    const recent = messages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .slice(-6)
+      .map(m => `${m.role}: ${m.content.slice(0, 200)}`)
+      .join('\n');
+
+    const prompt = `Summarize this conversation in one short phrase (under 10 words, no punctuation at end). Reply with ONLY the phrase, nothing else.\n\n${recent}`;
+
+    let summary = '';
+    for await (const chunk of client.chatStream([{ role: 'user', content: prompt, timestamp: new Date() }])) {
+      summary += chunk;
+    }
+    summary = summary.trim().replace(/[.!?]+$/, '').slice(0, 60);
+    if (!summary) return existingCaption;
+
+    return `${datePrefix} ${summary}`;
+  } catch (err) {
+    logger.warn('Caption 生成失败', String(err));
+    return existingCaption;
+  }
+}

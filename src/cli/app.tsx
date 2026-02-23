@@ -7,7 +7,7 @@ import { DaemonClient } from '../utils/daemonClient.js';
 import { CommandRegistry } from '../core/commandRegistry.js';
 import { builtinCommands } from '../core/builtinCommands.js';
 import { configManager } from '../utils/config.js';
-import { themeManager } from '../core/theme.js';
+import { themeManager } from './theme.js';
 import { statusManager } from '../core/statusManager.js';
 import { sessionManager } from '../core/session.js';
 import { StatsTracker } from '../core/statsTracker.js';
@@ -22,6 +22,7 @@ import { getErrorMessage } from '../utils/error.js';
 import { useInputHistory } from './hooks/useInputHistory.js';
 import { useDialogs } from './hooks/useDialogs.js';
 import type { GeneratingPhase } from './components/GeneratingStatus.js';
+import type { PickRequest } from '../core/commandRegistry.js';
 
 interface AppProps {
   skipBanner?: boolean;
@@ -40,6 +41,11 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
   const [streamingContent, setStreamingContent] = useState('');
   const [generatingPhase, setGeneratingPhase] = useState<GeneratingPhase>({ type: 'idle' });
   const streamingCharCount = useRef(0);
+  const [systemNotice, setSystemNotice] = useState<import('./components/SystemNotice.js').SystemNoticeData | null>(null);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pickRequest, setPickRequest] = useState<PickRequest | null>(null);
+  const [slashQuery, setSlashQuery] = useState<string | null>(null);
+  const [sessionSummaries, setSessionSummaries] = useState<Array<{ id: string; caption: string | null; updatedAt: string; messageCount: number }>>([]);
   const [statusInfo, setStatusInfo] = useState<StatusInfo>({
     connectionStatus: { type: 'disconnected' },
     tokenUsage: { used: 0, total: 0 },
@@ -212,10 +218,22 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       if (!input.startsWith('/')) return;
     }
 
+    if (input === '/') {
+      // 单绬 '/' 弹出命令选择器
+      setSlashQuery('');
+      return;
+    }
+
     if (input.startsWith('/')) {
       await handleCommand(input);
       return;
     }
+
+    // 普通消息，清除 slash command 通知
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    setSystemNotice(null);
+    setSlashQuery(null);
+    setPickRequest(null);
 
     setHistory((prev) => [...prev, input]);
     setHistoryIndex(-1);
@@ -342,25 +360,39 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     }
   };
 
+  const notify = (data: import('./components/SystemNotice.js').SystemNoticeData) => {
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    setSystemNotice(data);
+  };
+
   const handleCommand = async (cmd: string) => {
+    // 输入旰，清除上条通知
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
+    setSystemNotice(null);
+
     try {
       const [cmdName, ...args] = cmd.slice(1).split(/\s+/);
       await commandRegistry.execute(cmdName, args, {
         messages,
         setMessages,
+        notify,
         config: appConfig ?? configManager.get(),
         workspace: appConfig?.workspace ?? configManager.get().workspace,
         llmClient: null,
         exit: (code?: any) => requestExit(code),
+        requestPick: async (req) => {
+          if (req.kind === 'session') {
+            try {
+              const summaries = await daemonClient.listSessions();
+              setSessionSummaries(summaries.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
+            } catch { setSessionSummaries([]); }
+          }
+          setPickRequest(req);
+        },
+        reloadDaemon: () => daemonClient.reloadConfig().catch(() => {}),
       });
     } catch (error: unknown) {
-      // 显示错误信息
-      const errorMsg: Message = {
-        role: 'assistant',
-        content: `❌ ${getErrorMessage(error)}`,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMsg]);
+      notify({ lines: [`  ${getErrorMessage(error)}`], variant: 'error' });
     }
   };
 
@@ -390,6 +422,34 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       latestToolRecord={toolRecords.length > 0 ? toolRecords[toolRecords.length - 1] : undefined}
       statusBarEnabled={config.ui?.statusBar?.enabled !== false}
       generatingPhase={generatingPhase}
+      systemNotice={systemNotice}
+      pickRequest={pickRequest}
+      slashQuery={slashQuery}
+      allCommands={commandRegistry.getAll().map(c => ({ name: c.name, description: c.description }))}
+      onSlashSelect={async (name) => { setSlashQuery(null); await handleCommand('/' + name); }}
+      onSlashCancel={() => setSlashQuery(null)}
+      onPickSelect={async (kind, id) => {
+        setPickRequest(null);
+        if (kind === 'model') {
+          await configManager.setDefaultModel(id);
+          await daemonClient.reloadConfig();
+          setAppConfig(await daemonClient.getConfig());
+          notify({ lines: [`  active model  →  ${id}`] });
+        } else if (kind === 'session') {
+          const session = await daemonClient.getSession(id);
+          if (session) {
+            const msgs = (session.messages ?? []).map((m: any) => ({
+              ...m,
+              timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(String(m.timestamp)),
+            }));
+            setMessages(msgs);
+            sessionIdRef.current = session.id;
+            notify({ lines: [`  resumed  ${(session as any).caption ?? session.id.slice(0, 8)}`] });
+          }
+        }
+      }}
+      onPickCancel={() => setPickRequest(null)}
+      sessionSummaries={sessionSummaries}
       onSubmit={handleSubmit}
       onHistoryUp={handleHistoryUp}
       onHistoryDown={handleHistoryDown}

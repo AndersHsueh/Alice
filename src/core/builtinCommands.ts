@@ -1,215 +1,156 @@
 /**
  * 内置命令定义
- * ALICE CLI 应用中的标准命令
+ * 所有输出走 ctx.notify()，不污染对话历史
  */
 
 import path from 'path';
 import type { AliceCommand, CommandContext } from './commandRegistry.js';
 import { exportToHTML, exportToMarkdown, generateDefaultFilename } from '../utils/exporter.js';
-import { themeManager } from './theme.js';
+import { themeManager } from '../cli/theme.js';
 import { getErrorMessage } from '../utils/error.js';
 
-/**
- * /help 命令 - 显示帮助信息
- */
+// ─── /help ────────────────────────────────────────────────────────
+
 export const helpCommand: AliceCommand = {
   name: 'help',
-  description: '显示帮助信息',
+  description: 'Show available commands',
   aliases: ['h', '?'],
 
-  async handler(args, ctx) {
-    // 通过 registry 的 getHelpText 方法生成帮助文本
-    // 这里我们直接生成帮助文本
-    const helpMsg: any = {
-      role: 'assistant',
-      content: `📚 可用命令：
-  /help (/h, /?) - 显示帮助信息
-  /clear (/cls) - 清空对话历史
-  /config - 查看当前配置
-  /theme (/t) [name] - 切换主题
-  /export [html|md] [filename] - 导出会话
-  /quit (/q, /exit) - 退出程序
-
-💡 直接输入问题开始对话！
-💡 输入 /help 查看可用命令`,
-      timestamp: new Date(),
-    };
-
-    ctx.setMessages([...ctx.messages, helpMsg]);
+  async handler(_args, ctx) {
+    ctx.notify({
+      lines: [
+        '  /help      show this message',
+        '  /clear     clear conversation history',
+        '  /config    show current config',
+        '  /theme     list or switch themes',
+        '  /export    export session  (html | md)',
+        '  /quit      exit',
+      ],
+    });
   },
 };
 
-/**
- * /clear 命令 - 清空对话历史
- */
+// ─── /clear ───────────────────────────────────────────────────────
+
 export const clearCommand: AliceCommand = {
   name: 'clear',
-  description: '清空对话历史',
+  description: 'Clear conversation history',
   aliases: ['cls'],
 
-  async handler(args, ctx) {
+  async handler(_args, ctx) {
     ctx.setMessages([]);
+    ctx.notify({ lines: ['  conversation cleared'] });
   },
 };
 
-/**
- * /quit 命令 - 退出程序
- */
+// ─── /quit ────────────────────────────────────────────────────────
+
 export const quitCommand: AliceCommand = {
   name: 'quit',
-  description: '退出程序',
+  description: 'Exit',
   aliases: ['q', 'exit'],
 
-  async handler(args, ctx) {
-    if (ctx.exit) {
-      ctx.exit(0);
-    } else {
-      process.exit(0);
-    }
+  async handler(_args, ctx) {
+    ctx.exit?.(0) ?? process.exit(0);
   },
 };
 
-/**
- * /config 命令 - 显示当前配置
- */
+// ─── /config ──────────────────────────────────────────────────────
+
 export const configCommand: AliceCommand = {
   name: 'config',
-  description: '查看当前配置',
+  description: 'Show current configuration',
 
-  async handler(args, ctx) {
+  async handler(_args, ctx) {
     const { config } = ctx;
-
-    const configMsg: any = {
-      role: 'assistant',
-      content: `⚙️ 当前配置：
-默认模型: ${config.default_model}
-推荐模型: ${config.suggest_model}
-工作目录: ${config.workspace}
-
-💡 运行 'alice --test-model' 可测速所有模型`,
-      timestamp: new Date(),
-    };
-
-    ctx.setMessages([...ctx.messages, configMsg]);
+    ctx.notify({
+      lines: [
+        `  model      ${config.default_model ?? '—'}`,
+        `  suggest    ${config.suggest_model ?? '—'}`,
+        `  workspace  ${config.workspace ?? process.cwd()}`,
+        '',
+        `  alice --test-model  to benchmark all models`,
+      ],
+    });
   },
 };
 
-/**
- * /export 命令 - 导出会话
- * 用法: /export [html|md] [filename]
- */
+// ─── /export ──────────────────────────────────────────────────────
+
 export const exportCommand: AliceCommand = {
   name: 'export',
-  description: '导出会话为 HTML 或 Markdown',
+  description: 'Export session  (html | md)',
 
   async handler(args, ctx) {
+    const format = (args[0]?.toLowerCase() ?? 'html') as 'html' | 'md';
+
+    if (format !== 'html' && format !== 'md') {
+      ctx.notify({
+        lines: [`  unknown format "${format}"  —  use html or md`],
+        variant: 'error',
+      });
+      return;
+    }
+
+    let filename = args[1] ?? generateDefaultFilename(format);
+    if (!filename.endsWith(`.${format}`)) filename += `.${format}`;
+    const outputPath = path.resolve(process.cwd(), filename);
+
     try {
-      // 解析参数: /export html myfile.html
-      const format = args[0]?.toLowerCase() || 'html';
-      let filename = args[1];
-
-      // 验证格式
-      if (format !== 'html' && format !== 'md') {
-        const errorMsg: any = {
-          role: 'assistant',
-          content: `❌ 不支持的格式 "${format}"。支持的格式: html, md\n\n用法:\n  /export html [filename]\n  /export md [filename]`,
-          timestamp: new Date(),
-        };
-        ctx.setMessages([...ctx.messages, errorMsg]);
-        return;
-      }
-
-      // 生成默认文件名
-      if (!filename) {
-        filename = generateDefaultFilename(format as 'html' | 'md');
-      } else if (!filename.endsWith(`.${format}`)) {
-        filename = `${filename}.${format}`;
-      }
-
-      // 解析为绝对路径
-      const outputPath = path.resolve(process.cwd(), filename);
-
-      // 导出
       if (format === 'html') {
         await exportToHTML(ctx.messages, outputPath);
       } else {
         await exportToMarkdown(ctx.messages, outputPath);
       }
-
-      const successMsg: any = {
-        role: 'assistant',
-        content: `✅ 会话已成功导出！\n\n📄 文件: ${outputPath}\n📊 消息数: ${ctx.messages.filter(m => m.role !== 'system').length}`,
-        timestamp: new Date(),
-      };
-      ctx.setMessages([...ctx.messages, successMsg]);
-    } catch (error: unknown) {
-      const errorMsg: any = {
-        role: 'assistant',
-        content: `❌ 导出失败: ${getErrorMessage(error)}`,
-        timestamp: new Date(),
-      };
-      ctx.setMessages([...ctx.messages, errorMsg]);
+      ctx.notify({
+        lines: [
+          `  exported  ${outputPath}`,
+          `  ${ctx.messages.filter(m => m.role !== 'system').length} messages`,
+        ],
+      });
+    } catch (error) {
+      ctx.notify({
+        lines: [`  export failed  —  ${getErrorMessage(error)}`],
+        variant: 'error',
+      });
     }
   },
 };
 
-/**
- * /theme 命令 - 主题切换
- */
+// ─── /theme ───────────────────────────────────────────────────────
+
 export const themeCommand: AliceCommand = {
   name: 'theme',
-  description: '查看和切换主题',
+  description: 'List or switch themes',
   aliases: ['t'],
 
   async handler(args, ctx) {
-    try {
-      if (args.length === 0) {
-        // 列出所有可用主题
-        const available = await themeManager.getAvailableThemes();
-        const current = themeManager.getTheme();
-        
-        const themeList = available
-          .map(name => {
-            const marker = name === current.name ? '✓ ' : '  ';
-            const desc = themeManager.getThemeDescription(name);
-            return `${marker}${name}: ${desc}`;
-          })
-          .join('\n');
-
-        const themeMsg: any = {
-          role: 'assistant',
-          content: `🎨 可用主题：\n\n${themeList}\n\n💡 使用 /theme <name> 切换主题`,
-          timestamp: new Date(),
-        };
-        
-        ctx.setMessages([...ctx.messages, themeMsg]);
-      } else {
-        // 切换到指定主题
-        const themeName = args[0];
-        await themeManager.loadTheme(themeName);
-        
-        const successMsg: any = {
-          role: 'assistant',
-          content: `✅ 主题已切换为 "${themeName}"。重新启动应用以查看完整效果。`,
-          timestamp: new Date(),
-        };
-        
-        ctx.setMessages([...ctx.messages, successMsg]);
+    if (args.length === 0) {
+      const available = await themeManager.getAvailableThemes();
+      const current = themeManager.getTheme();
+      ctx.notify({
+        lines: available.map(name =>
+          name === current.name
+            ? `  ● ${name}  (current)`
+            : `  · ${name}`
+        ),
+      });
+    } else {
+      const name = args[0];
+      try {
+        await themeManager.loadTheme(name);
+        ctx.notify({ lines: [`  theme → ${name}  (restart to apply)`] });
+      } catch {
+        ctx.notify({ lines: [`  theme "${name}" not found`], variant: 'error' });
       }
-    } catch (error: unknown) {
-      const errorMsg: any = {
-        role: 'assistant',
-        content: `❌ 主题操作失败: ${getErrorMessage(error)}`,
-        timestamp: new Date(),
-      };
-      ctx.setMessages([...ctx.messages, errorMsg]);
     }
   },
 };
 
-/**
- * 所有内置命令列表
- */
+// ─── registry list ────────────────────────────────────────────────
+
+import { modelsCommand, sessionsCommand } from './extendedCommands.js';
+
 export const builtinCommands: AliceCommand[] = [
   helpCommand,
   clearCommand,
@@ -217,4 +158,6 @@ export const builtinCommands: AliceCommand[] = [
   configCommand,
   exportCommand,
   themeCommand,
+  modelsCommand,
+  sessionsCommand,
 ];

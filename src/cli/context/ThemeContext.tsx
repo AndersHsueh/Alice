@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext } from 'react';
-import type { Theme } from '../../core/theme.js';
+import type { Theme } from '../theme.js';
 
 interface ThemeContextType {
   theme: Theme;

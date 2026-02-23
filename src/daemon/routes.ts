@@ -74,6 +74,8 @@ export class DaemonRoutes {
       } else if (pathname.startsWith('/session/') && method === 'GET') {
         const sessionId = pathname.slice('/session/'.length).split('?')[0];
         await this.handleGetSession(sessionId, res);
+      } else if (pathname === '/sessions' && method === 'GET') {
+        await this.handleListSessions(res);
       } else if (pathname === '/session' && method === 'POST') {
         await this.handleCreateSession(req, res);
       } else if (pathname === '/chat-stream' && method === 'POST') {
@@ -254,6 +256,23 @@ export class DaemonRoutes {
     }
     res.writeHead(200);
     res.end(JSON.stringify(session));
+  }
+
+  /**
+   * GET /sessions - 列出所有会话（摄要信息）
+   */
+  private async handleListSessions(res: ServerResponse): Promise<void> {
+    const sessionManager = getSessionManager();
+    const sessions = await sessionManager.listSessions();
+    const summaries = sessions.map(s => ({
+      id: s.id,
+      caption: s.caption ?? null,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt ?? s.createdAt,
+      messageCount: s.messages.filter(m => m.role === 'user' || m.role === 'assistant').length,
+    }));
+    res.writeHead(200);
+    res.end(JSON.stringify(summaries));
   }
 
   /**

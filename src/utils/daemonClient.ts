@@ -14,6 +14,7 @@ import type { ChatStreamEvent } from '../types/chatStream.js';
 import type { Config } from '../types/index.js';
 import type { Session } from '../types/index.js';
 import { readDaemonConfig } from './daemonConfigReader.js';
+import { configManager } from './config.js';
 
 export type { ChatStreamEvent };
 
@@ -354,6 +355,22 @@ export class DaemonClient {
 
   async getConfig(): Promise<Config> {
     return await this.request('/config', 'GET');
+  }
+
+  async listSessions(): Promise<Array<{
+    id: string;
+    caption: string | null;
+    createdAt: string;
+    updatedAt: string;
+    messageCount: number;
+  }>> {
+    return await this.request('/sessions', 'GET');
+  }
+
+  async setDefaultModel(modelName: string): Promise<void> {
+    await configManager.init();
+    await configManager.setDefaultModel(modelName);
+    await this.reloadConfig();
   }
 
   async getSession(sessionId: string): Promise<Session | null> {

@@ -11,6 +11,8 @@ export interface Message {
 export interface Session {
   id: string;
   createdAt: Date;
+  updatedAt?: Date;
+  caption?: string;          // 会话标题，如 "[Jan-02] 重构 chatHandler 架构"
   messages: Message[];
   metadata: Record<string, any>;
 }

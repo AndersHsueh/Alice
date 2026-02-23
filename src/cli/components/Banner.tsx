@@ -11,7 +11,7 @@ export const Banner: React.FC<BannerProps> = ({ onComplete }) => {
   useEffect(() => {
     // 短暂延迟后显示，给终端初始化时间
     const showTimer = setTimeout(() => setVisible(true), 80);
-    const doneTimer = setTimeout(() => onComplete(), 900);
+    const doneTimer = setTimeout(() => onComplete(), 1800);
     return () => {
       clearTimeout(showTimer);
       clearTimeout(doneTimer);

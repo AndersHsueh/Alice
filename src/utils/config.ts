@@ -130,6 +130,12 @@ export class ConfigManager {
     await this.save(config);
   }
 
+  async setDefaultModel(modelName: string): Promise<void> {
+    const config = this.get();
+    config.default_model = modelName;
+    await this.save(config);
+  }
+
   getModel(modelName: string): ModelConfig | undefined {
     return this.config?.models.find(m => m.name === modelName);
   }
