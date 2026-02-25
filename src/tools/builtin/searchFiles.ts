@@ -2,6 +2,7 @@
  * 文件系统工具：搜索文件
  */
 
+import path from 'path';
 import { glob } from 'glob';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
@@ -32,12 +33,14 @@ export const searchFilesTool: AliceTool = {
     required: ['pattern']
   },
 
-  async execute(toolCallId, params, signal, onUpdate): Promise<ToolResult> {
+  async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
     const { 
       pattern, 
       directory = '.', 
       ignore = ['node_modules/**', '.git/**', 'dist/**'] 
     } = params;
+    const base = context?.workspace ?? process.cwd();
+    const resolvedDir = path.isAbsolute(directory) ? directory : path.resolve(base, directory);
 
     try {
       onUpdate?.({
@@ -47,7 +50,7 @@ export const searchFilesTool: AliceTool = {
       });
 
       const files = await glob(pattern, {
-        cwd: directory,
+        cwd: resolvedDir,
         ignore,
         nodir: true
       });
@@ -62,7 +65,7 @@ export const searchFilesTool: AliceTool = {
         success: true,
         data: {
           pattern,
-          directory,
+          directory: resolvedDir,
           count: files.length,
           files
         }

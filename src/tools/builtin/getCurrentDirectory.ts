@@ -16,7 +16,7 @@ export const getCurrentDirectoryTool: AliceTool = {
     required: []
   },
 
-  async execute(toolCallId, params, signal, onUpdate): Promise<ToolResult> {
+  async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
     try {
       // 报告开始
       onUpdate?.({
@@ -25,7 +25,7 @@ export const getCurrentDirectoryTool: AliceTool = {
         progress: 0
       });
 
-      const currentDir = cwd();
+      const currentDir = context?.workspace ?? cwd();
 
       // 报告完成
       onUpdate?.({

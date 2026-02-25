@@ -31,19 +31,21 @@ export const writeFileTool: AliceTool = {
     required: ['path', 'content']
   },
 
-  async execute(toolCallId, params, signal, onUpdate): Promise<ToolResult> {
+  async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
     const { path: filePath, content, encoding = 'utf-8' } = params;
+    const base = context?.workspace ?? process.cwd();
+    const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(base, filePath);
 
     try {
       onUpdate?.({
         success: true,
-        status: `正在写入文件 ${filePath}...`,
+        status: `正在写入文件 ${resolvedPath}...`,
         progress: 0
       });
 
-      const dir = path.dirname(filePath);
+      const dir = path.dirname(resolvedPath);
       await mkdir(dir, { recursive: true });
-      await fsWriteFile(filePath, content, encoding as BufferEncoding);
+      await fsWriteFile(resolvedPath, content, encoding as BufferEncoding);
 
       const size = Buffer.byteLength(content, encoding as BufferEncoding);
       onUpdate?.({
@@ -55,7 +57,7 @@ export const writeFileTool: AliceTool = {
       return {
         success: true,
         data: {
-          path: filePath,
+          path: resolvedPath,
           size,
           encoding
         }

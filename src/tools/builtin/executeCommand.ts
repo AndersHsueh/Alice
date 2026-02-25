@@ -52,8 +52,9 @@ export const executeCommandTool: AliceTool = {
     required: ['command']
   },
 
-  async execute(toolCallId, params, signal, onUpdate): Promise<ToolResult> {
-    const { command, cwd = process.cwd(), timeout = 30000 } = params;
+  async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
+    const { command, timeout = 30000 } = params;
+    const cwd = params.cwd ?? context?.workspace ?? process.cwd();
 
     try {
       onUpdate?.({

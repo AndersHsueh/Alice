@@ -138,10 +138,12 @@ export class LLMClient {
 
   /**
    * 带工具的对话（非流式）
+   * @param workspace - 可选，当前会话绑定的工作目录，工具基于此解析路径与 cwd
    */
   async chatWithTools(
     messages: Message[],
-    onToolUpdate?: (record: ToolCallRecord) => void
+    onToolUpdate?: (record: ToolCallRecord) => void,
+    workspace?: string
   ): Promise<Message> {
     if (!this.toolExecutor) {
       throw new Error('工具系统未启用，请先调用 enableTools()');
@@ -177,10 +179,12 @@ export class LLMClient {
         };
         conversationMessages.push(assistantMessage);
 
-        // 执行所有工具调用
+        // 执行所有工具调用（传入 session 绑定的 workspace）
+        const toolContext = workspace ? { workspace } : undefined;
         const toolResults = await this.toolExecutor.executeAll(
           response.tool_calls,
-          onToolUpdate
+          onToolUpdate,
+          toolContext
         );
 
         // 将工具结果添加到对话
@@ -211,10 +215,12 @@ export class LLMClient {
 
   /**
    * 带工具的流式对话
+   * @param workspace - 可选，当前会话绑定的工作目录，工具基于此解析路径与 cwd
    */
   async *chatStreamWithTools(
     messages: Message[],
-    onToolUpdate?: (record: ToolCallRecord) => void
+    onToolUpdate?: (record: ToolCallRecord) => void,
+    workspace?: string
   ): AsyncGenerator<string> {
     if (!this.toolExecutor) {
       throw new Error('工具系统未启用');
@@ -258,12 +264,14 @@ export class LLMClient {
       // 显示工具调用提示
       yield '\n\n';
 
-      // 执行工具
+      // 执行工具（传入 session 绑定的 workspace）
+      const toolContext = workspace ? { workspace } : undefined;
       const toolResults = await this.toolExecutor.executeAll(
         accumulatedToolCalls,
         (record) => {
           onToolUpdate?.(record);
-        }
+        },
+        toolContext
       );
 
       // 添加工具结果到对话

@@ -3,7 +3,7 @@
  * 负责工具调用的执行、进度跟踪和危险命令确认
  */
 
-import type { AliceTool, ToolCall, ToolCallRecord, ToolResult } from '../types/tool.js';
+import type { AliceTool, ToolCall, ToolCallRecord, ToolResult, ToolExecutionContext } from '../types/tool.js';
 import type { Config } from '../types/index.js';
 import { toolRegistry } from './registry.js';
 import { isDangerousCommand } from './builtin/executeCommand.js';
@@ -30,10 +30,12 @@ export class ToolExecutor {
 
   /**
    * 执行单个工具调用
+   * @param context - 可选，含 session 绑定的 workspace，供工具解析路径与 cwd
    */
   async execute(
     toolCall: ToolCall,
-    onUpdate?: (record: ToolCallRecord) => void
+    onUpdate?: (record: ToolCallRecord) => void,
+    context?: ToolExecutionContext
   ): Promise<ToolResult> {
     const { id, function: func } = toolCall;
     const toolName = func.name;
@@ -120,7 +122,7 @@ export class ToolExecutor {
     const startTime = Date.now();
 
     try {
-      // 执行工具
+      // 执行工具（传入 context，供工具基于 session.workspace 解析路径与 cwd）
       const result = await tool.execute(
         id,
         params,
@@ -132,7 +134,8 @@ export class ToolExecutor {
             result: partial,
             status: 'running'
           });
-        }
+        },
+        context
       );
 
       // 更新最终状态
@@ -184,13 +187,15 @@ export class ToolExecutor {
 
   /**
    * 批量执行工具调用
+   * @param context - 可选，含 session 绑定的 workspace
    */
   async executeAll(
     toolCalls: ToolCall[],
-    onUpdate?: (record: ToolCallRecord) => void
+    onUpdate?: (record: ToolCallRecord) => void,
+    context?: ToolExecutionContext
   ): Promise<ToolResult[]> {
     return Promise.all(
-      toolCalls.map(call => this.execute(call, onUpdate))
+      toolCalls.map(call => this.execute(call, onUpdate, context))
     );
   }
 

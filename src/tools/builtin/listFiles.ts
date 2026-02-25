@@ -3,7 +3,7 @@
  */
 
 import { readdir, stat } from 'fs/promises';
-import { join } from 'path';
+import { join, resolve, isAbsolute } from 'path';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
 
@@ -26,23 +26,25 @@ export const listFilesTool: AliceTool = {
     required: []
   },
 
-  async execute(toolCallId, params, signal, onUpdate): Promise<ToolResult> {
+  async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
     const { directory = '.', detailed = false } = params;
+    const base = context?.workspace ?? process.cwd();
+    const resolvedDir = isAbsolute(directory) ? directory : resolve(base, directory);
 
     try {
       onUpdate?.({
         success: true,
-        status: `正在扫描目录 ${directory}...`,
+        status: `正在扫描目录 ${resolvedDir}...`,
         progress: 0
       });
 
-      const entries = await readdir(directory, { withFileTypes: true });
+      const entries = await readdir(resolvedDir, { withFileTypes: true });
       
       const files = [];
       let processed = 0;
 
       for (const entry of entries) {
-        const fullPath = join(directory, entry.name);
+        const fullPath = join(resolvedDir, entry.name);
         const item: any = {
           name: entry.name,
           type: entry.isDirectory() ? 'directory' : 'file'
@@ -71,7 +73,7 @@ export const listFilesTool: AliceTool = {
       return {
         success: true,
         data: {
-          directory,
+          directory: resolvedDir,
           total: files.length,
           files: files.filter(f => f.type === 'file').length,
           directories: files.filter(f => f.type === 'directory').length,

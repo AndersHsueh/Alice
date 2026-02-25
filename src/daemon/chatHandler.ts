@@ -34,7 +34,8 @@ export async function* runChatStream(
     ? await sessionManager.loadSession(req.sessionId)
     : null;
   if (!session) {
-    session = await sessionManager.createSession();
+    // 使用请求中的 workspace 绑定到新 session（与 ALICE 启动目录一致）
+    session = await sessionManager.createSession(req.workspace);
   }
 
   let modelConfig = configManager.getDefaultModel();
@@ -81,7 +82,8 @@ export async function* runChatStream(
       conversationMessages,
       (record: ToolCallRecord) => {
         toolRecordsBuffer.push(record);
-      }
+      },
+      session.workspace
     )) {
       if (toolRecordsBuffer.length > 0) {
         const assistantMsg: Message = {

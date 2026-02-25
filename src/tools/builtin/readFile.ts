@@ -2,6 +2,7 @@
  * 文件系统工具：读取文件
  */
 
+import path from 'path';
 import { readFile as fsReadFile } from 'fs/promises';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
@@ -26,17 +27,19 @@ export const readFileTool: AliceTool = {
     required: ['path']
   },
 
-  async execute(toolCallId, params, signal, onUpdate): Promise<ToolResult> {
-    const { path, encoding = 'utf-8' } = params;
+  async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
+    const { path: filePath, encoding = 'utf-8' } = params;
+    const base = context?.workspace ?? process.cwd();
+    const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(base, filePath);
 
     try {
       onUpdate?.({
         success: true,
-        status: `正在读取文件 ${path}...`,
+        status: `正在读取文件 ${resolvedPath}...`,
         progress: 0
       });
 
-      const content = await fsReadFile(path, encoding as BufferEncoding);
+      const content = await fsReadFile(resolvedPath, encoding as BufferEncoding);
       const size = Buffer.byteLength(content, encoding as BufferEncoding);
 
       onUpdate?.({
@@ -48,7 +51,7 @@ export const readFileTool: AliceTool = {
       return {
         success: true,
         data: {
-          path,
+          path: resolvedPath,
           content,
           size,
           encoding

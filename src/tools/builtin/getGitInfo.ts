@@ -2,6 +2,7 @@
  * 工作区工具：获取 Git 信息
  */
 
+import path from 'path';
 import simpleGit from 'simple-git';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
@@ -21,8 +22,10 @@ export const getGitInfoTool: AliceTool = {
     required: []
   },
 
-  async execute(toolCallId, params, signal, onUpdate): Promise<ToolResult> {
+  async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
     const { directory = '.' } = params;
+    const base = context?.workspace ?? process.cwd();
+    const resolvedDir = path.isAbsolute(directory) ? directory : path.resolve(base, directory);
 
     try {
       onUpdate?.({
@@ -31,7 +34,7 @@ export const getGitInfoTool: AliceTool = {
         progress: 0
       });
 
-      const git = simpleGit(directory);
+      const git = simpleGit(resolvedDir);
 
       // 检查是否是 Git 仓库
       const isRepo = await git.checkIsRepo();

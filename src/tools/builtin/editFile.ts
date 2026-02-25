@@ -136,24 +136,24 @@ export const editFileTool: AliceTool = {
     required: ['path', 'edits']
   },
 
-  async execute(toolCallId, params, signal, onUpdate): Promise<ToolResult> {
+  async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
     const { path: filePath, edits, encoding = 'utf-8' } = params;
+    const base = context?.workspace ?? process.cwd();
+    const resolvedPath = path.isAbsolute(filePath) ? path.resolve(filePath) : path.resolve(base, filePath);
 
     if (!Array.isArray(edits) || edits.length === 0) {
       return {
         success: true,
-        data: { path: filePath, applied: 0, message: '未提供编辑操作，未做任何修改' }
+        data: { path: resolvedPath, applied: 0, message: '未提供编辑操作，未做任何修改' }
       };
     }
 
     try {
       onUpdate?.({
         success: true,
-        status: `正在读取文件 ${filePath}...`,
+        status: `正在读取文件 ${resolvedPath}...`,
         progress: 0
       });
-
-      const resolvedPath = path.resolve(filePath);
       const raw = await readFile(resolvedPath, encoding as BufferEncoding);
       const lines = raw.split(/\r?\n/);
 

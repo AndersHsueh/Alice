@@ -53,6 +53,15 @@ export interface ToolResult {
 export type ToolUpdateCallback = (partial: ToolResult) => void;
 
 /**
+ * 工具执行上下文（由 daemon 在每次对话流中注入，与 session 绑定）
+ * 工具应基于 workspace 解析相对路径与默认 cwd，保证行为与「ALICE 启动目录」一致
+ */
+export interface ToolExecutionContext {
+  /** 当前会话绑定的工作目录 */
+  workspace: string;
+}
+
+/**
  * ALICE 工具接口（标准化）
  * 所有工具应实现此接口，支持流式更新
  * @example
@@ -82,13 +91,15 @@ export interface AliceTool {
    * @param params - 工具参数（已验证）
    * @param signal - AbortSignal，用于取消执行
    * @param onUpdate - 可选的流式更新回调，工具可多次调用报告进度
+   * @param context - 可选的执行上下文（含 session 绑定的 workspace），用于解析相对路径与默认 cwd
    * @returns Promise 最终的执行结果
    */
   execute: (
     toolCallId: string,
     params: any,
     signal: AbortSignal,
-    onUpdate?: ToolUpdateCallback
+    onUpdate?: ToolUpdateCallback,
+    context?: ToolExecutionContext
   ) => Promise<ToolResult>;
 }
 
