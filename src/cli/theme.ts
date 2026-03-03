@@ -83,11 +83,28 @@ const THEME_OCEAN_DARK: Theme = {
 };
 
 /**
+ * Anthropic 风格主题：温暖赤土
+ * 特点：温暖自然，专业可信，符合 Anthropic 设计哲学
+ */
+const THEME_WARM_TERRACOTTA: Theme = {
+  name: 'warm-terracotta',
+  primary: '#E27D60',      // 赤土色（主色）
+  secondary: '#8590AA',    // muted 橄榄灰（辅助色）
+  accent: '#C16A55',       // 深赤土（强调色）
+  error: '#D64933',          // 温暖红色
+  warning: '#F2CC8F',           // 温暖黄色
+  success: '#81B29A',       // 柔和绿色
+  info: '#E27D60',          // 赤土色
+  dim: '#A8A8A8',             // 浅灰
+};
+
+/**
  * 所有内置主题
  */
 const BUILTIN_THEMES: Record<string, Theme> = {
   'tech-blue': THEME_TECH_BLUE,
   'ocean-dark': THEME_OCEAN_DARK,
+  'warm-terracotta': THEME_WARM_TERRACOTTA,
 };
 
 /**
@@ -245,6 +262,7 @@ export class ThemeManager {
     const descriptions: Record<string, string> = {
       'tech-blue': '科技蓝风格（推荐）- 青色为主，现代简洁',
       'ocean-dark': '深海蓝风格 - 深蓝色背景，更柔和',
+      'warm-terracotta': '温暖赤土风格 - Anthropic 风格，温暖自然，专业可信',
     };
     return descriptions[themeName] || '自定义主题';
   }

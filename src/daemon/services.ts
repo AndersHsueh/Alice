@@ -18,6 +18,7 @@ let initialized = false;
 const llmClientCache = new Map<string, LLMClient>();
 let cachedSystemPrompt = '';
 let cachedConfig: Config | null = null;
+let currentAgentMode: 'office' | 'coder' = 'office';
 
 export async function initServices(logger: DaemonLogger): Promise<void> {
   if (initialized) return;
@@ -73,13 +74,24 @@ export function getConfig(): Config {
 }
 
 export async function getSystemPrompt(): Promise<string> {
-  if (!cachedSystemPrompt) {
-    cachedSystemPrompt = await configManager.loadSystemPrompt();
-  }
+  // 每次重新加载，确保 mode 切换后立即生效
+  cachedSystemPrompt = await configManager.loadSystemPrompt(currentAgentMode);
   const skillsSummary = skillManager.buildSkillsSummary?.() ?? '';
   return skillsSummary
     ? cachedSystemPrompt + '\n' + skillsSummary
     : cachedSystemPrompt;
+}
+
+export async function setAgentMode(mode: 'office' | 'coder'): Promise<void> {
+  currentAgentMode = mode;
+  // 清除缓存，下次 getSystemPrompt() 会重新加载对应文件
+  cachedSystemPrompt = '';
+  // 清除 LLM 客户端缓存，确保新 system prompt 生效
+  llmClientCache.clear();
+}
+
+export function getAgentMode(): 'office' | 'coder' {
+  return currentAgentMode;
 }
 
 export function getLLMClient(modelConfig: ModelConfig, systemPrompt: string): LLMClient {

@@ -39,6 +39,9 @@ export interface CommandContext {
 
   // 通知 Daemon 重读配置
   reloadDaemon?: () => void;
+
+  // 更新 UI 显示的 agent 模式
+  setAgentMode?: (mode: 'office' | 'coder') => void;
 }
 
 export interface ModelPickItem {

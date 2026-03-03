@@ -24,6 +24,7 @@ export function setQuestionDialogCallback(
 
 export const askUserTool: AliceTool = {
   name: 'ask_user',
+  aliases: ['askuser'],
   label: '向用户提问',
   description: '当需要澄清问题、获取用户偏好或让用户做选择时，使用此工具向用户提问。支持多选项和自由输入。',
   parameters: {

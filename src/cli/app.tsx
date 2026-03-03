@@ -44,6 +44,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
   const [systemNotice, setSystemNotice] = useState<import('./components/SystemNotice.js').SystemNoticeData | null>(null);
   const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pickRequest, setPickRequest] = useState<PickRequest | null>(null);
+  const [agentMode, setAgentMode] = useState<'office' | 'coder'>('office');
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const [sessionSummaries, setSessionSummaries] = useState<Array<{ id: string; caption: string | null; updatedAt: string; messageCount: number }>>([]);
   const [statusInfo, setStatusInfo] = useState<StatusInfo>({
@@ -372,6 +373,8 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
 
     try {
       const [cmdName, ...args] = cmd.slice(1).split(/\s+/);
+      // 检查是否是模式切换命令，执行后同步 UI state
+      const isModeSwitch = ['office', 'work', 'coder', 'dev'].includes(cmdName);
       await commandRegistry.execute(cmdName, args, {
         messages,
         setMessages,
@@ -380,6 +383,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
         workspace: appConfig?.workspace ?? configManager.get().workspace,
         llmClient: null,
         exit: (code?: any) => requestExit(code),
+        setAgentMode: (mode: 'office' | 'coder') => setAgentMode(mode),
         requestPick: async (req) => {
           if (req.kind === 'session') {
             try {
@@ -391,6 +395,15 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
         },
         reloadDaemon: () => daemonClient.reloadConfig().catch(() => {}),
       });
+      // 模式切换命令执行成功后，同步 UI 状态
+      if (isModeSwitch) {
+        try {
+          const mode = await daemonClient.getMode();
+          setAgentMode(mode);
+        } catch {
+          // daemon 无法连接时不影响已显示的错误通知
+        }
+      }
     } catch (error: unknown) {
       notify({ lines: [`  ${getErrorMessage(error)}`], variant: 'error' });
     }
@@ -413,6 +426,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     <ChatLayout
       workspace={config.workspace}
       modelLabel={modelLabel}
+      agentMode={agentMode}
       messages={messages}
       isProcessing={isProcessing}
       streamingContent={streamingContent}

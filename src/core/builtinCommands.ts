@@ -8,6 +8,8 @@ import type { AliceCommand, CommandContext } from './commandRegistry.js';
 import { exportToHTML, exportToMarkdown, generateDefaultFilename } from '../utils/exporter.js';
 import { themeManager } from '../cli/theme.js';
 import { getErrorMessage } from '../utils/error.js';
+import { DaemonClient } from '../utils/daemonClient.js';
+import { modelsCommand, sessionsCommand } from './extendedCommands.js';
 
 // ─── /help ────────────────────────────────────────────────────────
 
@@ -19,12 +21,14 @@ export const helpCommand: AliceCommand = {
   async handler(_args, ctx) {
     ctx.notify({
       lines: [
-        '  /help      show this message',
-        '  /clear     clear conversation history',
-        '  /config    show current config',
-        '  /theme     list or switch themes',
-        '  /export    export session  (html | md)',
-        '  /quit      exit',
+        '  /help            show this message',
+        '  /clear           clear conversation history',
+        '  /config          show current config',
+        '  /theme           list or switch themes',
+        '  /export          export session  (html | md)',
+        '  /office  /work   switch to office mode',
+        '  /coder   /dev    switch to coder mode',
+        '  /quit            exit',
       ],
     });
   },
@@ -147,9 +151,61 @@ export const themeCommand: AliceCommand = {
   },
 };
 
-// ─── registry list ────────────────────────────────────────────────
+// ─── /office, /work ───────────────────────────────────────────────
 
-import { modelsCommand, sessionsCommand } from './extendedCommands.js';
+export const officeCommand: AliceCommand = {
+  name: 'office',
+  description: 'Switch to office mode  (documents, writing, workflow)',
+  aliases: ['work'],
+
+  async handler(_args, ctx) {
+    const client = new DaemonClient();
+    try {
+      await client.setMode('office');
+    } catch {
+      ctx.notify({ lines: ['  daemon connection failed — mode not switched'], variant: 'error' });
+      return;
+    }
+    ctx.setMessages([]);
+    ctx.setAgentMode?.('office');
+    ctx.notify({
+      lines: [
+        '  mode  →  office',
+        '  conversation cleared',
+        '  focus: documents, writing, workflow automation',
+      ],
+    });
+  },
+};
+
+// ─── /coder, /dev ─────────────────────────────────────────────────
+
+export const coderCommand: AliceCommand = {
+  name: 'coder',
+  description: 'Switch to coder mode  (software engineering, systems, DevOps)',
+  aliases: ['dev'],
+
+  async handler(_args, ctx) {
+    const client = new DaemonClient();
+    try {
+      await client.setMode('coder');
+    } catch {
+      ctx.notify({ lines: ['  daemon connection failed — mode not switched'], variant: 'error' });
+      return;
+    }
+    ctx.setMessages([]);
+    ctx.setAgentMode?.('coder');
+    ctx.notify({
+      lines: [
+        '  mode  →  coder',
+        '  conversation cleared',
+        '  focus: code, architecture, systems, devops',
+      ],
+    });
+  },
+};
+
+// ─── registry ─────────────────────────────────────────────────────
 
 export const builtinCommands: AliceCommand[] = [
   helpCommand,
@@ -160,4 +216,6 @@ export const builtinCommands: AliceCommand[] = [
   themeCommand,
   modelsCommand,
   sessionsCommand,
+  officeCommand,
+  coderCommand,
 ];

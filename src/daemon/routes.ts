@@ -8,7 +8,7 @@ import type { DaemonConfig } from '../types/daemon.js';
 import type { PingResponse, StatusResponse, ReloadConfigResponse } from '../types/daemon.js';
 import { daemonConfigManager } from './config.js';
 import { DaemonLogger } from './logger.js';
-import { getConfig, getSessionManager } from './services.js';
+import { getConfig, getSessionManager, setAgentMode, getAgentMode } from './services.js';
 import { runChatStream, type ChatStreamRequest } from './chatHandler.js';
 import { getErrorMessage } from '../utils/error.js';
 
@@ -78,6 +78,10 @@ export class DaemonRoutes {
         await this.handleListSessions(res);
       } else if (pathname === '/session' && method === 'POST') {
         await this.handleCreateSession(req, res);
+      } else if (pathname === '/mode' && method === 'POST') {
+        await this.handleSetMode(req, res);
+      } else if (pathname === '/mode' && method === 'GET') {
+        await this.handleGetMode(res);
       } else if (pathname === '/chat-stream' && method === 'POST') {
         await this.handleChatStream(req, res);
       } else {
@@ -344,6 +348,38 @@ export class DaemonRoutes {
     } finally {
       res.end();
     }
+  }
+
+  /**
+   * POST /mode - 切换 agent 模式 (office | coder)
+   */
+  private async handleSetMode(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const body = await readBody(req);
+    let mode: 'office' | 'coder';
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed.mode !== 'office' && parsed.mode !== 'coder') {
+        throw new Error('invalid mode');
+      }
+      mode = parsed.mode;
+    } catch {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'Invalid body. Expected: { "mode": "office" | "coder" }' }));
+      return;
+    }
+    await setAgentMode(mode);
+    this.logger.info(`Agent mode 切换为: ${mode}`);
+    res.writeHead(200);
+    res.end(JSON.stringify({ status: 'ok', mode }));
+  }
+
+  /**
+   * GET /mode - 获取当前 agent 模式
+   */
+  private async handleGetMode(res: ServerResponse): Promise<void> {
+    const mode = getAgentMode();
+    res.writeHead(200);
+    res.end(JSON.stringify({ mode }));
   }
 
   /**

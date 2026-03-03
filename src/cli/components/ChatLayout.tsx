@@ -35,6 +35,7 @@ export interface QuestionDialogState {
 export interface ChatLayoutProps {
   workspace: string;
   modelLabel: string;
+  agentMode?: 'office' | 'coder';
   messages: Message[];
   isProcessing: boolean;
   streamingContent: string;
@@ -64,6 +65,7 @@ export interface ChatLayoutProps {
 export const ChatLayout: React.FC<ChatLayoutProps> = ({
   workspace,
   modelLabel,
+  agentMode = 'office',
   messages,
   isProcessing,
   streamingContent,
@@ -109,7 +111,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
   return (
     <Box flexDirection="column" height="100%">
       {/* Header */}
-      <Header workspace={workspace} model={modelLabel} />
+      <Header workspace={workspace} model={modelLabel} agentMode={agentMode} />
 
       {/* 聊天区 */}
       <Box flexGrow={1} flexDirection="column" overflow="hidden">

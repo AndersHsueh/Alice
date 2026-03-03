@@ -177,10 +177,11 @@ export class ConfigManager {
     return this.configDir;
   }
 
-  async loadSystemPrompt(): Promise<string> {
+  async loadSystemPrompt(mode: 'office' | 'coder' = 'office'): Promise<string> {
     try {
       const projectRoot = path.join(__dirname, '..', '..');
-      const promptPath = path.join(projectRoot, 'agents', 'system_prompt.md');
+      const filename = mode === 'coder' ? 'coder_prompt.md' : 'system_prompt.md';
+      const promptPath = path.join(projectRoot, 'agents', filename);
       return await fs.readFile(promptPath, 'utf-8');
     } catch (error) {
       return 'You are ALICE, an AI office assistant.';

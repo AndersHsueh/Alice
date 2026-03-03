@@ -420,4 +420,19 @@ export class DaemonClient {
   async reloadConfig(): Promise<ReloadConfigResponse> {
     return await this.request('/reload-config', 'POST');
   }
+
+  /**
+   * 切换 agent 模式
+   */
+  async setMode(mode: 'office' | 'coder'): Promise<void> {
+    await this.request('/mode', 'POST', JSON.stringify({ mode }));
+  }
+
+  /**
+   * 获取当前 agent 模式
+   */
+  async getMode(): Promise<'office' | 'coder'> {
+    const res = await this.request('/mode', 'GET');
+    return res.mode ?? 'office';
+  }
 }

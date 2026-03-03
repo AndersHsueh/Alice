@@ -79,6 +79,8 @@ export interface ToolExecutionContext {
 export interface AliceTool {
   /** 工具唯一标识（小写字母+下划线） */
   name: string;
+  /** 兼容别名（可选） */
+  aliases?: string[];
   /** 显示名称 */
   label: string;
   /** 工具描述（会发送给 LLM） */

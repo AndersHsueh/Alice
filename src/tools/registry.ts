@@ -12,6 +12,7 @@ addFormats(ajv);
 
 export class ToolRegistry {
   private tools: Map<string, AliceTool> = new Map();
+  private aliasMap: Map<string, AliceTool> = new Map();
 
   /**
    * 注册工具
@@ -24,6 +25,15 @@ export class ToolRegistry {
     }
 
     this.tools.set(tool.name, tool);
+
+    if (tool.aliases?.length) {
+      for (const alias of tool.aliases) {
+        if (this.tools.has(alias) || this.aliasMap.has(alias)) {
+          throw new Error(`工具别名冲突: ${alias}`);
+        }
+        this.aliasMap.set(alias, tool);
+      }
+    }
   }
 
   /**
@@ -37,7 +47,7 @@ export class ToolRegistry {
    * 获取工具
    */
   get(name: string): AliceTool | undefined {
-    return this.tools.get(name);
+    return this.tools.get(name) ?? this.aliasMap.get(name);
   }
 
   /**
@@ -51,18 +61,26 @@ export class ToolRegistry {
    * 检查工具是否存在
    */
   has(name: string): boolean {
-    return this.tools.has(name);
+    return this.tools.has(name) || this.aliasMap.has(name);
   }
 
   /**
    * 转换为 OpenAI Function Calling 格式
    */
   toOpenAIFunctions(): OpenAIFunction[] {
-    return this.getAll().map(tool => ({
+    const canonical = this.getAll().map(tool => ({
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters
     }));
+
+    const aliases = Array.from(this.aliasMap.entries()).map(([alias, tool]) => ({
+      name: alias,
+      description: tool.description,
+      parameters: tool.parameters
+    }));
+
+    return [...canonical, ...aliases];
   }
 
   /**
@@ -92,6 +110,7 @@ export class ToolRegistry {
    */
   clear(): void {
     this.tools.clear();
+    this.aliasMap.clear();
   }
 }
 

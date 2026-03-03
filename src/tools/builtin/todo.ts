@@ -28,6 +28,7 @@ function nextId(): string {
 
 export const todoWriteTool: AliceTool = {
   name: 'TodoWrite',
+  aliases: ['todowrite'],
   label: 'Todo',
   description: `Manage a structured task list for the current session. Use this to break down complex tasks, track progress, and stay organized.
 
@@ -132,6 +133,7 @@ Always use TodoWrite at the start of complex multi-step tasks. Mark tasks in_pro
 
 export const todoReadTool: AliceTool = {
   name: 'TodoRead',
+  aliases: ['todoread'],
   label: 'Todo 查看',
   description: 'Read the current session task list. Use this to check what tasks are pending or in progress before starting work.',
 

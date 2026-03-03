@@ -1,263 +1,150 @@
 # ALICE CLI 开发指南
 
-## 项目概览
+## 项目概述
 
-ALICE 是一个 AI 驱动的命令行助手，目标是提供类似 GitHub Copilot CLI 的交互体验。本项目采用 **Node.js + TypeScript + Native Addons** 技术栈。
+ALICE 是一个 AI 驱动的命令行助手，采用 **CLI（ALICE） + 常驻 Daemon（VERONICA）** 双进程架构。
 
-## 技术架构
+- **`alice`**：TUI 前端，使用 ink (React for CLI) 渲染界面，所有 LLM 调用均通过 VERONICA。
+- **`veronica`**：常驻后台服务，管理 LLM 连接、会话、工具执行。支持 HTTP 和 Unix Socket 两种传输。
 
-### 核心技术栈
-- **运行时**: Node.js ≥ 18
-- **语言**: TypeScript (ESM 模块)
-- **UI 框架**: ink (React for CLI) 或 blessed
-- **终端控制**: node-pty (原生 PTY 模块)
-- **代码解析**: tree-sitter (WebAssembly)
-- **打包工具**: pkg 或 nexe
+Agent 体系详见 `docs/` 下各产品文档（A.L.I.C.E.md、V.E.R.O.N.I.C.A.md 等）。
 
-### 架构分层
-```
-CLI Entry → UI Layer (ink) → Core Logic → Native Modules
-                                ├─ Terminal (PTY)
-                                ├─ Parser (tree-sitter)
-                                └─ LLM Client
-```
+## 构建与运行
 
-## 目录结构
-
-预期的项目结构：
-```
-alice-cli/
-├── src/
-│   ├── index.ts              # CLI 入口
-│   ├── cli/                  # UI 层
-│   │   ├── app.tsx          # 主应用
-│   │   ├── components/      # React 组件
-│   │   └── hooks/           # 自定义 hooks
-│   ├── core/                # 核心逻辑
-│   │   ├── llm.ts           # LLM 客户端
-│   │   ├── terminal.ts      # 终端控制
-│   │   ├── parser.ts        # 代码解析
-│   │   └── session.ts       # 会话管理
-│   ├── utils/               # 工具函数
-│   └── types/               # TypeScript 类型
-├── prebuilds/               # 原生模块预编译
-└── dist/                    # 构建输出
-```
-
-## 开发约定
-
-### TypeScript 配置
-- 使用 **ES2022** 目标
-- **ESM** 模块系统 (`"type": "module"` in package.json)
-- 启用严格模式 (`"strict": true`)
-- 模块解析策略: `"bundler"`
-
-### 代码风格
-- 使用 async/await，避免回调地狱
-- 组件文件使用 `.tsx`，逻辑文件使用 `.ts`
-- 导入路径必须包含 `.js` 扩展名（ESM 要求）
-  ```typescript
-  import { foo } from './utils.js'; // ✅ 正确
-  import { foo } from './utils';    // ❌ 错误
-  ```
-
-### UI 开发规范（使用 ink）
-- 使用 React 函数组件和 hooks
-- 通过 `useInput` hook 处理键盘输入
-- 使用 `Box` 组件进行布局
-- 颜色使用 chalk 库
-
-### 终端控制
-- 使用 node-pty 创建伪终端
-- 监听 `data` 和 `exit` 事件
-- 支持 ANSI 转义序列
-- Windows 使用 ConPTY，Unix 使用传统 PTY
-
-### LLM 集成
-- 支持流式响应（Server-Sent Events）
-- 实现消息历史管理
-- 支持多模型切换
-- 错误处理和重试机制
-
-## Banner 设计
-
-Banner 是用户首次启动时看到的欢迎界面：
-
-### 推荐风格
-**极简动画风格** - 平衡视觉效果和加载速度
-
-### 实现要点
-- 使用 `figlet` 生成 ASCII Art（推荐字体：ANSI Shadow）
-- 使用 `gradient-string` 添加渐变色效果
-- 使用 `ora` 显示加载动画
-- 打字机效果用于标语展示
-- 逐行淡入 logo
-
-### 性能优化
-- 提供 `--no-banner` 选项跳过动画
-- 检测 CI 环境自动禁用动画
-- 响应式设计：根据终端宽度调整字体大小
-
-## CLI 交互界面
-
-### 输入处理
-- 支持命令历史记录（上下箭头）
-- 实现 Tab 自动补全
-- 使用 commander 解析命令行参数
-
-### 会话管理
-- 每个会话生成唯一 UUID
-- 保存在 `~/.alice/sessions/` 目录
-- 支持加载历史会话
-
-### 流式输出
-- 逐字渲染 LLM 响应
-- 使用 async generator 处理 SSE
-- 实现打字机效果的视觉反馈
-
-## 原生模块集成
-
-### node-pty
-用于执行 shell 命令和捕获输出
-```typescript
-import * as pty from 'node-pty';
-
-const ptyProcess = pty.spawn('bash', [], {
-  name: 'xterm-color',
-  cols: 80,
-  rows: 30,
-  cwd: process.cwd(),
-  env: process.env
-});
-```
-
-### tree-sitter
-用于代码语法解析和高亮
-```typescript
-import Parser from 'tree-sitter';
-import TypeScript from 'tree-sitter-typescript';
-
-const parser = new Parser();
-parser.setLanguage(TypeScript.typescript);
-const tree = parser.parse(code);
-```
-
-### keytar
-安全存储 API 密钥（系统密钥链）
-```typescript
-import keytar from 'keytar';
-
-await keytar.setPassword('alice-cli', 'api-key', token);
-const token = await keytar.getPassword('alice-cli', 'api-key');
-```
-
-## 构建与打包
-
-### 开发模式
 ```bash
-npm run dev      # 直接运行（支持键盘输入）
-npm run dev:watch # 文件监听模式（不支持键盘输入，仅用于调试渲染）
+# 开发模式（支持键盘输入）
+npm run dev
+
+# ⚠️ dev:watch 会拦截 stdin，ink 无法接收键盘输入，仅用于调试渲染
+npm run dev:watch
+
+# 跳过启动 banner
+npm run dev -- --no-banner
+
+# TypeScript 编译
+npm run build
+
+# 运行生产版本
+npm start
+
+# 清理构建产物
+npm run clean
 ```
 
-> ⚠️ **重要**: `tsx watch` 会拦截 stdin，导致 ink 无法接收键盘输入。开发时必须用 `npm run dev`（即 `tsx src/index.tsx`），不要用 watch 模式。
+## 测试与调试
 
-### 生产构建
+本项目无单元测试框架。测试通过手动脚本：
+
 ```bash
-npm run build    # TypeScript 编译
-pkg .            # 打包为可执行文件
+# 测试 LLM 模型连接速度
+npm run script:test-model
+
+# 测试内置工具
+npm run script:test-tools
+
+# 测试 Function Calling 流程
+npm run script:test-function-calling
+
+# 测试 xAI 连接
+npm test:xai
+
+# 在生产模式下测试模型连接
+alice --test-model
 ```
 
-### 跨平台支持
-- 为每个平台预编译原生模块
-- 打包时包含 `prebuilds/` 目录
-- 测试目标平台：Windows (x64/ARM64), macOS (x64/ARM64), Linux (x64/ARM64)
+## 架构：CLI 与 Daemon 的分工
 
-## 配置管理
+```
+alice (TUI)
+  └─ DaemonClient (utils/daemonClient.ts)
+       └─ HTTP / Unix Socket
+            └─ VERONICA Daemon (daemon/)
+                 ├─ DaemonRoutes → chatHandler
+                 ├─ LLMClient (core/llm.ts)
+                 │    └─ ProviderFactory → BaseProvider (openai-compatible / anthropic / google / mistral)
+                 ├─ ToolRegistry + ToolExecutor (tools/)
+                 └─ SessionManager (core/session.ts)
+```
 
-配置文件位置：`~/.alice/config.json`
+**关键边界**：
+- **会话与消息由 daemon 持有**，CLI 通过 `DaemonClient.createSession()` / `chatStream()` 与其交互。CLI 侧的 `sessionManager` 仅用于本地持久化与统计，不是会话的单一数据源。
+- CLI 的 `app.tsx` 在每次 `done` 事件时，用服务端下发的 `event.messages` 更新本地 state。
 
-```json
-{
-  "model": "gpt-4",
-  "apiKey": "stored-in-keychain",
-  "theme": "minimal",
-  "animated": true
+## 配置系统
+
+| 文件 | 负责内容 |
+|------|----------|
+| `~/.alice/settings.jsonc` | 模型、UI、工作区、键绑定（由 `utils/config.ts` 管理） |
+| `~/.alice/daemon_settings.jsonc` | Daemon 通信方式、socket 路径、心跳、日志（由 `daemon/config.ts` 管理） |
+
+两个配置文件职责分离，不重叠。
+
+## Provider 系统
+
+`src/core/providers/` 下每个 Provider 继承 `BaseProvider`，必须实现：
+
+- `chat()` — 非流式对话
+- `chatStream()` — 流式对话（AsyncGenerator）
+- `chatWithTools()` — 带 Function Calling 的对话
+- `chatStreamWithTools()` — 带工具的流式对话
+- `testConnection()` — 连接测速
+
+`LLMClient`（`core/llm.ts`）在主 Provider 失败时自动降级到 `suggest_model`。
+
+## 工具系统
+
+工具定义实现 `AliceTool` 接口，通过 `toolRegistry.register()` 注册（全局单例）。
+
+- `ToolRegistry`（`tools/registry.ts`）：注册、别名管理、参数 JSON Schema 验证（使用 ajv）、转换为 OpenAI function 格式。
+- `ToolExecutor`（`tools/executor.ts`）：执行工具调用，通过 `eventBus` 发出 `tool:before_call` / `tool:after_call` / `tool:error` 事件，支持危险命令确认拦截。
+
+内置工具在 `src/tools/builtin/` 下，包括 `executeCommand`、`readFile`、`writeFile`、`editFile`、`searchFiles`、`listFiles`、`getGitInfo`、`todo`、`askUser` 等。
+
+## 斜杠命令系统
+
+用户在 TUI 中输入 `/` 触发斜杠命令（不进入 LLM 对话历史）。
+
+- 命令定义 `AliceCommand` 接口：`name`、`aliases`、`description`、`handler(args, ctx)`。
+- 通过 `CommandRegistry.register()` 注册，内置命令在 `core/builtinCommands.ts`。
+- 命令输出通过 `ctx.notify()` 发送瞬态通知，不污染对话历史。
+- 内置命令：`/help`、`/clear`、`/config`、`/theme`、`/export`、`/quit`。
+
+## 代码规范
+
+### ESM 导入（必须包含 `.js` 扩展名）
+
+```typescript
+import { foo } from './utils.js';   // ✅
+import { foo } from './utils';      // ❌
+```
+
+### 错误处理
+
+```typescript
+import { getErrorMessage } from '../utils/error.js';
+
+try {
+  // ...
+} catch (error: unknown) {          // catch 参数必须是 unknown，禁止 any
+  return { success: false, error: `操作失败: ${getErrorMessage(error)}` };
 }
 ```
 
-## 调试技巧
+### 获取 `__dirname`（ESM 中无内置）
 
-### 查看终端输出
-```bash
-DEBUG=* alice  # 启用调试日志
+```typescript
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 ```
 
-### 测试 PTY
-```bash
-node -e "require('node-pty').spawn('echo', ['test'])"
-```
+### 文件命名
 
-### 检查原生模块
-```bash
-npm ls node-pty keytar tree-sitter
-```
+- React 组件使用 `.tsx`，逻辑文件使用 `.ts`。
+- 所有导出函数/类应有 JSDoc，注释优先使用中文。
 
-## 性能指标
+## 视觉主题
 
-目标性能：
-- **启动时间**: < 500ms（无动画）
-- **内存占用**: < 100MB
-- **二进制大小**: < 100MB（含所有依赖）
-
-## 开发阶段
-
-### 当前状态：设计阶段
-项目处于早期阶段，现有文档：
-- `ALICE 办公助手产品设计.md` - 产品需求和功能设计
-- `CLI Banner 设计方案.md` - 启动 banner 的详细设计
-- `CLI交互界面技术方案.md` - 技术架构和实现方案
-
-### MVP 目标
-1. 基础聊天界面
-2. LLM API 集成
-3. 流式输出
-4. 命令历史
-5. 会话保存
-
-## 设计风格偏好
-
-### 视觉风格
-- **科技蓝风格**（推荐）：青色 (#00D9FF) 为主色
-- 极简设计，避免过度装饰
-- 使用渐变色增强视觉层次
-- 灰色 (#808080) 用于次要信息
-
-### 交互体验
-- 快速响应，避免卡顿
-- 清晰的加载状态反馈
-- 友好的错误提示
-- 支持键盘快捷键
-
-## 常见问题
-
-### ESM vs CommonJS
-本项目使用 ESM。注意：
-- 导入必须包含文件扩展名
-- 使用 `import` 而非 `require`
-- `__dirname` 需要通过 `import.meta.url` 获取
-
-### 原生模块问题
-如果 `node-pty` 安装失败：
-```bash
-npm rebuild node-pty --update-binary
-```
-
-### Windows 路径问题
-在 Windows 上使用 `path.join()` 而非手动拼接路径。
-
-## 参考资源
-
-- [ink 文档](https://github.com/vadimdemedes/ink)
-- [node-pty GitHub](https://github.com/microsoft/node-pty)
-- [tree-sitter 文档](https://tree-sitter.github.io/tree-sitter/)
-- [Node.js CLI 最佳实践](https://github.com/lirantal/nodejs-cli-apps-best-practices)
+主色调：科技蓝 `#00D9FF`（cyan）。主题系统在 `core/theme.ts` 和 `cli/theme.ts`，支持运行时切换（`/theme` 命令）。Banner 使用 `figlet` + `gradient-string`，通过 `--no-banner` 跳过。
