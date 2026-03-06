@@ -60,6 +60,7 @@ export interface ChatLayoutProps {
   onSubmit: (input: string) => void | Promise<void>;
   onHistoryUp: () => string | undefined;
   onHistoryDown: () => string | undefined;
+  onInputChange?: (input: string) => void;
 }
 
 export const ChatLayout: React.FC<ChatLayoutProps> = ({
@@ -87,8 +88,25 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
   onSubmit,
   onHistoryUp,
   onHistoryDown,
+  onInputChange,
 }) => {
   const inputDisabled = isProcessing || !!confirmDialog || !!questionDialog;
+
+  // Slash 命令候选，用于判断是否需要拦截输入框的提交/历史键
+  const normalizedQuery = (slashQuery ?? '').toLowerCase();
+  const slashCandidates =
+    slashQuery === null
+      ? []
+      : allCommands.filter((cmd) => {
+          const name = cmd.name.toLowerCase();
+          const desc = cmd.description.toLowerCase();
+          return (
+            !normalizedQuery ||
+            name.startsWith(normalizedQuery) ||
+            desc.includes(normalizedQuery)
+          );
+        });
+  const slashMenuActive = slashCandidates.length > 0;
 
   // 构建 session picker items
   const sessionItems: PickerItem[] = sessionSummaries.map(s => {
@@ -149,10 +167,10 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
       <GeneratingStatus phase={generatingPhase} />
 
       {/* Slash 命令菜单 */}
-      {slashQuery !== null && (
+      {slashQuery !== null && slashMenuActive && (
         <SlashMenu
           query={slashQuery}
-          commands={allCommands}
+          commands={slashCandidates}
           onSelect={(cmd) => onSlashSelect?.(cmd.name)}
           onCancel={() => onSlashCancel?.()}
         />
@@ -188,6 +206,8 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
         disabled={inputDisabled}
         onHistoryUp={onHistoryUp}
         onHistoryDown={onHistoryDown}
+        onChange={onInputChange}
+        suppressSubmitAndHistory={slashMenuActive}
       />
 
       {/* 状态栏 */}

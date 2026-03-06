@@ -156,9 +156,18 @@ export async function* runChatStream(
     yield { type: 'done' as const, sessionId: session.id, messages };
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
-    logger.error('Chat stream 错误', msg);
-    if (error instanceof Error && error.stack) {
-      logger.error('堆栈', error.stack);
+    const lower = msg.toLowerCase();
+    // 对于 HTTP 客户端连接被中止的情况（Error: aborted），降级为警告日志，避免看起来像系统崩溃
+    if (lower.includes('aborted')) {
+      logger.warn('Chat stream 中止（连接已关闭）', msg);
+      if (error instanceof Error && error.stack) {
+        logger.warn('堆栈', error.stack);
+      }
+    } else {
+      logger.error('Chat stream 错误', msg);
+      if (error instanceof Error && error.stack) {
+        logger.error('堆栈', error.stack);
+      }
     }
     toolRecordsBuffer.length = 0;
     throw error;

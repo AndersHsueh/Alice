@@ -343,8 +343,17 @@ export class DaemonRoutes {
       }
     } catch (error: unknown) {
       const msg = getErrorMessage(error);
-      this.logger.error('Chat stream 错误', msg);
-      res.write(JSON.stringify({ type: 'error', message: msg }) + '\n');
+      const lower = msg.toLowerCase();
+
+      if (lower.includes('aborted')) {
+        // 对端中止（如 LLM 服务或上游客户端关闭连接）：视为流式请求被取消，而非服务内部错误
+        const friendly = 'LLM 流式请求已中断：连接被关闭或请求被取消。';
+        this.logger.warn('Chat stream 中止', msg);
+        res.write(JSON.stringify({ type: 'error', message: friendly, raw: msg }) + '\n');
+      } else {
+        this.logger.error('Chat stream 错误', msg);
+        res.write(JSON.stringify({ type: 'error', message: msg }) + '\n');
+      }
     } finally {
       res.end();
     }

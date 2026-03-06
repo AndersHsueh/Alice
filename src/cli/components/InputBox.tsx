@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Box, Text, useInput, useStdout } from 'ink';
 import stringWidth from 'string-width';
 import { configManager } from '../../utils/config.js';
@@ -9,6 +9,10 @@ interface InputBoxProps {
   disabled: boolean;
   onHistoryUp: () => string | undefined;
   onHistoryDown: () => string | undefined;
+  /** 输入内容变更回调，用于上层做渐进提示（如 slash command） */
+  onChange?: (text: string) => void;
+  /** 当有外部选择器（如 SlashMenu）激活时，禁止提交与历史导航按键 */
+  suppressSubmitAndHistory?: boolean;
 }
 
 function toCodePoints(s: string): string[] {
@@ -87,6 +91,8 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
   disabled,
   onHistoryUp,
   onHistoryDown,
+  onChange,
+  suppressSubmitAndHistory = false,
 }) => {
   const [input, setInput] = useState('');
   const [cursorOffset, setCursorOffset] = useState(0);
@@ -96,6 +102,12 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
   const codePoints = toCodePoints(input);
   const codePointCount = codePoints.length;
   const clampCursor = (len: number, cur: number) => Math.max(0, Math.min(cur, len));
+
+  useEffect(() => {
+    if (onChange) {
+      onChange(input);
+    }
+  }, [input, onChange]);
 
   useInput((inputChar, key) => {
     if (disabled) return;
@@ -127,6 +139,16 @@ const InputBoxComponent: React.FC<InputBoxProps> = ({
     }
 
     const action = keybindingManager.match(inputChar, key);
+
+    if (suppressSubmitAndHistory) {
+      if (
+        action === KeyAction.Submit ||
+        action === KeyAction.HistoryUp ||
+        action === KeyAction.HistoryDown
+      ) {
+        return;
+      }
+    }
 
     switch (action) {
       case KeyAction.Submit:

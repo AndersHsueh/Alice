@@ -361,6 +361,16 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     }
   };
 
+  const handleInputChange = (value: string) => {
+    if (value === '/') {
+      setSlashQuery('');
+    } else if (value.startsWith('/')) {
+      setSlashQuery(value.slice(1));
+    } else {
+      setSlashQuery(null);
+    }
+  };
+
   const notify = (data: import('./components/SystemNotice.js').SystemNoticeData) => {
     if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current);
     setSystemNotice(data);
@@ -467,6 +477,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
       onSubmit={handleSubmit}
       onHistoryUp={handleHistoryUp}
       onHistoryDown={handleHistoryDown}
+      onInputChange={handleInputChange}
     />
   );
 };

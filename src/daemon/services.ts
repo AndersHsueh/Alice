@@ -13,12 +13,59 @@ import { LLMClient } from '../core/llm.js';
 import type { Config, ModelConfig } from '../types/index.js';
 import type { DaemonLogger } from './logger.js';
 import { getErrorMessage } from '../utils/error.js';
+import { eventBus } from '../core/events.js';
+import type { ToolCallEvent, ToolExecuteEvent, ToolErrorEvent } from '../types/events.js';
 
 let initialized = false;
 const llmClientCache = new Map<string, LLMClient>();
 let cachedSystemPrompt = '';
 let cachedConfig: Config | null = null;
 let currentAgentMode: 'office' | 'coder' = 'office';
+let toolCallSeq = 0;
+
+function safeJson(value: unknown, maxLen = 200): string {
+  try {
+    const s = JSON.stringify(value);
+    return s.length > maxLen ? s.slice(0, maxLen) + '…' : s;
+  } catch {
+    return '[Unserializable]';
+  }
+}
+
+function attachToolLogging(logger: DaemonLogger): void {
+  // 工具调用审计日志：执行前
+  eventBus.on<ToolCallEvent>('tool:before_call', (ev) => {
+    logger.debug('Tool before_call', {
+      tool: ev.toolName,
+      id: ev.toolCallId,
+      params: safeJson(ev.params, 160),
+    });
+  });
+
+  // 工具执行成功/失败后
+  eventBus.on<ToolExecuteEvent>('tool:after_call', (ev) => {
+    toolCallSeq += 1;
+    logger.info('Tool executed', {
+      seq: toolCallSeq,
+      tool: ev.toolName,
+      id: ev.toolCallId,
+      durationMs: ev.duration,
+      success: ev.result.success,
+    });
+  });
+
+  // 工具执行报错
+  eventBus.on<ToolErrorEvent>('tool:error', (ev) => {
+    toolCallSeq += 1;
+    logger.warn('Tool error', {
+      seq: toolCallSeq,
+      tool: ev.toolName,
+      id: ev.toolCallId,
+      durationMs: ev.duration,
+      error: ev.error?.message ?? String(ev.error),
+    });
+  });
+}
 
 export async function initServices(logger: DaemonLogger): Promise<void> {
   if (initialized) return;
@@ -47,6 +94,9 @@ export async function initServices(logger: DaemonLogger): Promise<void> {
 
     toolRegistry.registerAll(builtinTools);
     logger.info('内置工具已注册');
+
+    // 挂载工具调用审计日志（仅在 daemon 环境）
+    attachToolLogging(logger);
 
     try {
       const mcpSettings = await mcpConfigManager.load();
