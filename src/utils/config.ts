@@ -83,12 +83,17 @@ export class ConfigManager {
   async load(): Promise<Config> {
     try {
       const data = await fs.readFile(this.settingsPath, 'utf-8');
-      const parsed = jsonc.parse(data) as Config;
-      
+      const parsed = jsonc.parse(data) as Record<string, unknown> & Config;
+      const cronTaskModel = parsed['cron-task-model'] ?? parsed.cron_task_model;
+      const config: Config = {
+        ...parsed,
+        cron_task_model: typeof cronTaskModel === 'string' ? cronTaskModel : undefined,
+      };
+
       // 解析环境变量
-      this.resolveEnvVars(parsed);
-      
-      this.config = parsed;
+      this.resolveEnvVars(config);
+
+      this.config = config;
       return this.config;
     } catch (error) {
       this.config = DEFAULT_CONFIG;
@@ -153,6 +158,15 @@ export class ConfigManager {
     return this.getModel(this.get().suggest_model);
   }
 
+  /**
+   * 定时/心跳任务默认模型（实施方案阶段 3.3）；未配置或不存在于 models 时返回 undefined，调用方用 default_model
+   */
+  getCronTaskModel(): ModelConfig | undefined {
+    const name = this.get().cron_task_model?.trim();
+    if (!name) return undefined;
+    return this.getModel(name);
+  }
+
   getKeybindingManager(): KeybindingManager {
     const config = this.get();
     if (config.keybindings) {
@@ -212,6 +226,9 @@ export class ConfigManager {
     lines.push('');
     lines.push('  // 系统推荐的最快模型（由 --test-model 自动更新）');
     lines.push(`  "suggest_model": "${config.suggest_model}",`);
+    lines.push('');
+    lines.push('  // 定时/心跳任务默认模型（未配置则用 default_model）');
+    lines.push(`  "cron-task-model": "${config.cron_task_model ?? ''}",`);
     lines.push('');
     lines.push('  // 多模型配置列表');
     lines.push('  "models": [');

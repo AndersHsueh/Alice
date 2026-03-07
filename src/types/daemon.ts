@@ -22,6 +22,16 @@ export interface LoggingConfig {
   maxFiles: number;
 }
 
+/** 通知配置（实施方案阶段 2），至少支持通用 webhook */
+export interface NotificationsConfig {
+  /** 通用 webhook URL，POST 标题+正文 */
+  webhookUrl?: string;
+  /** 预留：Slack / 钉钉 / 飞书等，先不实现 */
+  slack?: unknown;
+  feishu?: unknown;
+  dingtalk?: unknown;
+}
+
 export interface DaemonConfig {
   // 通信方式配置
   transport: TransportType;
@@ -33,6 +43,12 @@ export interface DaemonConfig {
 
   // 定时任务配置
   scheduledTasks: ScheduledTask[];
+
+  // 通知配置（实施方案阶段 2）
+  notifications?: NotificationsConfig;
+
+  /** 已注册的 cron workspace 路径（会话中新建任务时上报），实施方案阶段 4 */
+  cronRegisteredPaths?: string[];
 
   // 日志配置
   logging: LoggingConfig;
@@ -47,6 +63,8 @@ export const DEFAULT_DAEMON_CONFIG: DaemonConfig = {
     interval: 30000, // 30秒
   },
   scheduledTasks: [],
+  notifications: {},
+  cronRegisteredPaths: [],
   logging: {
     level: 'info',
     file: '~/.alice/logs/daemon.log',
@@ -70,6 +88,9 @@ export interface StatusResponse {
   transport: TransportType;
   socketPath?: string;
   httpPort?: number;
+  /** 最近一次心跳时间（毫秒时间戳），实施方案 1.3 */
+  lastHeartbeatAt?: number | null;
+  lastHeartbeatOk?: boolean;
 }
 
 export interface ReloadConfigResponse {

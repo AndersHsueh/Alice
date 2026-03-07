@@ -435,4 +435,11 @@ export class DaemonClient {
     const res = await this.request('/mode', 'GET');
     return res.mode ?? 'office';
   }
+
+  /**
+   * 发送通知（实施方案阶段 2.3）：调用 daemon POST /notify，由 daemon 按配置推送到 webhook 等
+   */
+  async sendNotify(text: string, title?: string): Promise<{ ok: boolean }> {
+    return await this.request('/notify', 'POST', JSON.stringify({ text, title }));
+  }
 }

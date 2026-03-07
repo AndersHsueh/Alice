@@ -146,6 +146,29 @@ program
     }
   });
 
+program
+  .command('notify')
+  .description('发送通知（POST 到 daemon /notify，由 daemon 按配置推送到 webhook）')
+  .option('-t, --text <text>', '通知正文（必填）')
+  .option('--title <title>', '可选标题')
+  .action(async (opts: { text?: string; title?: string }) => {
+    try {
+      const text = opts.text ?? '';
+      if (!text) {
+        console.error('✗ 请提供 --text <内容>');
+        process.exit(1);
+      }
+      const { DaemonClient } = await import('../utils/daemonClient.js');
+      const client = new DaemonClient();
+      await client.sendNotify(text, opts.title);
+      console.log('✓ 通知已发送');
+      process.exit(0);
+    } catch (error: unknown) {
+      console.error(`✗ 发送失败: ${getErrorMessage(error)}`);
+      process.exit(1);
+    }
+  });
+
 // 如果没有提供命令，显示 banner 和帮助
 if (process.argv.length === 2) {
   showBanner();

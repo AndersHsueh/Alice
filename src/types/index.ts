@@ -89,6 +89,8 @@ export interface Config {
   default_model: string;
   suggest_model: string;
   models: ModelConfig[];
+  /** 定时/心跳任务默认使用的模型（对应 settings 中 cron-task-model），未配置则用 default_model */
+  cron_task_model?: string;
   ui: UIConfig;
   workspace: string;
   dangerous_cmd: boolean;  // 危险命令确认开关

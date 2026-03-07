@@ -7,7 +7,9 @@ import type { Socket } from 'net';
 import type { DaemonConfig } from '../types/daemon.js';
 import type { PingResponse, StatusResponse, ReloadConfigResponse } from '../types/daemon.js';
 import { daemonConfigManager } from './config.js';
+import { getLastHeartbeat } from './heartbeatState.js';
 import { DaemonLogger } from './logger.js';
+import { sendNotification } from './notification.js';
 import { getConfig, getSessionManager, setAgentMode, getAgentMode } from './services.js';
 import { runChatStream, type ChatStreamRequest } from './chatHandler.js';
 import { getErrorMessage } from '../utils/error.js';
@@ -84,6 +86,10 @@ export class DaemonRoutes {
         await this.handleGetMode(res);
       } else if (pathname === '/chat-stream' && method === 'POST') {
         await this.handleChatStream(req, res);
+      } else if (pathname === '/notify' && method === 'POST') {
+        await this.handleNotify(req, res);
+      } else if (pathname === '/register-cron-workspace' && method === 'POST') {
+        await this.handleRegisterCronWorkspace(req, res);
       } else {
         res.writeHead(404);
         res.end(JSON.stringify({ error: 'Not Found' }));
@@ -192,6 +198,7 @@ export class DaemonRoutes {
    */
   private async handleStatus(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const uptime = Math.floor((Date.now() - this.startTime) / 1000);
+    const { at: lastHeartbeatAt, ok: lastHeartbeatOk } = getLastHeartbeat();
     const response: StatusResponse = {
       status: 'running',
       pid: this.pid,
@@ -200,11 +207,56 @@ export class DaemonRoutes {
       transport: this.config.transport,
       socketPath: this.config.transport === 'unix-socket' ? this.config.socketPath : undefined,
       httpPort: this.config.transport === 'http' ? this.config.httpPort : undefined,
+      lastHeartbeatAt: lastHeartbeatAt ?? undefined,
+      lastHeartbeatOk,
     };
 
     this.logger.debug('收到 status 请求', { pid: this.pid, uptime });
     res.writeHead(200);
     res.end(JSON.stringify(response));
+  }
+
+  /**
+   * 处理 notify 请求（实施方案阶段 2.3）：POST 标题+正文，调用通知模块
+   */
+  private async handleNotify(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      const raw = await readBody(req);
+      const params = (raw ? JSON.parse(raw) : {}) as { title?: string; text?: string };
+      const title = typeof params.title === 'string' ? params.title : undefined;
+      const body = typeof params.text === 'string' ? params.text : (typeof params.title === 'string' ? raw : '') || '';
+      const config = daemonConfigManager.get().notifications;
+      await sendNotification({ title, body }, config, this.logger);
+      res.writeHead(200);
+      res.end(JSON.stringify({ ok: true }));
+    } catch (error: unknown) {
+      this.logger.error('notify 请求处理失败', getErrorMessage(error));
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'Bad Request', message: getErrorMessage(error) }));
+    }
+  }
+
+  /**
+   * 新建定时任务时上报当前 workspace 路径（实施方案阶段 4.4）
+   */
+  private async handleRegisterCronWorkspace(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      const raw = await readBody(req);
+      const params = (raw ? JSON.parse(raw) : {}) as { path?: string };
+      const workspacePath = typeof params.path === 'string' ? params.path.trim() : '';
+      if (!workspacePath) {
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: 'Bad Request', message: 'path required' }));
+        return;
+      }
+      const added = await daemonConfigManager.addCronRegisteredPath(workspacePath);
+      res.writeHead(200);
+      res.end(JSON.stringify({ ok: true, added }));
+    } catch (error: unknown) {
+      this.logger.error('register-cron-workspace 失败', getErrorMessage(error));
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'Bad Request', message: getErrorMessage(error) }));
+    }
   }
 
   /**

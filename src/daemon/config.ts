@@ -50,6 +50,13 @@ export class DaemonConfigManager {
           ...DEFAULT_DAEMON_CONFIG.heartbeat,
           ...parsed.heartbeat,
         },
+        notifications: {
+          ...DEFAULT_DAEMON_CONFIG.notifications,
+          ...parsed.notifications,
+        },
+        cronRegisteredPaths: Array.isArray(parsed.cronRegisteredPaths)
+          ? parsed.cronRegisteredPaths.filter((p): p is string => typeof p === 'string')
+          : DEFAULT_DAEMON_CONFIG.cronRegisteredPaths,
         logging: {
           ...DEFAULT_DAEMON_CONFIG.logging,
           ...parsed.logging,
@@ -112,6 +119,12 @@ export class DaemonConfigManager {
       '  // 定时任务配置（暂未实现）',
       '  "scheduledTasks": ' + JSON.stringify(configToSave.scheduledTasks, null, 2).split('\n').map((line, i) => i === 0 ? line : '  ' + line).join('\n') + ',',
       '',
+      '  // 通知配置（webhookUrl 等，实施方案阶段 2）',
+      '  "notifications": ' + JSON.stringify(configToSave.notifications ?? {}, null, 2).split('\n').map((line, i) => i === 0 ? line : '  ' + line).join('\n') + ',',
+      '',
+      '  // 已注册的 cron workspace（会话新建任务时上报）',
+      '  "cronRegisteredPaths": ' + JSON.stringify(configToSave.cronRegisteredPaths ?? [], null, 2).split('\n').map((line, i) => i === 0 ? line : '  ' + line).join('\n') + ',',
+      '',
       '  // 日志配置',
       '  "logging": {',
       `    "level": "${configToSave.logging.level}",`,
@@ -145,6 +158,22 @@ export class DaemonConfigManager {
       return DEFAULT_DAEMON_CONFIG;
     }
     return this.config;
+  }
+
+  /**
+   * 注册 cron workspace 路径（实施方案阶段 4.4）；若尚未存在则追加并保存
+   */
+  async addCronRegisteredPath(workspacePath: string): Promise<boolean> {
+    await this.load();
+    const pathToAdd = workspacePath.trim();
+    if (!pathToAdd) return false;
+    const current = this.config?.cronRegisteredPaths ?? [];
+    const normalized = pathToAdd.startsWith('~') ? pathToAdd.replace('~', os.homedir()) : pathToAdd;
+    const resolved = path.resolve(normalized);
+    if (current.some((p) => path.resolve(p.replace(/^~/, os.homedir())) === resolved)) return false;
+    this.config = { ...this.config!, cronRegisteredPaths: [...current, pathToAdd] };
+    await this.save(this.config);
+    return true;
   }
 
   /**
