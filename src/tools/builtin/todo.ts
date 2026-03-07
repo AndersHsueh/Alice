@@ -6,6 +6,14 @@
 
 import type { AliceTool, ToolResult } from '../../types/tool.js';
 
+/** 成功且带 todos 时附带给 UI 的展示数据，data 可带额外字段（如 added） */
+function withTodoDisplay<T extends { todos: TodoItem[] }>(data: T): { data: T; display: ToolResult['display'] } {
+  return {
+    data,
+    display: { type: 'todo_list', todos: data.todos },
+  };
+}
+
 export type TodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 export type TodoPriority = 'high' | 'medium' | 'low';
 
@@ -87,10 +95,7 @@ Always use TodoWrite at the start of complex multi-step tasks. Mark tasks in_pro
           priority: (item.priority ?? 'medium') as TodoPriority,
         }));
         todoList.push(...added);
-        return {
-          success: true,
-          data: { todos: todoList, added: added.map(t => t.id) }
-        };
+        return { success: true, ...withTodoDisplay({ todos: todoList, added: added.map(t => t.id) }) };
       }
 
       case 'update': {
@@ -102,7 +107,7 @@ Always use TodoWrite at the start of complex multi-step tasks. Mark tasks in_pro
           return { success: false, error: `Task ${id} not found` };
         }
         item.status = status as TodoStatus;
-        return { success: true, data: { todos: todoList } };
+        return { success: true, ...withTodoDisplay({ todos: todoList }) };
       }
 
       case 'remove': {
@@ -114,13 +119,13 @@ Always use TodoWrite at the start of complex multi-step tasks. Mark tasks in_pro
         if (todoList.length === before) {
           return { success: false, error: `Task ${id} not found` };
         }
-        return { success: true, data: { todos: todoList } };
+        return { success: true, ...withTodoDisplay({ todos: todoList }) };
       }
 
       case 'clear': {
         todoList = [];
         idCounter = 1;
-        return { success: true, data: { todos: [] } };
+        return { success: true, ...withTodoDisplay({ todos: [] }) };
       }
 
       default:
@@ -144,10 +149,7 @@ export const todoReadTool: AliceTool = {
   },
 
   async execute(): Promise<ToolResult> {
-    return {
-      success: true,
-      data: { todos: todoList }
-    };
+    return { success: true, ...withTodoDisplay({ todos: todoList }) };
   }
 };
 

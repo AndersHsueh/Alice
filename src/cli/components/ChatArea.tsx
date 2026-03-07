@@ -1,8 +1,10 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import type { Message } from '../../types/index.js';
+import type { ToolResultDisplay } from '../../types/tool.js';
 import { Markdown } from '../../components/Markdown.js';
 import { StreamingMessage } from '../../components/StreamingMessage.js';
+import { TodoListDisplay } from './TodoListDisplay.js';
 import Spinner from 'ink-spinner';
 
 interface ChatAreaProps {
@@ -13,27 +15,40 @@ interface ChatAreaProps {
 
 type CollapseItem =
   | { type: 'message'; message: Message }
-  | { type: 'toolSummary'; names: string[]; count: number; callCounts: Record<string, number> };
+  | { type: 'toolSummary'; names: string[]; count: number; callCounts: Record<string, number>; display?: ToolResultDisplay };
 
 function collapseToolMessages(messages: Message[]): CollapseItem[] {
   const result: CollapseItem[] = [];
-  let toolBatch: string[] = [];
+  type ToolEntry = { name: string; content: string };
+  const toolBatch: ToolEntry[] = [];
 
   const flushBatch = () => {
     if (toolBatch.length === 0) return;
     const callCounts: Record<string, number> = {};
-    for (const name of toolBatch) {
+    for (const { name } of toolBatch) {
       callCounts[name] = (callCounts[name] ?? 0) + 1;
     }
     const names = Object.keys(callCounts);
-    result.push({ type: 'toolSummary', names, count: toolBatch.length, callCounts });
-    toolBatch = [];
+    let display: ToolResultDisplay | undefined;
+    for (let i = toolBatch.length - 1; i >= 0; i--) {
+      try {
+        const parsed = JSON.parse(toolBatch[i].content) as { display?: ToolResultDisplay };
+        if (parsed?.display?.type === 'todo_list') {
+          display = parsed.display;
+          break;
+        }
+      } catch {
+        // 非 JSON 或旧格式，跳过
+      }
+    }
+    result.push({ type: 'toolSummary', names, count: toolBatch.length, callCounts, display });
+    toolBatch.length = 0;
   };
 
   for (const msg of messages) {
     if (msg.role === 'system') continue;
     if (msg.role === 'tool') {
-      toolBatch.push(msg.name || 'unknown');
+      toolBatch.push({ name: msg.name || 'unknown', content: msg.content || '' });
       continue;
     }
     flushBatch();
@@ -49,11 +64,10 @@ const DisplayItem: React.FC<{
 }> = React.memo(
   ({ item, index }) => {
     if (item.type === 'toolSummary') {
-      const { names, count } = item;
-      // 每个不同工具名单独一行，风格参考 Claude Code
+      const { names, display } = item;
       return (
         <Box key={`tool-${index}`} flexDirection="column" marginBottom={1} paddingX={2}>
-          {names.map((name, i) => {
+          {names.map((name) => {
             const callCount = item.callCounts?.[name];
             const countLabel = callCount && callCount > 1 ? ` ×${callCount}` : '';
             return (
@@ -63,6 +77,11 @@ const DisplayItem: React.FC<{
               </Box>
             );
           })}
+          {display?.type === 'todo_list' && (
+            <Box marginLeft={2}>
+              <TodoListDisplay todos={display.todos} />
+            </Box>
+          )}
         </Box>
       );
     }

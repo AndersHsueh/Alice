@@ -24,12 +24,29 @@ export interface ToolParameterSchema {
 }
 
 /**
+ * 供 UI 展示用的 Todo 项（与业务 TodoItem 对齐，便于前端渲染 ○/◐/● 等）
+ */
+export interface TodoDisplayItem {
+  id: string;
+  content: string;
+  status: string;
+  priority?: string;
+}
+
+/**
+ * 供 UI 展示的结构化数据（工具可选返回），可扩展更多 type
+ */
+export type ToolResultDisplay =
+  | { type: 'todo_list'; todos: TodoDisplayItem[] };
+
+/**
  * 工具执行结果（支持流式更新）
  * @property success - 是否成功
  * @property data - 执行结果数据
  * @property error - 错误信息（失败时）
  * @property progress - 执行进度（0-100）
  * @property status - 状态描述文本
+ * @property display - 供 UI 展示的专用结构（如 todo 列表），daemon → CLI 会原样透传
  */
 export interface ToolResult {
   success: boolean;
@@ -37,6 +54,8 @@ export interface ToolResult {
   error?: string;
   progress?: number;  // 0-100
   status?: string;    // 状态描述
+  /** 供 UI 展示的专用结构，如 todo_list；daemon 透传至 CLI 供前端识别渲染 */
+  display?: ToolResultDisplay;
 }
 
 /**
