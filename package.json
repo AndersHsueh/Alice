@@ -35,6 +35,7 @@
     "url": "https://github.com/AndersHsueh/Alice.git"
   },
   "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.59.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",

@@ -7,9 +7,27 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import * as jsonc from 'jsonc-parser';
-import type { DaemonConfig, TransportType } from '../types/daemon.js';
+import type { DaemonConfig, TransportType, ChannelsConfig } from '../types/daemon.js';
 import { DEFAULT_DAEMON_CONFIG } from '../types/daemon.js';
 import { getErrorMessage } from '../utils/error.js';
+
+/** 合并通道配置，环境变量覆盖文件（ALICE_FEISHU_APPID / ALICE_FEISHU_APP_SECRET） */
+function mergeChannelsConfig(parsed: ChannelsConfig | undefined): ChannelsConfig {
+  const base = { ...DEFAULT_DAEMON_CONFIG.channels, ...parsed };
+  const feishu = {
+    ...base.feishu,
+    app_id: process.env.ALICE_FEISHU_APPID ?? base.feishu?.app_id,
+    app_secret: process.env.ALICE_FEISHU_APP_SECRET ?? base.feishu?.app_secret,
+  };
+  return { ...base, feishu };
+}
+
+/** 保存时去掉 app_secret，避免写入配置文件 */
+function sanitizeChannelsForSave(channels: ChannelsConfig | undefined): ChannelsConfig {
+  if (!channels) return {};
+  const feishu = channels.feishu ? { app_id: channels.feishu.app_id } : undefined;
+  return { ...channels, feishu };
+}
 
 export class DaemonConfigManager {
   private configPath: string;
@@ -54,6 +72,8 @@ export class DaemonConfigManager {
           ...DEFAULT_DAEMON_CONFIG.notifications,
           ...parsed.notifications,
         },
+        channels: mergeChannelsConfig(parsed.channels),
+        defaultChannel: parsed.defaultChannel ?? DEFAULT_DAEMON_CONFIG.defaultChannel ?? 'feishu',
         cronRegisteredPaths: Array.isArray(parsed.cronRegisteredPaths)
           ? parsed.cronRegisteredPaths.filter((p): p is string => typeof p === 'string')
           : DEFAULT_DAEMON_CONFIG.cronRegisteredPaths,
@@ -124,6 +144,12 @@ export class DaemonConfigManager {
       '',
       '  // 已注册的 cron workspace（会话新建任务时上报）',
       '  "cronRegisteredPaths": ' + JSON.stringify(configToSave.cronRegisteredPaths ?? [], null, 2).split('\n').map((line, i) => i === 0 ? line : '  ' + line).join('\n') + ',',
+      '',
+      '  // 默认启用的通道长连接（feishu=飞书 WebSocket），需配合 channels.feishu 凭证使用',
+      `  "defaultChannel": "${configToSave.defaultChannel ?? 'feishu'}",`,
+      '',
+      '  // 通道网关（feishu 等），app_secret 建议用环境变量 ALICE_FEISHU_APP_SECRET，不写入文件',
+      '  "channels": ' + JSON.stringify(sanitizeChannelsForSave(configToSave.channels), null, 2).split('\n').map((line, i) => i === 0 ? line : '  ' + line).join('\n') + ',',
       '',
       '  // 日志配置',
       '  "logging": {',

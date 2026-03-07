@@ -11,6 +11,34 @@ import { ProcessManager } from './processManager.js';
 import { daemonConfigManager } from './config.js';
 import { getErrorMessage } from '../utils/error.js';
 
+/** 轮询 daemon status 获取默认通道连接状态，返回要打印的一行文案 */
+async function pollDefaultChannelStatus(): Promise<string> {
+  const { DaemonClient } = await import('../utils/daemonClient.js');
+  const client = new DaemonClient(3000);
+  const maxAttempts = 12;
+  const intervalMs = 500;
+  await new Promise((r) => setTimeout(r, 1500));
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const status = await client.getStatus();
+      if (status.defaultChannel === 'feishu') {
+        if (status.defaultChannelConnected === true) {
+          return chalk.green('Default Channel: Feishu, Connected.');
+        }
+        if (i >= maxAttempts - 1) {
+          return chalk.yellow('Default Channel: Feishu, Connect Failed.');
+        }
+      }
+    } catch {
+      if (i >= maxAttempts - 1) {
+        return chalk.yellow('Default Channel: Feishu, Connect Failed.');
+      }
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return chalk.yellow('Default Channel: Feishu, Connect Failed.');
+}
+
 // 显示 TUI Banner
 function showBanner() {
   const banner = figlet.textSync('Veronica', {
@@ -57,6 +85,16 @@ program
       }
       const pid = await processManager.start();
       console.log(`✓ Daemon 已启动 (PID: ${pid})${opts.http ? ' [HTTP]' : ''}`);
+
+      const config = daemonConfigManager.get();
+      const defaultChannel = config.defaultChannel ?? 'feishu';
+      if (defaultChannel === 'feishu') {
+        const channelLine = await pollDefaultChannelStatus();
+        if (channelLine) {
+          console.log(channelLine);
+        }
+      }
+
       process.exit(0);
     } catch (error: unknown) {
       console.error(`✗ 启动失败: ${getErrorMessage(error)}`);

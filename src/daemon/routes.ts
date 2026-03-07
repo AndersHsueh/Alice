@@ -13,6 +13,9 @@ import { sendNotification } from './notification.js';
 import { getConfig, getSessionManager, setAgentMode, getAgentMode } from './services.js';
 import { runChatStream, type ChatStreamRequest } from './chatHandler.js';
 import { getErrorMessage } from '../utils/error.js';
+import { FeishuAdapter } from './gateway/feishuAdapter.js';
+import { handleChannelMessage } from './gateway/handler.js';
+import { getFeishuWsState } from './gateway/feishuWsState.js';
 
 function readBody(req: IncomingMessage): Promise<string> {
   const withBody = (req as IncomingMessage & { bodyPromise?: Promise<string> }).bodyPromise;
@@ -90,6 +93,8 @@ export class DaemonRoutes {
         await this.handleNotify(req, res);
       } else if (pathname === '/register-cron-workspace' && method === 'POST') {
         await this.handleRegisterCronWorkspace(req, res);
+      } else if (pathname === '/channels/feishu' && method === 'POST') {
+        await this.handleChannelFeishu(req, res);
       } else {
         res.writeHead(404);
         res.end(JSON.stringify({ error: 'Not Found' }));
@@ -199,6 +204,8 @@ export class DaemonRoutes {
   private async handleStatus(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const uptime = Math.floor((Date.now() - this.startTime) / 1000);
     const { at: lastHeartbeatAt, ok: lastHeartbeatOk } = getLastHeartbeat();
+    const defaultChannel = this.config.defaultChannel ?? 'feishu';
+    const feishuState = getFeishuWsState();
     const response: StatusResponse = {
       status: 'running',
       pid: this.pid,
@@ -209,6 +216,8 @@ export class DaemonRoutes {
       httpPort: this.config.transport === 'http' ? this.config.httpPort : undefined,
       lastHeartbeatAt: lastHeartbeatAt ?? undefined,
       lastHeartbeatOk,
+      defaultChannel,
+      defaultChannelConnected: defaultChannel === 'feishu' ? feishuState.connected === true : undefined,
     };
 
     this.logger.debug('收到 status 请求', { pid: this.pid, uptime });
@@ -257,6 +266,66 @@ export class DaemonRoutes {
       res.writeHead(400);
       res.end(JSON.stringify({ error: 'Bad Request', message: getErrorMessage(error) }));
     }
+  }
+
+  /**
+   * POST /channels/feishu - 飞书事件回调（URL 校验 + im.message.receive_v1），先 200 再异步处理对话
+   */
+  private async handleChannelFeishu(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    let body: string;
+    try {
+      body = await readBody(req);
+    } catch (error: unknown) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'Failed to read body', message: getErrorMessage(error) }));
+      return;
+    }
+
+    const config = daemonConfigManager.get();
+    const feishuConfig = config.channels?.feishu ?? {};
+    const adapter = new FeishuAdapter(feishuConfig);
+    const result = adapter.verifyAndParse(null, body);
+
+    if (result.type === 'url_verification') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ challenge: result.challenge }));
+      return;
+    }
+
+    if (result.type === 'invalid') {
+      res.writeHead(result.statusCode);
+      res.end(result.body ?? '');
+      return;
+    }
+
+    res.writeHead(200);
+    res.end('');
+
+    if (!feishuConfig.app_id?.trim() || !feishuConfig.app_secret?.trim()) {
+      this.logger.warn('飞书通道未配置 app_id/app_secret，忽略事件（可设置环境变量 ALICE_FEISHU_APPID / ALICE_FEISHU_APP_SECRET）');
+      return;
+    }
+
+    void (async () => {
+      const message = result.message;
+      let reactionId: string | null = null;
+      if (message.messageId) {
+        reactionId = await adapter.addTypingReaction(message.messageId);
+      }
+      try {
+        await handleChannelMessage(
+          message,
+          (chatId, text) => adapter.sendText(chatId, text),
+          this.logger
+        );
+      } catch (err: unknown) {
+        this.logger.error('飞书通道处理失败', getErrorMessage(err), { chatId: message.chatId });
+      } finally {
+        if (reactionId) {
+          await adapter.removeTypingReaction(message.messageId, reactionId);
+        }
+      }
+    })();
   }
 
   /**
