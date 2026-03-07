@@ -38,7 +38,11 @@ desktop.ini
 .alice/
 
 # Obsidian workspace (local)
-.obsidian/workspace.json
+.obsidian/
+
+# Misc local / assets
+QWEN.md
+etc/
 
 # Temporary files
 *.tmp

@@ -6,6 +6,7 @@ import type { ModelConfig, Config } from '../types/index.js';
 import type { Message } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
 import { getErrorMessage } from '../utils/error.js';
+import { ToolLoopDetector } from './loopDetection.js';
 
 export class LLMClient {
   private provider: BaseProvider;
@@ -153,6 +154,7 @@ export class LLMClient {
     let conversationMessages = [...messages];
     const maxIterations = configManager.getMaxIterations();
     let iteration = 0;
+    const loopDetector = new ToolLoopDetector();
 
     while (iteration < maxIterations) {
       iteration++;
@@ -170,6 +172,22 @@ export class LLMClient {
       }
 
       if (response.type === 'tool_calls' && response.tool_calls) {
+        // 工具调用循环检测：同一工具 + 相同参数连续多次调用
+        const loop = loopDetector.check(
+          response.tool_calls.map((c: any) => ({
+            id: c.id,
+            type: 'function',
+            function: {
+              name: c.function.name,
+              arguments: c.function.arguments,
+            },
+          })),
+        );
+        if (loop.loopDetected) {
+          const reason = `检测到工具调用循环: 工具 "${loop.toolName ?? ''}" 使用相同参数连续调用 ${loop.repeatCount ?? 0} 次。\n参数示例: ${loop.argumentsSnippet ?? ''}\n请检查提示词或工具设计，避免在同一输入上反复调用同一工具。`;
+          throw new Error(reason);
+        }
+
         // 创建 assistant 消息（带工具调用）
         const assistantMessage: Message = {
           role: 'assistant',
@@ -230,6 +248,7 @@ export class LLMClient {
     let conversationMessages = [...messages];
     const maxIterations = configManager.getMaxIterations();
     let iteration = 0;
+    const loopDetector = new ToolLoopDetector();
 
     while (iteration < maxIterations) {
       iteration++;
@@ -250,6 +269,22 @@ export class LLMClient {
       // 如果没有工具调用，对话结束
       if (accumulatedToolCalls.length === 0) {
         return;
+      }
+
+      // 工具调用循环检测：同一工具 + 相同参数连续多次调用
+      const loop = loopDetector.check(
+        accumulatedToolCalls.map((c: any) => ({
+          id: c.id,
+          type: 'function',
+          function: {
+            name: c.function.name,
+            arguments: c.function.arguments,
+          },
+        })),
+      );
+      if (loop.loopDetected) {
+        const reason = `检测到工具调用循环: 工具 "${loop.toolName ?? ''}" 使用相同参数连续调用 ${loop.repeatCount ?? 0} 次。\n参数示例: ${loop.argumentsSnippet ?? ''}\n请检查提示词或工具设计，避免在同一输入上反复调用同一工具。`;
+        throw new Error(reason);
       }
 
       // 有工具调用，添加到对话历史

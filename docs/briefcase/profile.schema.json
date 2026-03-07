@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/alice-cli/briefcase/profile.schema.json",
+  "title": "Briefcase Profile",
+  "description": "项目管理公文包根目录下 profile 文件的 JSON Schema（JSONC 兼容）",
+  "type": "object",
+  "required": ["name", "briefcaseType", "version"],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "项目名称，用于展示与区分公文包"
+    },
+    "briefcaseType": {
+      "type": "string",
+      "description": "公文包类型",
+      "enum": ["project-management"],
+      "default": "project-management"
+    },
+    "version": {
+      "type": "string",
+      "description": "Profile 结构版本，便于 schema 演进兼容",
+      "pattern": "^\\d+\\.\\d+$",
+      "default": "1.0"
+    },
+    "tags": {
+      "type": "array",
+      "description": "项目标签，用于筛选或分类",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "keyDocuments": {
+      "type": "array",
+      "description": "相对 workspace 根目录的重点文档路径列表",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "maintenanceProgress": {
+      "type": "object",
+      "description": "各关键文档或任务的最近维护进展；键为路径或逻辑单元，值为简短描述或时间戳",
+      "additionalProperties": { "type": "string" },
+      "default": {}
+    },
+    "maintenanceTasks": {
+      "type": "array",
+      "description": "供阶段 2 心跳消费的自动维护任务列表",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "任务唯一标识" },
+          "type": { "type": "string", "description": "任务类型，如 daily-report, weekly-report" },
+          "schedule": { "type": "string", "description": "触发策略，如 daily, weekly 或 cron" },
+          "enabled": { "type": "boolean", "description": "是否启用", "default": true },
+          "params": { "type": "object", "description": "可选参数" }
+        },
+        "additionalProperties": true
+      },
+      "default": []
+    }
+  }
+}

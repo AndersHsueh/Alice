@@ -1,5 +1,14 @@
 # ALICE GitHub Projects 设置指南
 
+## 📊 当前 Project 状态（gh 维护）
+
+- **ALICE Roadmap**：https://github.com/users/AndersHsueh/projects/3  
+- **当前发布版本**：v0.4.1  
+- **Project 内 Item 数**：51（含 #85 等，已关闭的 issue 已同步为 Status = Done）  
+- **最近更新**：已纳入 #85「Align tool calling architecture with qwen-code」，状态 In Progress；Project 的 shortDescription 与 Readme 已按 v0.4.1 更新。
+
+使用 `gh project view 3 --owner AndersHsueh` 查看摘要；用 `gh project item-add 3 --owner AndersHsueh --url <issue_url>` 添加新 issue。
+
 ## 📊 Issues 统计
 
 | 版本 | Issue 数量 | 状态 |
@@ -8,7 +17,7 @@
 | v0.5.0 | 14 | ✅ 已创建 |
 | v0.6.0 | 12 | ✅ 已创建 |
 | v1.0.0 | 5 | ✅ 已创建 |
-| **总计** | **43** | |
+| **总计** | **43+** | （Project 内另有 #85、#12、#10 等） |
 
 Issues 列表：https://github.com/AndersHsueh/Alice/issues
 
@@ -113,8 +122,8 @@ gh auth refresh -s project
 # 使用 GitHub CLI
 gh project item-add PROJECT_NUMBER --owner AndersHsueh --issue NUMBER
 
-# 示例
-gh project item-add 1 --owner AndersHsueh --issue 38
+# 示例（ALICE Roadmap 为 project 3）
+gh project item-add 3 --owner AndersHsueh --url "https://github.com/AndersHsueh/Alice/issues/85"
 ```
 
 ### 批量添加
@@ -206,4 +215,4 @@ v1.0.0+ - 企业特性
 
 ---
 
-*最后更新：2026-02-15*
+*最后更新：2026-03-06（Project 3 已按 v0.4.1 与 #85 同步）*
