@@ -12,10 +12,14 @@ import { DaemonServer } from './server.js';
 import { setLastHeartbeat } from './heartbeatState.js';
 import {
   setDaemonStartCwd,
-  getCronWorkspacePaths,
   ensureTempWorkspace,
-  readWorkspaceProfile,
 } from './cronWorkspace.js';
+import {
+  fixStaleRunningTasks,
+  runOnePlaceholderTask,
+  checkExecutionTimeouts,
+  hasAnyTaskRunningInWorkspaces,
+} from './taskRunner.js';
 import type { DaemonConfig } from '../types/daemon.js';
 import { getErrorMessage } from '../utils/error.js';
 
@@ -56,7 +60,10 @@ async function startDaemon(): Promise<void> {
     setDaemonStartCwd(process.cwd());
     await ensureTempWorkspace();
 
-    // 心跳循环（单次 setTimeout + nextDue，见实施方案阶段 1）
+    // 阶段 6.3：启动时将持久化中「执行中」任务置为异常
+    await fixStaleRunningTasks(config, logger!);
+
+    // 心跳循环（阶段 1 + 5/6：tick 内执行占位任务、超时检查、自适应间隔）
     scheduleHeartbeat();
 
     // 处理优雅关闭
@@ -90,9 +97,9 @@ function clearHeartbeatTimer(): void {
 }
 
 /**
- * 单次心跳 tick：打日志、发现任务（仅发现与日志，不执行）、记录时间，再调度下一拍（实施方案 1.1 + 4.2）
+ * 单次心跳 tick：超时检查、执行一条占位任务、记录时间，按是否有执行中任务计算下一拍间隔（阶段 1 + 5/6）
  */
-function runHeartbeatTick(): void {
+async function runHeartbeatTick(): Promise<void> {
   heartbeatTimer = null;
   const config = daemonConfigManager.get();
   if (!config.heartbeat.enabled) return;
@@ -100,30 +107,30 @@ function runHeartbeatTick(): void {
   setLastHeartbeat(Date.now(), true);
   logger?.info('heartbeat tick');
 
-  // 阶段 4.2：解析 cronWorkspacePath，逐目录读 profile，发现 maintenanceTasks 仅打日志
-  const dirs = getCronWorkspacePaths(config);
-  for (const dir of dirs) {
-    readWorkspaceProfile(dir).then((profile) => {
-      if (!profile || profile.briefcaseType !== 'project-management') return;
-      const tasks = profile.maintenanceTasks ?? [];
-      if (tasks.length > 0) {
-        logger?.debug(`发现 ${tasks.length} 个 maintenance 任务`, { workspace: dir });
-      }
-    }).catch(() => {});
-  }
+  await checkExecutionTimeouts(config, logger!);
+  await runOnePlaceholderTask(config, logger!);
 
-  scheduleHeartbeat();
+  const intervalMs = Math.max(1000, config.heartbeat.interval);
+  const hasRunning = await hasAnyTaskRunningInWorkspaces(config);
+  const nextDelay = hasRunning ? 60_000 : intervalMs;
+  scheduleHeartbeat(nextDelay);
 }
 
 /**
- * 按配置间隔调度下一次心跳（setTimeout + nextDue）
+ * 按给定间隔或配置间隔调度下一次心跳（阶段 6.1 自适应间隔）
+ * @param delayMs - 可选，不传则使用 config.heartbeat.interval
  */
-function scheduleHeartbeat(): void {
+function scheduleHeartbeat(delayMs?: number): void {
   const config = daemonConfigManager.get();
   if (!config.heartbeat.enabled) return;
 
-  const intervalMs = Math.max(1000, config.heartbeat.interval);
-  heartbeatTimer = setTimeout(runHeartbeatTick, intervalMs);
+  const delay = delayMs ?? Math.max(1000, config.heartbeat.interval);
+  heartbeatTimer = setTimeout(() => {
+    void runHeartbeatTick().catch((err) => {
+      logger?.error('heartbeat tick 异常', getErrorMessage(err));
+      scheduleHeartbeat();
+    });
+  }, delay);
   heartbeatTimer.unref?.();
 }
 
