@@ -40,9 +40,8 @@ desktop.ini
 # Obsidian workspace (local)
 .obsidian/
 
-# Misc local / assets
+# Misc local
 QWEN.md
-etc/
 
 # Temporary files
 *.tmp
