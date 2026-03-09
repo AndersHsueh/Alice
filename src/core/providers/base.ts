@@ -103,9 +103,9 @@ export abstract class BaseProvider {
    * 判断是否使用 cache 格式（部分 provider 不支持）
    */
   protected shouldUseCacheFormat(): boolean {
-    // xAI 不支持 cache_control 格式
     const model = this.config.model?.toLowerCase() || '';
-    if (model.includes('grok')) {
+    // xAI (grok) 和 MiniMax 不支持 cache_control 格式
+    if (model.includes('grok') || model.includes('minimax')) {
       return false;
     }
     return true;

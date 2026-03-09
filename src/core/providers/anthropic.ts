@@ -18,11 +18,106 @@ export class AnthropicProvider extends BaseProvider {
 
   constructor(config: ProviderConfig & { providerConfig?: ProviderSpecificConfig }, systemPrompt: string) {
     super(config, systemPrompt);
-    
+
     // 从 providerConfig 读取特有配置
     const anthropicConfig = config.providerConfig?.anthropic;
     this.anthropicVersion = anthropicConfig?.anthropicVersion || '2023-06-01';
     this.topK = anthropicConfig?.topK;
+  }
+
+  private supportsToolChoice(): boolean {
+    return true;
+  }
+
+  /**
+   * 将内部 Message 历史转换为 Anthropic/MiniMax 兼容的 messages 格式
+   * - system 通过单独的 system 字段传递，这里忽略 role === 'system'
+   * - user: 纯文本 -> text block
+   * - assistant 带 tool_calls: text + tool_use block
+   * - tool: 转换为 user 消息中的 tool_result block
+   */
+  private buildAnthropicMessages(messages: Message[]): any[] {
+    const apiMessages: any[] = [];
+
+    for (const msg of messages) {
+      if (msg.role === 'system') {
+        // system 提示词通过顶层 system 字段传递
+        continue;
+      }
+
+      if (msg.role === 'user') {
+        apiMessages.push({
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: msg.content,
+            },
+          ],
+        });
+        continue;
+      }
+
+      if (msg.role === 'assistant') {
+        const contentBlocks: any[] = [];
+
+        if (msg.content && msg.content.trim()) {
+          contentBlocks.push({
+            type: 'text',
+            text: msg.content,
+          });
+        }
+
+        if (msg.tool_calls && msg.tool_calls.length > 0) {
+          for (const call of msg.tool_calls) {
+            let input: any = {};
+            try {
+              input = call.function.arguments
+                ? JSON.parse(call.function.arguments)
+                : {};
+            } catch {
+              input = { _raw: call.function.arguments };
+            }
+            contentBlocks.push({
+              type: 'tool_use',
+              id: call.id,
+              name: call.function.name,
+              input,
+            });
+          }
+        }
+
+        if (contentBlocks.length > 0) {
+          apiMessages.push({
+            role: 'assistant',
+            content: contentBlocks,
+          });
+        }
+        continue;
+      }
+
+      if (msg.role === 'tool') {
+        // 将工具结果转换为 user 消息中的 tool_result block
+        apiMessages.push({
+          role: 'user',
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: msg.tool_call_id || 'tool_call',
+              name: msg.name || 'tool',
+              content: [
+                {
+                  type: 'text',
+                  text: msg.content,
+                },
+              ],
+            },
+          ],
+        });
+      }
+    }
+
+    return apiMessages;
   }
 
   async chat(messages: Message[]): Promise<string> {
@@ -31,18 +126,18 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   async *chatStream(messages: Message[]): AsyncGenerator<string> {
-    const apiMessages = this.buildMessages(messages);
+    const apiMessages = this.buildAnthropicMessages(messages);
 
     const response = await axios.post(
       `${this.config.baseURL}/v1/messages`,
       {
         model: this.config.model,
-        messages: apiMessages.slice(1), // Anthropic 不接受 system 在 messages 中
+        messages: apiMessages,
         system: this.systemPrompt,
         max_tokens: this.config.maxTokens,
         temperature: this.config.temperature,
         top_k: this.topK,
-        stream: true
+        stream: true,
       },
       {
         headers: {
@@ -83,28 +178,36 @@ export class AnthropicProvider extends BaseProvider {
       input_schema: tool.parameters
     }));
 
-    const apiMessages = this.buildMessages(messages);
+    const apiMessages = this.buildAnthropicMessages(messages);
 
-    const response = await axios.post(
-      `${this.config.baseURL}/v1/messages`,
-      {
-        model: this.config.model,
-        messages: apiMessages.slice(1),
-        system: this.systemPrompt,
-        max_tokens: this.config.maxTokens,
-        temperature: this.config.temperature,
-        top_k: this.topK,
-        tools: anthropicTools,
-        tool_choice: { type: 'auto' }
-      },
-      {
+    // 构建请求体
+    const requestBody: any = {
+      model: this.config.model,
+      messages: apiMessages,
+      system: this.systemPrompt,
+      max_tokens: this.config.maxTokens,
+      temperature: this.config.temperature,
+      top_k: this.topK,
+      tools: anthropicTools,
+    };
+
+    // 仅对支持的模型添加 tool_choice 参数
+    if (this.supportsToolChoice()) {
+      requestBody.tool_choice = { type: 'auto' };
+    }
+
+    let response;
+    try {
+      response = await axios.post(`${this.config.baseURL}/v1/messages`, requestBody, {
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': this.config.apiKey || '',
-          'anthropic-version': this.anthropicVersion
-        }
-      }
-    );
+          'anthropic-version': this.anthropicVersion,
+        },
+      });
+    } catch (error: any) {
+      throw error;
+    }
 
     const data = response.data;
 
@@ -182,37 +285,35 @@ export class AnthropicProvider extends BaseProvider {
   }
 
   private async makeRequest(messages: Message[], tools: OpenAIFunction[]): Promise<any> {
-    const apiMessages = this.buildMessages(messages);
+    const apiMessages = this.buildAnthropicMessages(messages);
     
     const requestBody: any = {
       model: this.config.model,
-      messages: apiMessages.slice(1),
+      messages: apiMessages,
       system: this.systemPrompt,
       max_tokens: this.config.maxTokens,
       temperature: this.config.temperature,
-      top_k: this.topK
+      top_k: this.topK,
     };
 
     if (tools.length > 0) {
-      requestBody.tools = tools.map(tool => ({
+      requestBody.tools = tools.map((tool) => ({
         name: tool.name,
         description: tool.description,
-        input_schema: tool.parameters
+        input_schema: tool.parameters,
       }));
-      requestBody.tool_choice = { type: 'auto' };
+      if (this.supportsToolChoice()) {
+        requestBody.tool_choice = { type: 'auto' };
+      }
     }
 
-    const response = await axios.post(
-      `${this.config.baseURL}/v1/messages`,
-      requestBody,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.config.apiKey || '',
-          'anthropic-version': this.anthropicVersion
-        }
-      }
-    );
+    const response = await axios.post(`${this.config.baseURL}/v1/messages`, requestBody, {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': this.config.apiKey || '',
+        'anthropic-version': this.anthropicVersion,
+      },
+    });
 
     return response.data;
   }
