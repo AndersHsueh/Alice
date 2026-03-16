@@ -82,7 +82,13 @@ export async function* runChatStream(
     for await (const chunk of client.chatStreamWithTools(
       conversationMessages,
       (record: ToolCallRecord) => {
-        toolRecordsBuffer.push(record);
+        // 替换同 id 的旧记录（避免进度更新导致重复条目存入 session）
+        const idx = toolRecordsBuffer.findIndex((r) => r.id === record.id);
+        if (idx >= 0) {
+          toolRecordsBuffer[idx] = record;
+        } else {
+          toolRecordsBuffer.push(record);
+        }
       },
       session.workspace
     )) {

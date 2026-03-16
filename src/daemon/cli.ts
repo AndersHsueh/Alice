@@ -20,7 +20,7 @@ async function pollDefaultChannelStatus(): Promise<string> {
   await new Promise((r) => setTimeout(r, 1500));
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const status = await client.getStatus();
+      const status = await client.getStatusDirect();
       if (status.defaultChannel === 'feishu') {
         if (status.defaultChannelConnected === true) {
           return chalk.green('Default Channel: Feishu, Connected.');

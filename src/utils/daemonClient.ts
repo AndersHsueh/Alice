@@ -408,10 +408,21 @@ export class DaemonClient {
   }
 
   /**
-   * 获取 daemon 状态
+   * 获取 daemon 状态（会触发自动启动）
    */
   async getStatus(): Promise<StatusResponse> {
     return await this.request('/status', 'GET');
+  }
+
+  /**
+   * 直接查询 daemon 状态，不触发自动启动（用于 daemon 已手动启动后的轮询）
+   */
+  async getStatusDirect(): Promise<StatusResponse> {
+    const config = await this.getDaemonConfig();
+    if (config.transport === 'http') {
+      return await this.httpRequest('/status', 'GET');
+    }
+    return await this.socketRequest('/status', 'GET');
   }
 
   /**

@@ -142,23 +142,25 @@ export class AnthropicProvider extends BaseProvider {
       }
 
       if (msg.role === 'tool') {
-        // 将工具结果转换为 user 消息中的 tool_result block
-        const toolResult: AnthropicMessage = {
-          role: 'user',
-          content: [
-            {
-              type: 'tool_result',
-              tool_use_id: msg.tool_call_id || 'tool_call',
-              content: [
-                {
-                  type: 'text',
-                  text: msg.content,
-                },
-              ],
-            },
-          ],
+        // 将工具结果转换为 tool_result block
+        // 多个相邻的 tool 消息（对应一个 assistant 的多个 tool_use）应合并进同一个 user message
+        const toolResultBlock: AnthropicToolResultBlock = {
+          type: 'tool_result',
+          tool_use_id: msg.tool_call_id || 'tool_call',
+          content: [{ type: 'text', text: msg.content }],
         };
-        apiMessages.push(toolResult);
+        const last = apiMessages[apiMessages.length - 1];
+        const isLastToolResultUser =
+          last &&
+          last.role === 'user' &&
+          Array.isArray(last.content) &&
+          last.content.length > 0 &&
+          last.content.every((b) => b.type === 'tool_result');
+        if (isLastToolResultUser) {
+          (last.content as AnthropicContentBlock[]).push(toolResultBlock);
+        } else {
+          apiMessages.push({ role: 'user', content: [toolResultBlock] });
+        }
       }
     }
 
