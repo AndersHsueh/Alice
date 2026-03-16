@@ -192,14 +192,26 @@ export class ConfigManager {
   }
 
   async loadSystemPrompt(mode: 'office' | 'coder' = 'office'): Promise<string> {
+    const filename = mode === 'coder' ? 'coder_prompt.md' : 'system_prompt.md';
+
+    // 优先从用户配置目录加载（~/.alice/agents/），支持用户自定义覆盖
+    const userPromptPath = path.join(this.configDir, 'agents', filename);
+    try {
+      return await fs.readFile(userPromptPath, 'utf-8');
+    } catch {
+      // 用户目录不存在，fallback 到项目内的 agents/
+    }
+
+    // Fallback：从项目根目录加载（开发环境 / 打包后 dist/ 的上两级）
     try {
       const projectRoot = path.join(__dirname, '..', '..');
-      const filename = mode === 'coder' ? 'coder_prompt.md' : 'system_prompt.md';
-      const promptPath = path.join(projectRoot, 'agents', filename);
-      return await fs.readFile(promptPath, 'utf-8');
-    } catch (error) {
-      return 'You are ALICE, an AI office assistant.';
+      const projectPromptPath = path.join(projectRoot, 'agents', filename);
+      return await fs.readFile(projectPromptPath, 'utf-8');
+    } catch {
+      // 两个路径都失败
     }
+
+    return 'You are ALICE, an AI office assistant.';
   }
 
   private resolveEnvVars(config: Config): void {
