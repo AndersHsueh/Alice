@@ -9,6 +9,49 @@ import type { Message, ProviderSpecificConfig } from '../../types/index.js';
 import type { OpenAIFunction, ToolCall } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
 
+type AnthropicRole = 'user' | 'assistant';
+
+interface AnthropicTextBlock {
+  type: 'text';
+  text: string;
+}
+
+interface AnthropicToolUseBlock {
+  type: 'tool_use';
+  id: string;
+  name: string;
+  input: unknown;
+}
+
+interface AnthropicToolResultBlock {
+  type: 'tool_result';
+  tool_use_id: string;
+  content: AnthropicTextBlock[];
+}
+
+type AnthropicContentBlock = AnthropicTextBlock | AnthropicToolUseBlock | AnthropicToolResultBlock;
+
+interface AnthropicMessage {
+  role: AnthropicRole;
+  content: AnthropicContentBlock[];
+}
+
+interface AnthropicMessagesRequest {
+  model: string;
+  messages: AnthropicMessage[];
+  system: string;
+  max_tokens: number;
+  temperature: number;
+  top_k?: number;
+  tools?: Array<{
+    name: string;
+    description?: string;
+    input_schema: unknown;
+  }>;
+  tool_choice?: { type: 'auto' };
+  stream?: boolean;
+}
+
 /**
  * Anthropic Provider 实现
  */
@@ -36,8 +79,8 @@ export class AnthropicProvider extends BaseProvider {
    * - assistant 带 tool_calls: text + tool_use block
    * - tool: 转换为 user 消息中的 tool_result block
    */
-  private buildAnthropicMessages(messages: Message[]): any[] {
-    const apiMessages: any[] = [];
+  private buildAnthropicMessages(messages: Message[]): AnthropicMessage[] {
+    const apiMessages: AnthropicMessage[] = [];
 
     for (const msg of messages) {
       if (msg.role === 'system') {
@@ -59,7 +102,7 @@ export class AnthropicProvider extends BaseProvider {
       }
 
       if (msg.role === 'assistant') {
-        const contentBlocks: any[] = [];
+        const contentBlocks: AnthropicContentBlock[] = [];
 
         if (msg.content && msg.content.trim()) {
           contentBlocks.push({
@@ -70,7 +113,7 @@ export class AnthropicProvider extends BaseProvider {
 
         if (msg.tool_calls && msg.tool_calls.length > 0) {
           for (const call of msg.tool_calls) {
-            let input: any = {};
+            let input: unknown = {};
             try {
               input = call.function.arguments
                 ? JSON.parse(call.function.arguments)
@@ -78,33 +121,34 @@ export class AnthropicProvider extends BaseProvider {
             } catch {
               input = { _raw: call.function.arguments };
             }
-            contentBlocks.push({
+            const block: AnthropicToolUseBlock = {
               type: 'tool_use',
               id: call.id,
               name: call.function.name,
               input,
-            });
+            };
+            contentBlocks.push(block);
           }
         }
 
         if (contentBlocks.length > 0) {
-          apiMessages.push({
+        const assistantMsg: AnthropicMessage = {
             role: 'assistant',
             content: contentBlocks,
-          });
+        };
+        apiMessages.push(assistantMsg);
         }
         continue;
       }
 
       if (msg.role === 'tool') {
         // 将工具结果转换为 user 消息中的 tool_result block
-        apiMessages.push({
+        const toolResult: AnthropicMessage = {
           role: 'user',
           content: [
             {
               type: 'tool_result',
               tool_use_id: msg.tool_call_id || 'tool_call',
-              name: msg.name || 'tool',
               content: [
                 {
                   type: 'text',
@@ -113,7 +157,8 @@ export class AnthropicProvider extends BaseProvider {
               ],
             },
           ],
-        });
+        };
+        apiMessages.push(toolResult);
       }
     }
 
@@ -181,7 +226,7 @@ export class AnthropicProvider extends BaseProvider {
     const apiMessages = this.buildAnthropicMessages(messages);
 
     // 构建请求体
-    const requestBody: any = {
+    const requestBody: AnthropicMessagesRequest = {
       model: this.config.model,
       messages: apiMessages,
       system: this.systemPrompt,
@@ -209,14 +254,16 @@ export class AnthropicProvider extends BaseProvider {
       throw error;
     }
 
-    const data = response.data;
+    const data = response.data as { content: AnthropicContentBlock[] };
 
     // 检查是否有工具调用
-    const toolUseBlocks = data.content.filter((block: any) => block.type === 'tool_use');
+    const toolUseBlocks = data.content.filter(
+      (block): block is AnthropicToolUseBlock => block.type === 'tool_use'
+    );
     
     if (toolUseBlocks.length > 0) {
       // 转换为 OpenAI 格式的 tool_calls
-      const tool_calls: ToolCall[] = toolUseBlocks.map((block: any) => ({
+      const tool_calls: ToolCall[] = toolUseBlocks.map((block) => ({
         id: block.id,
         type: 'function',
         function: {
@@ -233,8 +280,10 @@ export class AnthropicProvider extends BaseProvider {
     }
 
     // 文本响应
-    const textBlocks = data.content.filter((block: any) => block.type === 'text');
-    const content = textBlocks.map((block: any) => block.text).join('');
+    const textBlocks = data.content.filter(
+      (block): block is AnthropicTextBlock => block.type === 'text'
+    );
+    const content = textBlocks.map((block) => block.text).join('');
 
     return {
       type: 'text',
@@ -287,7 +336,7 @@ export class AnthropicProvider extends BaseProvider {
   private async makeRequest(messages: Message[], tools: OpenAIFunction[]): Promise<any> {
     const apiMessages = this.buildAnthropicMessages(messages);
     
-    const requestBody: any = {
+    const requestBody: AnthropicMessagesRequest = {
       model: this.config.model,
       messages: apiMessages,
       system: this.systemPrompt,

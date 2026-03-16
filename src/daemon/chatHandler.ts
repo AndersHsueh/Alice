@@ -2,7 +2,7 @@
  * Daemon 对话处理：运行 LLM 流式对话 + 工具调用循环，输出 NDJSON 流
  */
 
-import type { Message } from '../types/index.js';
+import type { Message, ModelConfig } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
 import type { ChatStreamRequest, ChatStreamEvent } from '../types/chatStream.js';
 import { configManager } from '../utils/config.js';
@@ -27,6 +27,7 @@ export async function* runChatStream(
   req: ChatStreamRequest,
   logger: DaemonLogger
 ): AsyncGenerator<ChatStreamEvent> {
+  const startedAt = Date.now();
   const config = getConfig();
   const sessionManager = getSessionManager();
 
@@ -38,7 +39,7 @@ export async function* runChatStream(
     session = await sessionManager.createSession(req.workspace);
   }
 
-  let modelConfig = configManager.getDefaultModel();
+  let modelConfig: ModelConfig | undefined = configManager.getDefaultModel();
   if (req.model) {
     const selected = config.models.find((m) => m.name === req.model);
     if (selected) modelConfig = selected;
@@ -152,21 +153,39 @@ export async function* runChatStream(
       caption: updatedCaption,
       updatedAt: new Date(),
     });
+    const durationMs = Date.now() - startedAt;
+    logger.info('Chat stream 完成', {
+      sessionId: session.id,
+      modelName: modelConfig.name,
+      model: modelConfig.model,
+      provider: modelConfig.provider,
+      durationMs,
+      workspace: session.workspace,
+      messageLength: req.message.length,
+    });
     const messages = finalMessages.map((m) => serializeMessage(m));
     yield { type: 'done' as const, sessionId: session.id, messages };
   } catch (error: unknown) {
     const msg = getErrorMessage(error);
     const lower = msg.toLowerCase();
     // 对于 HTTP 客户端连接被中止的情况（Error: aborted），降级为警告日志，避免看起来像系统崩溃
+    const commonMeta = {
+      sessionId: session.id,
+      modelName: modelConfig.name,
+      model: modelConfig.model,
+      provider: modelConfig.provider,
+      workspace: session.workspace,
+    };
+
     if (lower.includes('aborted')) {
-      logger.warn('Chat stream 中止（连接已关闭）', msg);
+      logger.warn('Chat stream 中止（连接已关闭）', msg, commonMeta);
       if (error instanceof Error && error.stack) {
-        logger.warn('堆栈', error.stack);
+        logger.warn('堆栈', error.stack, commonMeta);
       }
     } else {
-      logger.error('Chat stream 错误', msg);
+      logger.error('Chat stream 错误', msg, commonMeta);
       if (error instanceof Error && error.stack) {
-        logger.error('堆栈', error.stack);
+          logger.error('堆栈', error.stack, commonMeta);
       }
     }
     toolRecordsBuffer.length = 0;

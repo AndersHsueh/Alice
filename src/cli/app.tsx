@@ -75,8 +75,11 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
     setQuestionDialogCallback(showQuestionDialog);
   }, []);
 
+  // skipBanner 时直接初始化；有 Banner 时等 Banner 完成后再初始化（避免重渲染导致 Banner 重复打印）
   useEffect(() => {
-    initializeApp();
+    if (skipBanner) {
+      initializeApp();
+    }
   }, []);
 
   useEffect(() => {
@@ -424,7 +427,7 @@ export const App: React.FC<AppProps> = ({ skipBanner = false, cliOptions = {} })
   }
 
   if (showBanner) {
-    return <Banner onComplete={() => setShowBanner(false)} />;
+    return <Banner onComplete={() => { setShowBanner(false); initializeApp(); }} />;
   }
 
   const config = appConfig ?? configManager.get();

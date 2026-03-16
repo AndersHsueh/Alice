@@ -426,6 +426,7 @@ export class DaemonRoutes {
    * POST /chat-stream - 流式对话，请求体 JSON，响应 NDJSON 流
    */
   private async handleChatStream(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const startedAt = Date.now();
     let body: string;
     try {
       body = await readBody(req);
@@ -454,7 +455,13 @@ export class DaemonRoutes {
     });
     res.flushHeaders?.();
 
-    this.logger.info(`POST /chat-stream - 会话: ${payload.sessionId || 'new'}, 消息: "${payload.message.substring(0, 50)}${payload.message.length > 50 ? '...' : ''}"`);
+    this.logger.info('POST /chat-stream', {
+      sessionId: payload.sessionId || 'new',
+      model: payload.model || getConfig().default_model,
+      workspace: payload.workspace,
+      messagePreview: payload.message.substring(0, 50),
+      messageLength: payload.message.length,
+    });
 
     try {
       for await (const event of runChatStream(payload, this.logger)) {
@@ -469,10 +476,10 @@ export class DaemonRoutes {
       if (lower.includes('aborted')) {
         // 对端中止（如 LLM 服务或上游客户端关闭连接）：视为流式请求被取消，而非服务内部错误
         const friendly = 'LLM 流式请求已中断：连接被关闭或请求被取消。';
-        this.logger.warn('Chat stream 中止', msg);
+        this.logger.warn('Chat stream 中止', msg, { durationMs: Date.now() - startedAt });
         res.write(JSON.stringify({ type: 'error', message: friendly, raw: msg }) + '\n');
       } else {
-        this.logger.error('Chat stream 错误', msg);
+        this.logger.error('Chat stream 错误', msg, { durationMs: Date.now() - startedAt });
         res.write(JSON.stringify({ type: 'error', message: msg }) + '\n');
       }
     } finally {

@@ -9,18 +9,60 @@ import type { Message, ProviderSpecificConfig } from '../../types/index.js';
 import type { OpenAIFunction, ToolCall } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
 
+interface GeminiSafetySetting {
+  category: string;
+  threshold: string;
+}
+
+interface GeminiTextPart {
+  text: string;
+}
+
+interface GeminiFunctionCall {
+  name: string;
+  args: Record<string, unknown>;
+}
+
+interface GeminiFunctionCallPart {
+  functionCall: GeminiFunctionCall;
+}
+
+interface GeminiFunctionResponsePart {
+  functionResponse: {
+    name: string;
+    response: {
+      content: unknown;
+    };
+  };
+}
+
+type GeminiPart = GeminiTextPart | GeminiFunctionCallPart | GeminiFunctionResponsePart;
+
+type GeminiRole = 'user' | 'model' | 'function';
+
+interface GeminiContent {
+  role: GeminiRole;
+  parts: GeminiPart[];
+}
+
+interface GeminiFunctionDeclaration {
+  name: string;
+  description?: string;
+  parameters?: unknown;
+}
+
 /**
  * Google Gemini Provider 实现
  */
 export class GoogleProvider extends BaseProvider {
-  private safetySettings?: any[];
+  private safetySettings?: GeminiSafetySetting[];
 
   constructor(config: ProviderConfig & { providerConfig?: ProviderSpecificConfig }, systemPrompt: string) {
     super(config, systemPrompt);
     
     // 从 providerConfig 读取特有配置
     const googleConfig = config.providerConfig?.google;
-    this.safetySettings = googleConfig?.safetySettings;
+    this.safetySettings = googleConfig?.safetySettings as GeminiSafetySetting[] | undefined;
   }
 
   async chat(messages: Message[]): Promise<string> {
@@ -47,9 +89,9 @@ export class GoogleProvider extends BaseProvider {
       }
     );
 
-    const candidate = response.data.candidates?.[0];
+    const candidate = response.data.candidates?.[0] as { content?: { parts?: GeminiPart[] } } | undefined;
     const text = candidate?.content?.parts
-      ?.map((part: any) => part.text)
+      ?.map((part) => (part as GeminiTextPart).text ?? '')
       .join('') || '';
 
     return text;
@@ -80,16 +122,18 @@ export class GoogleProvider extends BaseProvider {
       }
     );
 
-    for await (const chunk of response.data) {
+    for await (const chunk of response.data as AsyncIterable<Buffer>) {
       const lines = chunk.toString().split('\n').filter((line: string) => line.trim());
       
       for (const line of lines) {
         try {
-          const parsed = JSON.parse(line);
-          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+          const parsed = JSON.parse(line) as {
+            candidates?: Array<{ content?: { parts?: GeminiPart[] } }>;
+          };
+          const text = parsed.candidates?.[0]?.content?.parts?.[0] as GeminiTextPart | undefined;
           
-          if (text) {
-            yield text;
+          if (text?.text) {
+            yield text.text;
           }
         } catch (error) {
           // 忽略解析错误
@@ -124,15 +168,17 @@ export class GoogleProvider extends BaseProvider {
       }
     );
 
-    const candidate = response.data.candidates?.[0];
-    const parts = candidate?.content?.parts || [];
+    const candidate = response.data.candidates?.[0] as { content?: { parts?: GeminiPart[] } } | undefined;
+    const parts = candidate?.content?.parts ?? [];
 
     // 检查是否有函数调用
-    const functionCalls = parts.filter((part: any) => part.functionCall);
+    const functionCalls = parts.filter(
+      (part): part is GeminiFunctionCallPart => 'functionCall' in part
+    );
 
     if (functionCalls.length > 0) {
       // 转换为 OpenAI 格式
-      const tool_calls: ToolCall[] = functionCalls.map((part: any, index: number) => ({
+      const tool_calls: ToolCall[] = functionCalls.map((part, index: number) => ({
         id: `call_${Date.now()}_${index}`,
         type: 'function',
         function: {
@@ -150,8 +196,8 @@ export class GoogleProvider extends BaseProvider {
 
     // 文本响应
     const text = parts
-      .filter((part: any) => part.text)
-      .map((part: any) => part.text)
+      .filter((part): part is GeminiTextPart => 'text' in part)
+      .map((part) => part.text)
       .join('');
 
     return {
@@ -201,13 +247,13 @@ export class GoogleProvider extends BaseProvider {
   /**
    * 转换消息为 Gemini 格式
    */
-  private convertToGeminiFormat(messages: Message[]): any[] {
+  private convertToGeminiFormat(messages: Message[]): GeminiContent[] {
     return messages
       .filter(msg => msg.role !== 'system') // system 单独处理
       .map(msg => {
         if (msg.role === 'tool') {
           // 工具结果
-          return {
+          const content: GeminiContent = {
             role: 'function',
             parts: [{
               functionResponse: {
@@ -218,9 +264,10 @@ export class GoogleProvider extends BaseProvider {
               }
             }]
           };
+          return content;
         } else if (msg.tool_calls) {
           // 工具调用
-          return {
+          const content: GeminiContent = {
             role: 'model',
             parts: msg.tool_calls.map(call => ({
               functionCall: {
@@ -229,12 +276,14 @@ export class GoogleProvider extends BaseProvider {
               }
             }))
           };
+          return content;
         } else {
           // 普通消息
-          return {
+          const content: GeminiContent = {
             role: msg.role === 'assistant' ? 'model' : 'user',
             parts: [{ text: msg.content }]
           };
+          return content;
         }
       });
   }
@@ -242,8 +291,8 @@ export class GoogleProvider extends BaseProvider {
   /**
    * 转换工具为 Gemini 格式
    */
-  private convertToolsToGeminiFormat(tools: OpenAIFunction[]): any[] {
-    return tools.map(tool => ({
+  private convertToolsToGeminiFormat(tools: OpenAIFunction[]): GeminiFunctionDeclaration[] {
+    return tools.map((tool) => ({
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters

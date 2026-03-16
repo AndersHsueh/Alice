@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Box } from 'ink';
 import { Header } from './Header.js';
 import { ChatArea } from './ChatArea.js';
@@ -91,6 +91,8 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
   onInputChange,
 }) => {
   const inputDisabled = isProcessing || !!confirmDialog || !!questionDialog;
+  // 每次 slash 命令选中后自增，强制 InputBox remount 以清空内部状态
+  const [inputKey, setInputKey] = useState(0);
 
   // Slash 命令候选，用于判断是否需要拦截输入框的提交/历史键
   const normalizedQuery = (slashQuery ?? '').toLowerCase();
@@ -171,7 +173,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
         <SlashMenu
           query={slashQuery}
           commands={slashCandidates}
-          onSelect={(cmd) => onSlashSelect?.(cmd.name)}
+          onSelect={(cmd) => { setInputKey(k => k + 1); onSlashSelect?.(cmd.name); }}
           onCancel={() => onSlashCancel?.()}
         />
       )}
@@ -202,6 +204,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
 
       {/* 输入框 */}
       <InputBox
+        key={inputKey}
         onSubmit={onSubmit}
         disabled={inputDisabled}
         onHistoryUp={onHistoryUp}
