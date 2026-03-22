@@ -36,7 +36,7 @@ export const modelsCommand: AliceCommand = {
         label: m.name,
         hint: m.provider + (m.speed ? `  ${m.speed.toFixed(1)}s` : '') + (m.name === config.default_model ? '  ●' : ''),
       }));
-      ctx.requestPick?.({ kind: 'model', title: 'Select active model', items });
+      await ctx.requestPick?.({ kind: 'model', title: 'Select active model', items });
       return;
     }
 
@@ -100,6 +100,6 @@ export const sessionsCommand: AliceCommand = {
   aliases: ['s'],
 
   async handler(_args, ctx) {
-    ctx.requestPick?.({ kind: 'session' });
+    await ctx.requestPick?.({ kind: 'session' });
   },
 };

@@ -1,119 +1,163 @@
 #!/usr/bin/env node
+/**
+ * Alice CLI entry point
+ * Interactive mode: renders qwen-code Ink TUI with Alice daemon backend
+ * One-shot mode (-p flag): streams directly to stdout
+ */
+
 import React from 'react';
+// @ts-ignore - ink types issue with React 19
 import { render } from 'ink';
-import { App } from './cli/app.js';
 import { parseArgs } from './utils/cliArgs.js';
 import { DaemonClient } from './utils/daemonClient.js';
 import { configManager } from './utils/config.js';
 import { getErrorMessage } from './utils/error.js';
 
-/**
- * 执行一次性对话模式（-p 参数）
- */
+// ─── One-shot prompt mode (-p flag) ─────────────────────────────────────────
+
 async function executePromptMode(prompt: string, cliOptions: any): Promise<void> {
   const daemonClient = new DaemonClient();
-
   try {
-    // 初始化配置管理器（用于读取本地配置路径）
-    await configManager.init();
-
-    // 获取配置
-    if (cliOptions.debug) {
-      process.stderr.write('[调试] 正在连接 daemon 获取配置...\n');
-    }
+    await configManager.init(cliOptions.config);
     const config = await daemonClient.getConfig();
-    if (cliOptions.debug) {
-      process.stderr.write(`[调试] 配置已获取，默认模型: ${config.default_model}\n`);
-    }
-    
-    // 切换工作空间目录（如果指定）
+
     if (cliOptions.workspace) {
-      try {
-        process.chdir(cliOptions.workspace);
-      } catch (error) {
-        console.error(`❌ 无法切换到目录: ${cliOptions.workspace}`);
+      try { process.chdir(cliOptions.workspace); } catch {
+        console.error(`Cannot cd to: ${cliOptions.workspace}`);
         process.exit(1);
       }
     }
 
-    // 创建新会话
-    if (cliOptions.debug) {
-      process.stderr.write('[调试] 正在创建会话...\n');
-    }
     const session = await daemonClient.createSession();
-    if (cliOptions.debug) {
-      process.stderr.write(`[调试] 会话已创建: ${session.id}\n`);
-    }
-
-    // 流式输出响应
-    if (cliOptions.debug) {
-      process.stderr.write(`[调试] 正在发送消息: "${prompt}"\n`);
-    }
-    let hasOutput = false;
     let toolCallCount = 0;
-    
+
     for await (const event of daemonClient.chatStream({
       sessionId: session.id,
       message: prompt,
       model: cliOptions.model || config.default_model,
       workspace: cliOptions.workspace || config.workspace,
     })) {
-      if (cliOptions.debug && event.type === 'text') {
-        process.stderr.write(`[调试] 收到文本块: ${event.content.length} 字符\n`);
-      }
       if (event.type === 'text') {
         process.stdout.write(event.content);
-        hasOutput = true;
       } else if (event.type === 'tool_call') {
         toolCallCount++;
-        // 工具调用时，在 verbose 模式下显示进度
         if (cliOptions.verbose) {
-          const status = event.record.status === 'success' ? '✓' : 
-                        event.record.status === 'error' ? '✗' : '…';
-          process.stderr.write(`\n[${status} 工具调用 #${toolCallCount}: ${event.record.toolName}]\n`);
+          const s = event.record.status === 'success' ? '✓' : event.record.status === 'error' ? '✗' : '…';
+          process.stderr.write(`\n[${s} ${event.record.toolName}]\n`);
         }
       } else if (event.type === 'done') {
-        // 对话完成
-        if (hasOutput) {
-          process.stdout.write('\n');
-        }
-        // 在 verbose 模式下显示会话信息
-        if (cliOptions.verbose && toolCallCount > 0) {
-          process.stderr.write(`\n[完成，共调用 ${toolCallCount} 个工具，会话 ID: ${session.id}]\n`);
-        }
+        process.stdout.write('\n');
+        if (cliOptions.verbose && toolCallCount > 0)
+          process.stderr.write(`\n[${toolCallCount} tool calls · session ${session.id}]\n`);
         process.exit(0);
       } else if (event.type === 'error') {
-        console.error(`\n❌ 错误: ${event.message}`);
+        console.error(`\nError: ${event.message}`);
         process.exit(1);
       }
     }
-  } catch (error: unknown) {
-    console.error(`❌ 执行失败: ${getErrorMessage(error)}`);
-    if (cliOptions.debug && error instanceof Error && error.stack) {
-      console.error(error.stack);
-    }
+  } catch (error) {
+    console.error(`Failed: ${getErrorMessage(error)}`);
     process.exit(1);
   }
 }
 
-async function main() {
-  const { options: cliOptions, shouldExit } = await parseArgs();
+// ─── Interactive TUI mode ─────────────────────────────────────────────────────
 
-  if (shouldExit) {
-    process.exit(0);
+async function startTUI(cliOptions: any): Promise<void> {
+  // Dynamic imports to avoid loading UI modules in prompt mode
+  // @ts-ignore
+  const { Config } = await import('./shim/qwen-code-core.js');
+  const { createMinimalSettings } = await import('./config/settings.js');
+  const { AppContainer } = await import('./ui/AppContainer.js');
+  const { KeypressProvider } = await import('./ui/contexts/KeypressContext.js');
+  const { SessionStatsProvider } = await import('./ui/contexts/SessionContext.js');
+  const { SettingsContext } = await import('./ui/contexts/SettingsContext.js');
+  const { VimModeProvider } = await import('./ui/contexts/VimModeContext.js');
+  const { useKittyKeyboardProtocol } = await import('./ui/hooks/useKittyKeyboardProtocol.js');
+  const { registerCleanup } = await import('./utils/cleanup.js');
+
+  await configManager.init(cliOptions.config);
+  const aliceConfig = await new DaemonClient().getConfig().catch(() => ({ default_model: '', workspace: process.cwd() }));
+
+  if (cliOptions.workspace) {
+    try { process.chdir(cliOptions.workspace); } catch {}
   }
 
-  // 如果指定了 -p/--prompt，执行一次性对话模式
+  // Create Alice Config shim
+  const config = new Config({
+    model: cliOptions.model || aliceConfig.default_model,
+    workingDir: process.cwd(),
+    targetDir: process.cwd(),
+  });
+
+  // Create minimal settings
+  const settings = createMinimalSettings();
+
+  // Create minimal initialization result (Alice skips auth - daemon handles it)
+  const initializationResult = {
+    authError: null,
+    themeError: null,
+    shouldOpenAuthDialog: false,
+    geminiMdFileCount: 0,
+  };
+
+  const version = '0.5.6';
+
+  // App wrapper using hooks inside render
+  const AppWrapper = () => {
+    const kittyProtocolStatus = useKittyKeyboardProtocol();
+    const nodeMajorVersion = parseInt(process.versions.node.split('.')[0], 10);
+    return (
+      <SettingsContext.Provider value={settings}>
+        <KeypressProvider
+          kittyProtocolEnabled={kittyProtocolStatus.enabled}
+          config={config}
+          debugKeystrokeLogging={settings.merged?.general?.debugKeystrokeLogging}
+          pasteWorkaround={process.platform === 'win32' || nodeMajorVersion < 20}
+        >
+          <SessionStatsProvider sessionId=''>
+            <VimModeProvider settings={settings}>
+              <AppContainer
+                config={config}
+                settings={settings}
+                startupWarnings={[]}
+                version={version}
+                initializationResult={initializationResult}
+              />
+            </VimModeProvider>
+          </SessionStatsProvider>
+        </KeypressProvider>
+      </SettingsContext.Provider>
+    );
+  };
+
+  // @ts-ignore - ink/React compatibility
+  const instance = render(
+    <AppWrapper />,
+    {
+      exitOnCtrlC: false,
+      isScreenReaderEnabled: false,
+    }
+  );
+
+  registerCleanup(() => instance.unmount());
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
+async function main() {
+  const { options: cliOptions, shouldExit } = await parseArgs();
+  if (shouldExit) process.exit(0);
+
   if (cliOptions.prompt) {
     await executePromptMode(cliOptions.prompt, cliOptions);
     return;
   }
 
-  // 渲染应用，传入 CLI 选项
-  render(<App skipBanner={cliOptions.skipBanner} cliOptions={cliOptions} />);
+  await startTUI(cliOptions);
 }
 
-main().catch((error) => {
-  console.error('Fatal error:', error);
+main().catch(error => {
+  console.error('Fatal:', error);
   process.exit(1);
 });

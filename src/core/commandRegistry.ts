@@ -35,7 +35,7 @@ export interface CommandContext {
   exit?: (code?: number | Error) => void;
 
   // 触发交互式 picker（model 选择、session 选择）
-  requestPick?: (req: PickRequest) => void;
+  requestPick?: (req: PickRequest) => Promise<void>;
 
   // 通知 Daemon 重读配置
   reloadDaemon?: () => void;

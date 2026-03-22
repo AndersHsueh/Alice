@@ -42,6 +42,8 @@ desktop.ini
 
 # Misc local
 QWEN.md
+GEMINI.md
+*.pen
 
 # Temporary files
 *.tmp
