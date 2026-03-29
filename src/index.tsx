@@ -75,6 +75,7 @@ async function startTUI(cliOptions: any): Promise<void> {
   const { VimModeProvider } = await import('./ui/contexts/VimModeContext.js');
   const { useKittyKeyboardProtocol } = await import('./ui/hooks/useKittyKeyboardProtocol.js');
   const { registerCleanup, runExitCleanup } = await import('./utils/cleanup.js');
+  const { initializeI18n } = await import('./i18n/index.js');
 
   await configManager.init(cliOptions.config);
   const aliceConfig = await new DaemonClient().getConfig().catch(() => ({ default_model: '', workspace: process.cwd() }));
@@ -89,6 +90,10 @@ async function startTUI(cliOptions: any): Promise<void> {
     workingDir: process.cwd(),
     targetDir: process.cwd(),
   });
+
+  // Initialize i18n (respects QWEN_CODE_LANG env var, falls back to system language)
+  const languageSetting = (process.env['QWEN_CODE_LANG'] || 'auto') as 'auto';
+  await initializeI18n(languageSetting);
 
   // Create minimal settings
   const settings = createMinimalSettings();
