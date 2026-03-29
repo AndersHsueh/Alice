@@ -2,21 +2,17 @@
  * @license
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
+ * Updated by AndersHsueh — Alice-style Claude banner
  */
 
 import type React from 'react';
 import { Box, Text } from 'ink';
-import Gradient from 'ink-gradient';
 import { shortenPath, tildeifyPath } from '@qwen-code/qwen-code-core';
 import { theme } from '../semantic-colors.js';
-import { shortAsciiLogo } from './AsciiArt.js';
-import { getAsciiArtWidth, getCachedStringWidth } from '../utils/textUtils.js';
+import { getCachedStringWidth } from '../utils/textUtils.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 
-/**
- * Auth display type for the Header component.
- * Simplified representation of authentication method shown to users.
- */
+/** Auth display type for the Header component. */
 export enum AuthDisplayType {
   QWEN_OAUTH = 'Qwen OAuth',
   CODING_PLAN = 'Coding Plan',
@@ -25,15 +21,110 @@ export enum AuthDisplayType {
 }
 
 interface HeaderProps {
-  customAsciiArt?: string; // For user-defined ASCII art
+  customAsciiArt?: string; // unused in new layout, kept for compat
   version: string;
   authDisplayType?: AuthDisplayType;
   model: string;
   workingDirectory: string;
 }
 
+import { robotArtLines } from './RobotArt.js';
+
+// ── Alice blue theme ──────────────────────────────────────────────────────────
+const ALICE_BLUE = '#00D9FF';
+const DIM_COLOR = '#808080';
+
+// ── Robot art (imported from RobotArt.ts) ─────────────────────────────────────
+const ROBOT_LINES = robotArtLines;
+
+/** Pad / truncate a string to exactly `width` visual columns. */
+function fixedWidth(s: string, width: number): string {
+  const w = getCachedStringWidth(s);
+  if (w >= width) {
+    // Truncate — rough but sufficient for banner content
+    return s.slice(0, Math.max(0, width));
+  }
+  return s + ' '.repeat(width - w);
+}
+
+/** Center a string within `width` columns. */
+function centerIn(s: string, width: number): string {
+  const w = getCachedStringWidth(s);
+  const pad = Math.max(0, width - w);
+  const lpad = Math.floor(pad / 2);
+  const rpad = pad - lpad;
+  return ' '.repeat(lpad) + s + ' '.repeat(rpad);
+}
+
+// ── Row renderer ──────────────────────────────────────────────────────────────
+
+interface RowProps {
+  /** Content for the left column (without padding). */
+  left?: string;
+  /** Content for the right column (without padding). */
+  right?: string;
+  leftWidth: number;
+  rightWidth: number;
+  /** Render the left content centered. */
+  centerLeft?: boolean;
+  /** Whether this row is a divider row (─── separator inside columns). */
+  isDivider?: boolean;
+  /** Color for the left text. */
+  leftColor?: string;
+  /** Color for the right text. */
+  rightColor?: string;
+  /** If true, render the robot art line in blue. */
+  isRobot?: boolean;
+}
+
+const Row: React.FC<RowProps> = ({
+  left = '',
+  right = '',
+  leftWidth,
+  rightWidth,
+  centerLeft = false,
+  isDivider = false,
+  leftColor,
+  rightColor,
+  isRobot = false,
+}) => {
+  const lContent = centerLeft ? centerIn(left, leftWidth) : fixedWidth(left, leftWidth);
+  const rContent = fixedWidth(right, rightWidth);
+
+  if (isDivider) {
+    // Inner divider line ─────────────────────
+    const lLine = '─'.repeat(leftWidth + 2);  // +2 for the padding spaces
+    const rLine = '─'.repeat(rightWidth + 2);
+    return (
+      <Box>
+        <Text color={ALICE_BLUE}>{'│'}</Text>
+        <Text color={ALICE_BLUE}>{lLine}</Text>
+        <Text color={ALICE_BLUE}>{'┼'}</Text>
+        <Text color={ALICE_BLUE}>{rLine}</Text>
+        <Text color={ALICE_BLUE}>{'│'}</Text>
+      </Box>
+    );
+  }
+
+  return (
+    <Box>
+      <Text color={ALICE_BLUE}>{'│'}</Text>
+      <Text color={ALICE_BLUE}>{' '}</Text>
+      {isRobot ? (
+        <Text color={ALICE_BLUE}>{lContent}</Text>
+      ) : (
+        <Text color={leftColor ?? theme.text.primary}>{lContent}</Text>
+      )}
+      <Text color={ALICE_BLUE}>{' │ '}</Text>
+      <Text color={rightColor ?? DIM_COLOR}>{rContent}</Text>
+      <Text color={ALICE_BLUE}>{' │'}</Text>
+    </Box>
+  );
+};
+
+// ── Main Header ───────────────────────────────────────────────────────────────
+
 export const Header: React.FC<HeaderProps> = ({
-  customAsciiArt,
   version,
   authDisplayType,
   model,
@@ -41,118 +132,87 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { columns: terminalWidth } = useTerminalSize();
 
-  const displayLogo = customAsciiArt ?? shortAsciiLogo;
-  const logoWidth = getAsciiArtWidth(displayLogo);
-  const formattedAuthType = authDisplayType ?? AuthDisplayType.UNKNOWN;
+  // Total usable width (leave 1 col margin each side)
+  const totalWidth = Math.max(60, Math.min(terminalWidth - 2, 120));
 
-  // Calculate available space properly:
-  // First determine if logo can be shown, then use remaining space for path
-  const containerMarginX = 2; // marginLeft + marginRight on the outer container
-  const logoGap = 2; // Gap between logo and info panel
-  const infoPanelPaddingX = 1;
-  const infoPanelBorderWidth = 2; // left + right border
-  const infoPanelChromeWidth = infoPanelBorderWidth + infoPanelPaddingX * 2;
-  const minPathLength = 40; // Minimum readable path length
-  const minInfoPanelWidth = minPathLength + infoPanelChromeWidth;
+  // Title in top border: ╭─── Alice v0.5.6 ─── ... ╮
+  const titleStr = ` Alice v${version} `;
+  const titleVis = getCachedStringWidth(titleStr);
+  const dashTotal = Math.max(0, totalWidth - 2 - 4 - titleVis); // 2 corners, 4 opening dashes
+  const dashRight = '─'.repeat(dashTotal);
+  const topBorder = `╭────${titleStr}${dashRight}╮`;
+  const bottomBorder = `╰${'─'.repeat(totalWidth - 2)}╯`;
 
-  const availableTerminalWidth = Math.max(
-    0,
-    terminalWidth - containerMarginX * 2,
-  );
+  // Column widths: 50/50 split, right col min 28
+  const innerWidth = totalWidth - 2; // minus 2 border chars
+  const leftColWidth = Math.floor(innerWidth * 0.50) - 3; // -3 for │ + 2 spaces
+  const rightColWidth = innerWidth - leftColWidth - 5; // -5 for │ sp │ sp │
 
-  // Check if we have enough space for logo + gap + minimum info panel
-  const showLogo =
-    availableTerminalWidth >= logoWidth + logoGap + minInfoPanelWidth;
+  // Left column content
+  const formattedAuth = authDisplayType ?? AuthDisplayType.UNKNOWN;
+  const modelLine = `${model} · ${formattedAuth}`;
+  const home = process.env.HOME ?? '';
+  const tildeDir = home && workingDirectory.startsWith(home)
+    ? '~' + workingDirectory.slice(home.length)
+    : tildeifyPath(workingDirectory);
+  const shortDir = shortenPath(tildeDir, leftColWidth);
 
-  // Calculate available width for info panel (use all remaining space)
-  // Cap at 60 when in two-column layout (with logo)
-  const maxInfoPanelWidth = 60;
-  const availableInfoPanelWidth = showLogo
-    ? Math.min(availableTerminalWidth - logoWidth - logoGap, maxInfoPanelWidth)
-    : availableTerminalWidth;
-
-  // Calculate max path lengths (subtract padding/borders from available space)
-  const maxPathLength = Math.max(
-    0,
-    availableInfoPanelWidth - infoPanelChromeWidth,
-  );
-
-  const infoPanelContentWidth = Math.max(
-    0,
-    availableInfoPanelWidth - infoPanelChromeWidth,
-  );
-  const authModelText = `${formattedAuthType} | ${model}`;
-  const modelHintText = ' (/model to change)';
-  const showModelHint =
-    infoPanelContentWidth > 0 &&
-    getCachedStringWidth(authModelText + modelHintText) <=
-      infoPanelContentWidth;
-
-  // Now shorten the path to fit the available space
-  const tildeifiedPath = tildeifyPath(workingDirectory);
-  const shortenedPath = shortenPath(tildeifiedPath, Math.max(3, maxPathLength));
-  const displayPath =
-    maxPathLength <= 0
-      ? ''
-      : shortenedPath.length > maxPathLength
-        ? shortenedPath.slice(0, maxPathLength)
-        : shortenedPath;
-
-  // Use theme gradient colors if available, otherwise use text colors (excluding primary)
-  const gradientColors = theme.ui.gradient || [
-    theme.text.secondary,
-    theme.text.link,
-    theme.text.accent,
+  // Right column — tips
+  const rightLines = [
+    { text: 'Tips for getting started', accent: true },
+    { text: '─'.repeat(Math.min(rightColWidth, 28)) },
+    { text: 'Type / for command popup' },
+    { text: 'Tab: autocomplete' },
+    { text: 'Shift+Tab: approval mode' },
+    { text: 'Ctrl+C: cancel / exit' },
   ];
 
-  return (
-    <Box
-      flexDirection="row"
-      alignItems="center"
-      marginX={containerMarginX}
-      width={availableTerminalWidth}
-    >
-      {/* Left side: ASCII logo (only if enough space) */}
-      {showLogo && (
-        <>
-          <Box flexShrink={0}>
-            <Gradient colors={gradientColors}>
-              <Text>{displayLogo}</Text>
-            </Gradient>
-          </Box>
-          {/* Fixed gap between logo and info panel */}
-          <Box width={logoGap} />
-        </>
-      )}
+  // Build left column rows (matched to right col length)
+  const leftLines: Array<{ text: string; robot?: boolean; center?: boolean }> = [
+    { text: '' },
+    { text: 'Welcome to ALICE!', center: true },
+    { text: '' },
+    { text: ROBOT_LINES[0], robot: true, center: true },
+    { text: ROBOT_LINES[1], robot: true, center: true },
+    { text: '' },
+    { text: modelLine },
+    { text: shortDir },
+    { text: '' },
+  ];
 
-      {/* Right side: Info panel (flexible width, max 60 in two-column layout) */}
-      <Box
-        flexDirection="column"
-        borderStyle="single"
-        borderColor={theme.border.default}
-        paddingX={infoPanelPaddingX}
-        flexGrow={showLogo ? 0 : 1}
-        width={showLogo ? availableInfoPanelWidth : undefined}
-      >
-        {/* Title line: >_ Qwen Code (v{version}) */}
-        <Text>
-          <Text bold color={theme.text.accent}>
-            &gt;_ Qwen Code
-          </Text>
-          <Text color={theme.text.secondary}> (v{version})</Text>
-        </Text>
-        {/* Empty line for spacing */}
-        <Text> </Text>
-        {/* Auth and Model line */}
-        <Text>
-          <Text color={theme.text.secondary}>{authModelText}</Text>
-          {showModelHint && (
-            <Text color={theme.text.secondary}>{modelHintText}</Text>
-          )}
-        </Text>
-        {/* Directory line */}
-        <Text color={theme.text.secondary}>{displayPath}</Text>
-      </Box>
+  // Align row count
+  const rowCount = Math.max(leftLines.length, rightLines.length);
+  while (leftLines.length < rowCount) leftLines.push({ text: '' });
+  while (rightLines.length < rowCount) rightLines.push({ text: '' });
+
+  return (
+    <Box flexDirection="column" marginX={1}>
+      {/* Top border */}
+      <Text color={ALICE_BLUE}>{topBorder}</Text>
+
+      {/* Content rows */}
+      {Array.from({ length: rowCount }).map((_, i) => {
+        const lEntry = leftLines[i] ?? { text: '' };
+        const rEntry = rightLines[i] ?? { text: '' };
+        const rText = typeof rEntry === 'string' ? rEntry : rEntry.text;
+        const rAccent = typeof rEntry === 'object' && rEntry.accent;
+        return (
+          <Row
+            key={i}
+            left={lEntry.text}
+            right={rText}
+            leftWidth={leftColWidth}
+            rightWidth={rightColWidth}
+            centerLeft={lEntry.center}
+            isRobot={lEntry.robot}
+            leftColor={lEntry.robot ? ALICE_BLUE : theme.text.primary}
+            rightColor={rAccent ? ALICE_BLUE : DIM_COLOR}
+          />
+        );
+      })}
+
+      {/* Bottom border */}
+      <Text color={ALICE_BLUE}>{bottomBorder}</Text>
     </Box>
   );
 };
