@@ -118,13 +118,13 @@ The blank line before `Co-authored-by` is **required** by Git — without it, Gi
 Always use `$'...'` shell quoting to correctly embed the blank line:
 
 ```bash
-git commit -m $'<commit message>\n\nCo-authored-by: AliceIntelligence[bot] <AliceIntelligence[bot]@users.noreply.github.com>'
+git commit -m $'<commit message>\n\nCo-authored-by: aliceintelligence[bot] <268675046+aliceintelligence[bot]@users.noreply.github.com>'
 ```
 
 For long messages, use a temp file instead:
 
 ```bash
-printf '<commit message>\n\nCo-authored-by: AliceIntelligence[bot] <AliceIntelligence[bot]@users.noreply.github.com>' | git commit -F -
+printf '<commit message>\n\nCo-authored-by: aliceintelligence[bot] <268675046+aliceintelligence[bot]@users.noreply.github.com>' | git commit -F -
 ```
 
 **Never** use `-m "...\nCo-authored-by"` with a single `\n` — that produces no blank line and GitHub will ignore the trailer entirely.

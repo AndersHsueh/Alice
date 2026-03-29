@@ -10,7 +10,7 @@
 export type ShellFlavor = 'bash' | 'powershell';
 
 export const ALICE_COAUTHOR_TRAILER =
-  'Co-authored-by: AliceIntelligence[bot] <AliceIntelligence[bot]@users.noreply.github.com>';
+  'Co-authored-by: aliceintelligence[bot] <268675046+aliceintelligence[bot]@users.noreply.github.com>';
 
 function escapeForBashAnsiCString(message: string): string {
   return `$'${message
@@ -34,7 +34,7 @@ function encodeCommitMessage(message: string, shellFlavor: ShellFlavor): string 
 }
 
 function appendTrailer(message: string): string {
-  if (/Co-authored-by:\s*AliceIntelligence\[bot\]/i.test(message)) {
+  if (/Co-authored-by:\s*aliceintelligence\[bot\]/i.test(message)) {
     return message;
   }
   const trimmed = message.replace(/\s+$/g, '');
@@ -63,7 +63,7 @@ export function injectAliceCoAuthorTrailer(
     return command;
   }
 
-  if (/Co-authored-by:\s*AliceIntelligence\[bot\]/i.test(command)) {
+  if (/Co-authored-by:\s*aliceintelligence\[bot\]/i.test(command)) {
     return command;
   }
 
