@@ -139,6 +139,22 @@ const useResultDisplayRenderer = (
       return { type: 'ansi', data: resultDisplay.ansiOutput as AnsiOutput };
     }
 
+    // Render any unrecognized plain object as formatted JSON instead of
+    // letting React coerce it to "[object Object]".
+    if (typeof resultDisplay === 'object' && resultDisplay !== null) {
+      try {
+        return {
+          type: 'string',
+          data: JSON.stringify(resultDisplay, null, 2),
+        };
+      } catch {
+        return {
+          type: 'string',
+          data: String(resultDisplay),
+        };
+      }
+    }
+
     // Default to string
     return {
       type: 'string',

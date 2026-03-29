@@ -23,6 +23,7 @@ import type { UseHistoryManagerReturn } from '../../ui/hooks/useHistoryManager.j
 import { DaemonClient } from '../../utils/daemonClient.js';
 import type { ChatStreamEvent } from '../../types/chatStream.js';
 import type { ToolCallRecord } from '../../types/tool.js';
+import type { SlashCommandProcessorResult } from '../../ui/types.js';
 
 // ─── Tool call tracking ───────────────────────────────────────────────────────
 
@@ -31,7 +32,57 @@ interface TrackedToolCall {
   toolName: string;
   status: ToolCallStatus;
   args?: Record<string, unknown>;
-  resultDisplay?: any;
+  resultDisplay?: string;
+}
+
+function formatToolResult(record: ToolCallRecord): string | undefined {
+  const result = record.result;
+  if (!result) {
+    return undefined;
+  }
+
+  const parts: string[] = [];
+
+  if (result.status) {
+    parts.push(result.status);
+  }
+
+  if (result.error) {
+    parts.push(`Error: ${result.error}`);
+  }
+
+  if (result.data !== undefined) {
+    if (typeof result.data === 'string') {
+      parts.push(result.data);
+    } else {
+      try {
+        parts.push(JSON.stringify(result.data, null, 2));
+      } catch {
+        parts.push(String(result.data));
+      }
+    }
+  }
+
+  if (parts.length === 0) {
+    try {
+      return JSON.stringify(result, null, 2);
+    } catch {
+      return String(result);
+    }
+  }
+
+  return parts.join('\n\n');
+}
+
+function isSlashCommandQuery(input: string): boolean {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (trimmed.startsWith('//') || trimmed.startsWith('/*')) {
+    return false;
+  }
+  return trimmed.startsWith('/') || trimmed.startsWith('?');
 }
 
 // ─── Main hook ────────────────────────────────────────────────────────────────
@@ -87,6 +138,23 @@ export const useAliceStream = (
 
     if (streamingState === StreamingState.Responding) return;
 
+    if (isSlashCommandQuery(prompt)) {
+      const slashResult = await _handleSlashCommand(
+        prompt.trim(),
+      ) as SlashCommandProcessorResult | false;
+
+      if (slashResult) {
+        if (slashResult.type === 'submit_prompt') {
+          await submitQuery(
+            typeof slashResult.content === 'string'
+              ? slashResult.content
+              : String(slashResult.content),
+          );
+        }
+        return;
+      }
+    }
+
     lastPromptRef.current = prompt;
     setUserMessages(prev => [...prev, prompt]);
 
@@ -130,7 +198,7 @@ export const useAliceStream = (
     } finally {
       setStreamingState(StreamingState.Idle);
     }
-  }, [streamingState, config, addItem]);
+  }, [streamingState, config, addItem, _handleSlashCommand]);
 
   // ── Stream event handler ──────────────────────────────────────────────────
   const handleStreamEvent = useCallback(async (
@@ -180,7 +248,7 @@ export const useAliceStream = (
       name: record.toolName,
       description: `${record.toolName}(${JSON.stringify(record.params || {}).slice(0, 100)})`,
       status,
-      resultDisplay: record.result ? String(record.result) : undefined,
+      resultDisplay: formatToolResult(record),
       confirmationDetails: undefined,
       renderOutputAsMarkdown: false,
     };
@@ -192,7 +260,7 @@ export const useAliceStream = (
         toolName: record.toolName,
         status,
         args: record.params,
-        resultDisplay: record.result,
+        resultDisplay: formatToolResult(record),
       };
       if (existingIdx >= 0) {
         const arr = [...prev];
