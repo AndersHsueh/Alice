@@ -6,6 +6,8 @@
 import { spawn } from 'child_process';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
+import { injectAliceCoAuthorTrailer, type ShellFlavor } from '../../utils/gitCoAuthor.js';
+import { configManager } from '../../utils/config.js';
 
 /**
  * 危险命令模式（跨平台）
@@ -57,6 +59,9 @@ export const executeCommandTool: AliceTool = {
     const cwd = params.cwd ?? context?.workspace ?? process.cwd();
 
     try {
+      const gitCoAuthorEnabled =
+        (configManager.get() as { gitCoAuthor?: boolean }).gitCoAuthor !== false;
+
       onUpdate?.({
         success: true,
         status: `准备执行命令: ${command}`,
@@ -66,7 +71,15 @@ export const executeCommandTool: AliceTool = {
       // 根据平台选择 shell
       const isWindows = process.platform === 'win32';
       const shell = isWindows ? 'powershell.exe' : '/bin/bash';
-      const shellArgs = isWindows ? ['-Command', command] : ['-c', command];
+      const shellFlavor: ShellFlavor = isWindows ? 'powershell' : 'bash';
+      const commandToExecute = injectAliceCoAuthorTrailer(
+        command,
+        shellFlavor,
+        gitCoAuthorEnabled,
+      );
+      const shellArgs = isWindows
+        ? ['-Command', commandToExecute]
+        : ['-c', commandToExecute];
 
       return new Promise((resolve) => {
         const proc = spawn(shell, shellArgs, {
@@ -118,6 +131,7 @@ export const executeCommandTool: AliceTool = {
               success: true,
               data: {
                 command,
+                executedCommand: commandToExecute,
                 stdout: stdout.trim(),
                 stderr: stderr.trim(),
                 exitCode: code,
@@ -130,6 +144,7 @@ export const executeCommandTool: AliceTool = {
               error: `命令执行失败 (退出码: ${code})`,
               data: {
                 command,
+                executedCommand: commandToExecute,
                 stdout: stdout.trim(),
                 stderr: stderr.trim(),
                 exitCode: code
