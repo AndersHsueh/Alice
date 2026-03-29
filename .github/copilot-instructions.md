@@ -63,7 +63,11 @@ alice (TUI)
                  ├─ LLMClient (core/llm.ts)
                  │    └─ ProviderFactory → BaseProvider (openai-compatible / anthropic / google / mistral)
                  ├─ ToolRegistry + ToolExecutor (tools/)
-                 └─ SessionManager (core/session.ts)
+                 ├─ SessionManager (core/session.ts)
+                 ├─ MCPManager (core/mcp.ts)        ← MCP 工具桥接
+                 ├─ SkillManager (core/skillManager.ts) ← 三阶段技能加载
+                 ├─ TaskRunner (daemon/taskRunner.ts)   ← Cron 心跳任务
+                 └─ Gateway (daemon/gateway/)           ← Feishu 等外部通道
 ```
 
 **关键边界**：
@@ -72,12 +76,13 @@ alice (TUI)
 
 ## 配置系统
 
-| 文件 | 负责内容 |
-|------|----------|
-| `~/.alice/settings.jsonc` | 模型、UI、工作区、键绑定（由 `utils/config.ts` 管理） |
-| `~/.alice/daemon_settings.jsonc` | Daemon 通信方式、socket 路径、心跳、日志（由 `daemon/config.ts` 管理） |
+| 文件 | 负责内容 | 管理模块 |
+|------|----------|----------|
+| `~/.alice/settings.jsonc` | 模型、UI、工作区、键绑定 | `utils/config.ts` |
+| `~/.alice/daemon_settings.jsonc` | Daemon 通信方式、socket 路径、心跳、日志 | `daemon/config.ts` |
+| `~/.alice/mcp_settings.jsonc` | MCP 服务器列表（最多 3 个生效） | `utils/mcpConfig.ts` |
 
-两个配置文件职责分离，不重叠。
+三个配置文件职责完全分离，不重叠。
 
 ## Provider 系统
 
@@ -89,7 +94,7 @@ alice (TUI)
 - `chatStreamWithTools()` — 带工具的流式对话
 - `testConnection()` — 连接测速
 
-`LLMClient`（`core/llm.ts`）在主 Provider 失败时自动降级到 `suggest_model`。
+`LLMClient`（`core/llm.ts`）在主 Provider 失败时自动降级到 `suggest_model`，并通过 `ToolLoopDetector` 防止工具调用死循环。
 
 ## 工具系统
 
@@ -98,7 +103,24 @@ alice (TUI)
 - `ToolRegistry`（`tools/registry.ts`）：注册、别名管理、参数 JSON Schema 验证（使用 ajv）、转换为 OpenAI function 格式。
 - `ToolExecutor`（`tools/executor.ts`）：执行工具调用，通过 `eventBus` 发出 `tool:before_call` / `tool:after_call` / `tool:error` 事件，支持危险命令确认拦截。
 
-内置工具在 `src/tools/builtin/` 下，包括 `executeCommand`、`readFile`、`writeFile`、`editFile`、`searchFiles`、`listFiles`、`getGitInfo`、`todo`、`askUser` 等。
+内置工具在 `src/tools/builtin/` 下，包括 `executeCommand`、`readFile`、`writeFile`、`editFile`、`searchFiles`、`listFiles`、`getGitInfo`、`todo`、`askUser`、`sequentialThinking`、`loadSkill` 等。
+
+## MCP 集成
+
+`MCPManager`（`core/mcp.ts`）通过 `@modelcontextprotocol/sdk` 连接外部 MCP 服务器，将其工具自动注册到 `ToolRegistry`，工具名格式为 `mcp__<serverName>__<toolName>`。配置上限为 3 个服务器（`mcp_settings.jsonc`）。
+
+## Skills 技能系统
+
+`SkillManager`（`core/skillManager.ts`）实现三阶段渐进式加载：
+
+1. **Discovery**：启动时扫描 `~/.agents/skills/`，仅提取 YAML frontmatter（name + description）注入 system prompt。
+2. **Instruction**：LLM 通过 `loadSkill` 工具按需加载完整 `SKILL.md`。
+3. **Resource**：技能附带文件通过 `readFile` / `executeCommand` 访问。
+
+## Daemon 网关与 Cron 任务
+
+- **Gateway**（`daemon/gateway/`）：Feishu WebSocket 长连接，将飞书消息路由到 daemon chatHandler。适配器模式，支持多通道扩展。
+- **TaskRunner**（`daemon/taskRunner.ts`）：心跳驱动的 Cron 任务执行，基于 workspace profile（`cronWorkspace.ts`）中的 `maintenanceTasks` 配置。降级时发通知并进程内去重。
 
 ## 斜杠命令系统
 
@@ -144,6 +166,19 @@ const __dirname = dirname(__filename);
 
 - React 组件使用 `.tsx`，逻辑文件使用 `.ts`。
 - 所有导出函数/类应有 JSDoc，注释优先使用中文。
+
+### 排除编译的目录
+
+`tsconfig.json` 排除了以下目录（不参与构建）：
+
+- `src/acp-integration/` — ACP 协议集成（实验性）
+- `src/nonInteractive/` — 非交互模式（实验性）
+
+如需启用需手动修改 `tsconfig.json`。
+
+### Shim 目录
+
+`src/shim/` 提供外部包的 stub/替换实现（如 `google-genai.ts`、`qwen-code-core.ts`），通过 `tsconfig.json` 的 `paths` 别名生效，避免引入未集成的重型依赖。
 
 ## 视觉主题
 

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createDebugLogger } from '@qwen-code/qwen-code-core';
+import { createDebugLogger } from '../../shim/qwen-code-core.js';
 import type { SettingsMigration, MigrationResult } from './types.js';
 
 const debugLogger = createDebugLogger('SETTINGS_MIGRATION');

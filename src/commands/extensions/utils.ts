@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ExtensionManager, type Extension } from '@qwen-code/qwen-code-core';
+import { ExtensionManager, type Extension } from '../../shim/qwen-code-core.js';
 import { loadSettings } from '../../config/settings.js';
 import {
   requestConsentOrFail,

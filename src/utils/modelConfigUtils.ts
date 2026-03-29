@@ -11,7 +11,7 @@ import {
   resolveModelConfig,
   type ModelConfigSourcesInput,
   type ProviderModelConfig,
-} from '@qwen-code/qwen-code-core';
+} from '../shim/qwen-code-core.js';
 import type { Settings } from '../config/settings.js';
 
 export interface CliGenerationConfigInputs {

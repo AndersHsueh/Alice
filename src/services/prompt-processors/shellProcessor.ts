@@ -12,8 +12,8 @@ import {
   getShellConfiguration,
   ShellExecutionService,
   flatMapTextParts,
-} from '@qwen-code/qwen-code-core';
-import type { AnyToolInvocation } from '@qwen-code/qwen-code-core';
+} from '../../shim/qwen-code-core.js';
+import type { AnyToolInvocation } from '../../shim/qwen-code-core.js';
 
 import type { CommandContext } from '../../ui/commands/types.js';
 import type { IPromptProcessor, PromptPipelineContent } from './types.js';

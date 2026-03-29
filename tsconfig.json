@@ -31,7 +31,9 @@
     "dist",
     "src/acp-integration/**/*",
     "src/nonInteractive/**/*",
-    "src/ui/hooks/useGeminiStream.ts",
-    "src/ui/hooks/useGeminiStream.test.tsx"
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/ui/hooks/useGeminiStream.test.tsx",
+    "src/commands/extensions/examples/**/*"
   ]
 }

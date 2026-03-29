@@ -13,13 +13,13 @@ import type {
   ToolCallResponseInfo,
   SessionMetrics,
   McpToolProgressData,
-} from '@qwen-code/qwen-code-core';
+} from '../shim/qwen-code-core.js';
 import {
   OutputFormat,
   ToolErrorType,
   createDebugLogger,
   getMCPServerStatus,
-} from '@qwen-code/qwen-code-core';
+} from '../shim/qwen-code-core.js';
 import type { Part, PartListUnion } from '@google/genai';
 import type {
   CLIUserMessage,

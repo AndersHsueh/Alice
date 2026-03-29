@@ -9,7 +9,7 @@ import {
   type Config,
   type ModelProvidersConfig,
   type ProviderModelConfig,
-} from '@qwen-code/qwen-code-core';
+} from '../shim/qwen-code-core.js';
 import { loadEnvironment, loadSettings, type Settings } from './settings.js';
 import { t } from '../i18n/index.js';
 
@@ -216,6 +216,12 @@ export function validateAuthMethod(
     }
 
     process.env['GOOGLE_GENAI_USE_VERTEXAI'] = 'true';
+    return null;
+  }
+
+  // Alice daemon: generic API_KEY or unrecognized auth types pass through.
+  // The daemon handles actual authentication; the TUI doesn't need to validate it.
+  if (authMethod === AuthType.API_KEY || authMethod) {
     return null;
   }
 

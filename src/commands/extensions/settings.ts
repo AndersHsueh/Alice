@@ -11,7 +11,7 @@ import {
   getScopedEnvContents,
   promptForSetting,
   updateSetting,
-} from '@qwen-code/qwen-code-core';
+} from '../../shim/qwen-code-core.js';
 import { t } from '../../i18n/index.js';
 import { writeStdoutLine } from '../../utils/stdioHelpers.js';
 

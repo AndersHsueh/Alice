@@ -131,8 +131,6 @@ export interface UIState {
   isMcpDialogOpen: boolean;
   // Feedback dialog
   isFeedbackDialogOpen: boolean;
-  // Focus state
-  isFocused?: boolean;
 }
 
 export const UIStateContext = createContext<UIState | null>(null);

@@ -4,7 +4,7 @@ import type {
   ExtensionRequestOptions,
   SkillConfig,
   SubagentConfig,
-} from '@qwen-code/qwen-code-core';
+} from '../../shim/qwen-code-core.js';
 import type { ConfirmationRequest } from '../../ui/types.js';
 import chalk from 'chalk';
 import prompts from 'prompts';

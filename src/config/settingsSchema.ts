@@ -11,12 +11,12 @@ import type {
   AuthType,
   ChatCompressionSettings,
   ModelProvidersConfig,
-} from '@qwen-code/qwen-code-core';
+} from '../shim/qwen-code-core.js';
 import {
   ApprovalMode,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES,
   DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD,
-} from '@qwen-code/qwen-code-core';
+} from '../shim/qwen-code-core.js';
 import type { CustomTheme } from '../ui/themes/theme.js';
 import { getLanguageSettingsOptions } from '../i18n/languages.js';
 

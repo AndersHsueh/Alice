@@ -5,7 +5,7 @@
  */
 
 import type { CommandModule } from 'yargs';
-import { createDebugLogger, getErrorMessage } from '@qwen-code/qwen-code-core';
+import { createDebugLogger, getErrorMessage } from '../../shim/qwen-code-core.js';
 import { loadSettings, SettingScope } from '../../config/settings.js';
 
 const debugLogger = createDebugLogger('HOOKS_DISABLE');

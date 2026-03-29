@@ -74,7 +74,7 @@ async function startTUI(cliOptions: any): Promise<void> {
   const { SettingsContext } = await import('./ui/contexts/SettingsContext.js');
   const { VimModeProvider } = await import('./ui/contexts/VimModeContext.js');
   const { useKittyKeyboardProtocol } = await import('./ui/hooks/useKittyKeyboardProtocol.js');
-  const { registerCleanup } = await import('./utils/cleanup.js');
+  const { registerCleanup, runExitCleanup } = await import('./utils/cleanup.js');
 
   await configManager.init(cliOptions.config);
   const aliceConfig = await new DaemonClient().getConfig().catch(() => ({ default_model: '', workspace: process.cwd() }));
@@ -141,6 +141,12 @@ async function startTUI(cliOptions: any): Promise<void> {
   );
 
   registerCleanup(() => instance.unmount());
+
+  // 进程级 SIGINT 兜底：即使 TUI 内部 handleExit 链路异常，也能保证 Ctrl+C 退出
+  process.once('SIGINT', async () => {
+    try { await runExitCleanup(); } catch {}
+    process.exit(0);
+  });
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────

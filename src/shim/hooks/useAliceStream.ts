@@ -9,7 +9,7 @@ import { useState, useRef, useCallback, useMemo } from 'react';
 import type {
   ThoughtSummary,
   Config,
-} from '@qwen-code/qwen-code-core';
+} from '../qwen-code-core.js';
 import {
   StreamingState,
   MessageType,

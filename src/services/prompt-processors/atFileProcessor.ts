@@ -8,7 +8,7 @@ import {
   flatMapTextParts,
   readPathFromWorkspace,
   createDebugLogger,
-} from '@qwen-code/qwen-code-core';
+} from '../../shim/qwen-code-core.js';
 import type { CommandContext } from '../../ui/commands/types.js';
 import { MessageType } from '../../ui/types.js';
 import {

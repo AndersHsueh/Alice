@@ -30,7 +30,7 @@ import {
   NativeLspClient,
   createDebugLogger,
   NativeLspService,
-} from '@qwen-code/qwen-code-core';
+} from '../shim/qwen-code-core.js';
 import { extensionsCommand } from '../commands/extensions.js';
 import { hooksCommand } from '../commands/hooks.js';
 import type { Settings } from './settings.js';

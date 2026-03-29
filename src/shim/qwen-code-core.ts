@@ -3,6 +3,10 @@
  * Provides type stubs and no-op implementations for Alice's daemon-based backend.
  */
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+export const QWEN_DIR = '.alice';
+
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
 export enum ApprovalMode {
@@ -196,7 +200,9 @@ export type ServerGeminiStreamEvent =
 
 // ─── Telemetry events (no-op stubs) ─────────────────────────────────────────
 
-export type UserPromptEvent = Record<string, unknown>;
+export class UserPromptEvent {
+  constructor(public promptLength: number, public promptId: string, public authType?: any) {}
+}
 export type UserRetryEvent = Record<string, unknown>;
 export type ConversationFinishedEvent = Record<string, unknown>;
 export type ApiCancelEvent = Record<string, unknown>;
@@ -220,23 +226,55 @@ export interface ToolCallStats {
 }
 
 export interface SessionMetrics {
-  totalInputTokens: number;
-  totalOutputTokens: number;
-  totalCost: number;
-  toolCallStats: ToolCallStats[];
+  // legacy fields
+  totalInputTokens?: number;
+  totalOutputTokens?: number;
+  totalCost?: number;
+  toolCallStats?: ToolCallStats[];
+  // new fields (qwen-code TUI)
+  models: Record<string, ModelMetrics>;
+  tools: {
+    totalCalls: number;
+    totalSuccess: number;
+    totalFail: number;
+    totalDurationMs: number;
+    totalDecisions: Record<string, number>;
+    byName: Record<string, ToolCallStats>;
+  };
+  files: {
+    totalLinesAdded: number;
+    totalLinesRemoved: number;
+  };
 }
 
 export interface ModelMetrics {
-  model: string;
-  inputTokens: number;
-  outputTokens: number;
+  // legacy fields
+  model?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  // new fields (qwen-code TUI)
+  api: {
+    totalRequests: number;
+    totalErrors: number;
+    totalLatencyMs: number;
+  };
+  tokens: {
+    prompt: number;
+    candidates: number;
+    total: number;
+    cached: number;
+    thoughts: number;
+    tool: number;
+  };
 }
 
-export interface KittySequenceOverflowEvent {
-  message: string;
+export class KittySequenceOverflowEvent {
+  length: number;
+  buffer: string;
+  constructor(length: number, buffer: string) { this.length = length; this.buffer = buffer; }
 }
 
-export function logKittySequenceOverflow(_event: KittySequenceOverflowEvent): void {}
+export function logKittySequenceOverflow(_config: any, _event: KittySequenceOverflowEvent): void {}
 
 export interface ProjectSummaryInfo {
   summary?: string;
@@ -396,6 +434,45 @@ export class Config {
   async initialize(): Promise<void> {}
 
   get storage(): Storage { return new Storage(); }
+
+  // Additional methods needed by the new TUI
+  getAccessibility(): { enableLoadingPhrases?: boolean } { return {}; }
+  getAvailableModelsForAuthType(_authType?: any): any[] { return []; }
+  getChatRecordingService(): any { return null; }
+  getCliVersion(): string { return '0.0.0'; }
+  getExcludedMcpServers(): string[] { return []; }
+  getFileFilteringOptions(): any { return {}; }
+  getFolderTrust(): any { return null; }
+  getHookSystem(): any { return null; }
+  getOutputFormat(): any { return 'text'; }
+  getPromptRegistry(): any { return null; }
+  getSessionService(): any { return null; }
+  getShellExecutionConfig(): any { return {}; }
+  getShouldUseNodePtyShell(): boolean { return false; }
+  getSubagentManager(): any { return null; }
+  getUsageStatisticsEnabled(): boolean { return false; }
+  getUserMemory(): string { return ''; }
+  getUserTier(): string { return 'free'; }
+  isRestrictiveSandbox(): boolean { return false; }
+  isMcpServerDisabled(_name: string): boolean { return false; }
+  getProxy(): string | undefined { return undefined; }
+  getFolderTrustFeature(): boolean { return false; }
+  getDefaultWorkingDirectory(): string { return process.cwd(); }
+  getSandboxConfig(): any { return null; }
+  getExtensionServerConfig(): any { return null; }
+  getCheckpointingEnabled(): boolean { return false; }
+  getBugCommand(): string | undefined { return undefined; }
+  getSkillManager(): any { return null; }
+  setModel(_model: string): void {}
+  setApprovalMode(_mode: ApprovalMode): void {}
+  setAccessibility(_cfg: any): void {}
+  setExcludedMcpServers(_servers: string[]): void {}
+  setIdeMode(_mode: boolean): void {}
+  reloadModelProvidersConfig(): Promise<void> { return Promise.resolve(); }
+  switchModel(_model: string): Promise<void> { return Promise.resolve(); }
+  updateCredentials(_creds: any): Promise<void> { return Promise.resolve(); }
+  startNewSession(_params?: any): Promise<void> { return Promise.resolve(); }
+  shouldLoadMemoryFromIncludeDirectories(): boolean { return false; }
 }
 
 // ─── GeminiClient (shim - actual work is done by useAliceStream) ─────────────
@@ -415,14 +492,36 @@ export class GeminiClient {
 // ─── Storage ──────────────────────────────────────────────────────────────────
 
 export class Storage {
+  constructor(private readonly workspaceDir?: string) {}
   getProjectCommandsDir(): string { return '.'; }
   getUserCommandsDir(): string { return `${process.env.HOME || '~'}/.config/alice/commands`; }
+  getWorkspaceSettingsPath(): string {
+    return `${this.workspaceDir || process.cwd()}/.alice/settings.json`;
+  }
   static getUserCommandsDir(): string { return `${process.env.HOME || '~'}/.config/alice/commands`; }
   static getGlobalSettingsPath(): string { return `${process.env.HOME || '~'}/.config/alice/settings.json`; }
   get(_key: string): any { return undefined; }
   set(_key: string, _value: any): void {}
   delete(_key: string): void {}
   has(_key: string): boolean { return false; }
+  getHistoryFilePath(): string {
+    return `${process.env.HOME || '~'}/.config/alice/shell_history`;
+  }
+  getSessionsDir(): string {
+    return `${process.env.HOME || '~'}/.config/alice/sessions`;
+  }
+  getCheckpointsDir(): string {
+    return `${process.env.HOME || '~'}/.config/alice/checkpoints`;
+  }
+  getInsightsDir(): string {
+    return `${process.env.HOME || '~'}/.config/alice/insights`;
+  }
+  getUserMemoryPath(): string {
+    return `${process.env.HOME || '~'}/.config/alice/memory.md`;
+  }
+  getProjectTempDir(): string {
+    return `${this.workspaceDir || process.cwd()}/.alice/temp`;
+  }
 }
 
 // ─── Services ─────────────────────────────────────────────────────────────────
@@ -455,18 +554,37 @@ export class McpClient {
 }
 
 export class IdeClient {
-  private static _instance: IdeClient | null = null;
-  static getInstance(): IdeClient | null { return IdeClient._instance; }
+  private static _instance: IdeClient = new IdeClient();
+  static getInstance(): IdeClient { return IdeClient._instance; }
   constructor() {}
   connect(): Promise<void> { return Promise.resolve(); }
   disconnect(): void {}
   isConnected(): boolean { return false; }
   getCurrentIde(): IdeInfo | null { return null; }
+  getDetectedIdeDisplayName(): string | null { return null; }
+  getConnectionType(): string { return 'none'; }
+  getConnectionStatus(): string { return 'disconnected'; }
+  addStatusChangeListener(_listener: (...args: any[]) => void): void {}
+  removeStatusChangeListener(_listener: (...args: any[]) => void): void {}
+  addTrustChangeListener(_listener: (...args: any[]) => void): void {}
+  removeTrustChangeListener(_listener: (...args: any[]) => void): void {}
+  getStatus(): string { return 'disconnected'; }
 }
 
 export class ExtensionManager {
   getExtensions(): Extension[] { return []; }
+  getLoadedExtensions(): Extension[] { return []; }
   getExtension(_name: string): Extension | null { return null; }
+  checkForAllExtensionUpdates(): Promise<ExtensionUpdateInfo[]> { return Promise.resolve([]); }
+  disableExtension(_name: string): Promise<void> { return Promise.resolve(); }
+  enableExtension(_name: string): Promise<void> { return Promise.resolve(); }
+  installExtension(_name: string, _opts?: any): Promise<void> { return Promise.resolve(); }
+  refreshCache(): Promise<void> { return Promise.resolve(); }
+  setRequestChoicePlugin(_fn: any): void {}
+  setRequestConsent(_fn: any): void {}
+  setRequestSetting(_fn: any): void {}
+  uninstallExtension(_name: string): Promise<void> { return Promise.resolve(); }
+  updateExtension(_name: string): Promise<void> { return Promise.resolve(); }
   isExtensionEnabled(_name: string): boolean { return false; }
   getInstalledExtensions(): ExtensionInstallMetadata[] { return []; }
   hasExtensions(): boolean { return false; }
@@ -512,6 +630,9 @@ export const uiTelemetryService = {
     totalOutputTokens: 0,
     totalCost: 0,
     toolCallStats: [],
+    models: {},
+    tools: { totalCalls: 0, totalSuccess: 0, totalFail: 0, totalDurationMs: 0, totalDecisions: {}, byName: {} },
+    files: { totalLinesAdded: 0, totalLinesRemoved: 0 },
   }),
   getLastPromptTokenCount: (): number => 0,
   on: (_event: string, _listener: (...args: any[]) => void) => {},
@@ -610,30 +731,50 @@ export const ideContextStore = {
 
 // ─── SettingScope (from config/settings.ts, re-exported here for shim use) ────
 
-// Additional types used by config, services, and ui
+// Additional types and error classes used by config, services, and ui
 export type ContentGeneratorConfig = Record<string, any>;
 export type ProviderModelConfig = { model: string; apiKey?: string; provider?: string };
-export type FatalConfigError = Error;
-export type FatalSandboxError = Error;
-export type FileDiscoveryService = { findFiles: (pattern: string) => Promise<string[]> };
+export class FatalConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FatalConfigError';
+  }
+}
+export class FatalSandboxError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FatalSandboxError';
+  }
+}
+export class FileDiscoveryService {
+  constructor(private readonly rootDir: string) {}
+  async findFiles(_pattern: string): Promise<string[]> { return []; }
+}
 export type FileSystemService = { readFile: (path: string) => Promise<string> };
 export type ReadTextFileResponse = { content: string };
-export type NativeLspClient = any;
-export type NativeLspService = any;
+export class NativeLspClient { constructor(_service: any) {} }
+export class NativeLspService { constructor(_config: any, _ctx: any, _events: any) {} }
 export type LspClient = any;
 export type ResumedSessionData = { sessionId: string; history: any[] };
-export type EditTool = any;
-export type ShellTool = any;
-export type WriteFileTool = any;
-export type TodoWriteTool = any;
+export class EditTool { static Name = 'edit'; }
+export class ShellTool { static Name = 'run_shell_command'; }
+export class WriteFileTool { static Name = 'write_file'; }
+export class TodoWriteTool { static Name = 'todo_write'; }
 export type ToolName = string;
-export type InputFormat = string;
-export type OutputFormat = string;
+export enum InputFormat { TEXT = 'text', JSON = 'json' }
+export enum OutputFormat { TEXT = 'text', JSON = 'json' }
 export type ExtensionConfig = { name: string; version?: string; path?: string };
 export type ExtensionRequestOptions = { timeout?: number };
 export type ClaudeMarketplaceConfig = { apiKey?: string; endpoint?: string };
 export type ConversationRecord = { id: string; messages: any[] };
-export type QwenOAuth2Event = { type: string; data: any };
+export class QwenOAuth2Event {
+  static AuthUri = 'auth_uri';
+  static AuthProgress = 'auth_progress';
+  static AuthCancel = 'auth_cancel';
+  static AuthSuccess = 'auth_success';
+  static AuthError = 'auth_error';
+  constructor(public type: string, public data?: any) {}
+}
 export const qwenOAuth2Events = { on: (_event: string, _fn: any) => {}, off: (_event: string, _fn: any) => {} };
 export function clearCachedCredentialFile(): void {}
 export function tokenLimit(_model: string): number { return 200000; }
@@ -644,12 +785,170 @@ export function parseInstallSource(_source: string): any { return { type: 'unkno
 export class DEFAULT_QWEN_EMBEDDING_MODEL {}
 
 // AuthEvent for telemetry
-export type AuthEvent = { type: string; authType: AuthType };
+export class AuthEvent {
+  constructor(public authType: AuthType, public source: string, public status: string) {}
+}
 
 export function getProjectSummaryInfo(): Promise<ProjectSummaryInfo> {
   return Promise.resolve({ hasHistory: false, lastPrompt: undefined, content: '' });
 }
 
-// NOTE: The actual SettingScope is defined in src/config/settings.ts (qwen-code copy).
-// This re-export is here for consumers who import it from the core package.
-// The real value comes from src/config/settings.ts via tsconfig paths.
+// Path utility functions
+export function isWithinRoot(location: string, root: string): boolean {
+  const path = require('path');
+  const relPath = path.relative(root, location);
+  return !relPath.startsWith('..') && !path.isAbsolute(relPath);
+}
+
+// NOTE: ideContextStore is declared above (line ~608)
+
+// ─── 补全：新 TUI 需要的 shim 导出 ──────────────────────────────────────────────
+
+// SettingScope — 直接在 shim 中定义，避免与 settings.ts 形成循环依赖
+// 值必须与 src/config/settings.ts 中的 SettingScope 完全一致
+export enum SettingScope {
+  User = 'User',
+  Workspace = 'Workspace',
+  System = 'System',
+  SystemDefaults = 'SystemDefaults',
+}
+
+// 默认模型常量
+export const DEFAULT_QWEN_MODEL = 'claude-sonnet-4-6';
+
+// IDE 定义（用于 IDE 检测，此处为 stub 供 TUI 引用）
+export const IDE_DEFINITIONS = {
+  vscode:     { name: 'VS Code',     envVar: 'VSCODE_IPC_HOOK_CLI' },
+  cursor:     { name: 'Cursor',      envVar: 'CURSOR_TRACE_ID' },
+  devin:      { name: 'Devin',       envVar: 'DEVIN_AGENT' },
+  replit:     { name: 'Replit',      envVar: 'REPL_ID' },
+  codespaces: { name: 'Codespaces',  envVar: 'CODESPACES' },
+} as const;
+
+// ─── 批量补全缺失的 shim 导出（新 TUI 需要） ────────────────────────────────────
+
+// 类型别名 (rename from existing)
+export type ToolResultDisplay = PlanResultDisplay;
+export type TodoResultDisplay = TaskResultDisplay;
+export type ChatCompressionSettings = ChatCompressionInfo;
+export type ContentGeneratorConfigSources = ContentGeneratorConfig;
+
+// 新常量
+export const DEFAULT_TRUNCATE_TOOL_OUTPUT_LINES = 100;
+export const DEFAULT_TRUNCATE_TOOL_OUTPUT_THRESHOLD = 50000;
+export const EXTENSIONS_CONFIG_FILENAME = '.claude_extensions';
+export const QWEN_CODE_COMPANION_EXTENSION_NAME = 'qwen-code-companion';
+export const MAINLINE_CODER_MODEL = 'claude-sonnet-4-6';
+export const QWEN_OAUTH_MODELS: string[] = [];
+
+// 枚举
+export enum ExtensionSettingScope { User = 'user', Workspace = 'workspace' }
+export enum IDEConnectionStatus { Connected = 'connected', Disconnected = 'disconnected' }
+export enum IDEConnectionState { Connected = 'connected', Disconnected = 'disconnected' }
+export enum IdeConnectionType { WebSocket = 'websocket', Polling = 'polling' }
+export enum SlashCommandStatus { Success = 'success', Error = 'error', Info = 'info' }
+export enum UserFeedbackRating { Positive = 'positive', Negative = 'negative' }
+export enum Status { Pending = 'pending', Running = 'running', Done = 'done', Error = 'error' }
+export enum ToolErrorType { ExecutionError = 'execution_error', ValidationError = 'validation_error', PermissionError = 'permission_error' }
+export enum InputModalities { Text = 'text', Image = 'image', Audio = 'audio' }
+
+// AuthEvent 作为值（已是 type，加 class 版本）
+export class IdeConnectionEvent { constructor(public type: string, public data?: any) {} }
+export class UserFeedbackEvent { constructor(public rating: UserFeedbackRating, public comment?: string) {} }
+export class SlashCommandRecordPayload { constructor(public command: string, public args?: string) {} }
+export class AtCommandRecordPayload { constructor(public path: string) {} }
+export class ModelSlashCommandEvent { constructor(public model: string) {} }
+
+// ToolCall 相关类型
+export type ToolCall = { id: string; name: string; args?: any };
+export type ScheduledToolCall = ToolCall & { status: 'scheduled' };
+export type WaitingToolCall = ToolCall & { status: 'waiting' };
+export type ValidatingToolCall = ToolCall & { status: 'validating' };
+export type ExecutingToolCall = ToolCall & { status: 'executing' };
+export type CompletedToolCall = ToolCall & { status: 'completed'; result?: any };
+export type CancelledToolCall = ToolCall & { status: 'cancelled' };
+export type AnyDeclarativeTool = any;
+export type AllToolCallsCompleteHandler = () => void;
+export type ToolCallsUpdateHandler = (calls: ToolCall[]) => void;
+export type ToolConfirmationPayload = { callId: string; name: string; args?: any };
+export type ToolCallConfirmationDetails = { type: string; [key: string]: any };
+export type ToolExecuteConfirmationDetails = ToolCallConfirmationDetails;
+export type ToolMcpConfirmationDetails = ToolCallConfirmationDetails;
+export type ToolAskUserQuestionConfirmationDetails = ToolCallConfirmationDetails;
+export type OutputUpdateHandler = (output: string) => void;
+export type ShellExecutionResult = { output: string; exitCode: number; stdout?: string };
+export type McpToolProgressData = { progress: number; total?: number };
+export class DiscoveredMCPTool {
+  constructor(public name: string, public serverName: string, public description?: string, public inputSchema?: any) {}
+}
+export type DiscoveredMCPPrompt = { name: string; description?: string };
+export type SubagentStatsSummary = { totalTasks: number; completedTasks: number };
+export type ListSessionsResult = { sessions: SessionListItem[] };
+export type ExtensionUpdateInfo = { name: string; currentVersion: string; latestVersion: string };
+export type BugCommandSettings = { enabled: boolean; url?: string };
+export type ModelConfigSourcesInput = Record<string, any>;
+export type TelemetrySettings = { enabled: boolean };
+export type AnsiLine = { text: string; style?: any };
+export type AnsiToken = { text: string; style?: any };
+export type AnsiOutput = AnsiLine[];
+export class JsonFormatter { formatError(_err: any): string { return ''; } format(_data: any): string { return ''; } }
+export type AvailableModel = { id: string; name: string; provider?: string };
+export type File = { path: string; content?: string };
+export type ModelSlashCommandEvent_ = { model: string }; // alias to avoid conflict
+
+// MCP 相关
+export class MCPOAuthProvider {
+  getToken(_server: string): Promise<string | null> { return Promise.resolve(null); }
+}
+
+// SubagentManager
+export class SubagentManager {
+  listSubagents(): any[] { return []; }
+  createSubagent(_config: any): Promise<any> { return Promise.resolve({}); }
+}
+
+// CoreToolScheduler
+export class CoreToolScheduler {
+  schedule(_tool: any): void {}
+}
+
+// 函数 stubs
+export function resolveModelConfig(_input: any): any { return {}; }
+export function allowEditorTypeInSandbox(_editor: any): boolean { return true; }
+export function checkHasEditorType(_editor: any): boolean { return true; }
+export function commandExists(_cmd: string): Promise<boolean> { return Promise.resolve(false); }
+export function checkCommandPermissions(_cmd: string, _config: any): Promise<boolean> { return Promise.resolve(true); }
+export function doesToolInvocationMatch(_invocation: any, _tool: any): boolean { return false; }
+export function editorCommands(_editor: any): string[] { return []; }
+export function escapeShellArg(arg: string): string { return `'${arg.replace(/'/g, "'\\''")}'`; }
+export function flatMapTextParts(_parts: any[]): string { return ''; }
+export function getIdeInstaller(_ide: string): any { return null; }
+export function getInsightPrompt(): string { return ''; }
+export function getMCPServerPrompts(_config: any): Promise<any[]> { return Promise.resolve([]); }
+export function getScopedEnvContents(_scope: any): string { return ''; }
+export function getShellConfiguration(_config: any): any { return {}; }
+export function isBinary(_path: string): Promise<boolean> { return Promise.resolve(false); }
+export function isEditorAvailable(_editor: any): Promise<boolean> { return Promise.resolve(false); }
+export function logAuth(_event: any): void {}
+export function logIdeConnection(_event: any): void {}
+export function logModelSlashCommand(_event: any): void {}
+export function logSlashCommand(_event: any): void {}
+export function logUserFeedback(_event: any): void {}
+export function makeSlashCommandEvent(_cmd: string): any { return {}; }
+export function normalizeContent(_content: any): any[] { return []; }
+export function parse(_text: string): any { return {}; }
+export function promptForSetting(_scope: any, _key: string, _value: string): Promise<void> { return Promise.resolve(); }
+export async function read(_path: string): Promise<string> { return ''; }
+export async function readManyFiles(_paths: string[]): Promise<Record<string, string>> { return {}; }
+export async function readPathFromWorkspace(_path: string, _workspace: string): Promise<string> { return ''; }
+export function updateSetting(_scope: any, _key: string, _value: any): Promise<void> { return Promise.resolve(); }
+export function createTransport(_config: any): any { return null; }
+export function checkForExtensionUpdate(_name: string): Promise<ExtensionUpdateInfo | null> { return Promise.resolve(null); }
+
+// Error classes needed by utils/errors.ts
+export class FatalTurnLimitedError extends Error {
+  constructor(message?: string) { super(message ?? 'Turn limit reached'); this.name = 'FatalTurnLimitedError'; }
+}
+export class FatalCancellationError extends Error {
+  constructor(message?: string) { super(message ?? 'Cancelled'); this.name = 'FatalCancellationError'; }
+}

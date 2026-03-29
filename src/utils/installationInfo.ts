@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createDebugLogger, isGitRepository } from '@qwen-code/qwen-code-core';
+import { createDebugLogger, isGitRepository } from '../shim/qwen-code-core.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as childProcess from 'node:child_process';

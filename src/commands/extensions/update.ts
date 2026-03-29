@@ -11,7 +11,7 @@ import { ExtensionUpdateState } from '../../ui/state/extensions.js';
 import {
   checkForExtensionUpdate,
   type ExtensionUpdateInfo,
-} from '@qwen-code/qwen-code-core';
+} from '../../shim/qwen-code-core.js';
 import { getExtensionManager } from './utils.js';
 import { t } from '../../i18n/index.js';
 
