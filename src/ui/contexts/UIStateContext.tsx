@@ -92,6 +92,8 @@ export interface UIState {
   historyRemountKey: number;
   messageQueue: string[];
   showAutoAcceptIndicator: ApprovalMode;
+  // Agent mode (office / coder)
+  agentMode: 'office' | 'coder';
   // Quota-related state
   currentModel: string;
   contextFileNames: string[];

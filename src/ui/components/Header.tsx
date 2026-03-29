@@ -12,18 +12,11 @@ import { theme } from '../semantic-colors.js';
 import { getCachedStringWidth } from '../utils/textUtils.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 
-/** Auth display type for the Header component. */
-export enum AuthDisplayType {
-  QWEN_OAUTH = 'Qwen OAuth',
-  CODING_PLAN = 'Coding Plan',
-  API_KEY = 'API Key',
-  UNKNOWN = 'Unknown',
-}
-
 interface HeaderProps {
   customAsciiArt?: string; // unused in new layout, kept for compat
   version: string;
-  authDisplayType?: AuthDisplayType;
+  agentMode: 'office' | 'coder';
+  activeChannel?: string;
   model: string;
   workingDirectory: string;
 }
@@ -126,7 +119,8 @@ const Row: React.FC<RowProps> = ({
 
 export const Header: React.FC<HeaderProps> = ({
   version,
-  authDisplayType,
+  agentMode,
+  activeChannel,
   model,
   workingDirectory,
 }) => {
@@ -149,8 +143,10 @@ export const Header: React.FC<HeaderProps> = ({
   const rightColWidth = innerWidth - leftColWidth - 5; // -5 for │ sp │ sp │
 
   // Left column content
-  const formattedAuth = authDisplayType ?? AuthDisplayType.UNKNOWN;
-  const modelLine = `${model} · ${formattedAuth}`;
+  const modeLabel = agentMode === 'coder' ? 'Coder' : 'Office';
+  const modelLine = activeChannel
+    ? `${model} · ${modeLabel} · ${activeChannel}`
+    : `${model} · ${modeLabel}`;
   const home = process.env.HOME ?? '';
   const tildeDir = home && workingDirectory.startsWith(home)
     ? '~' + workingDirectory.slice(home.length)
@@ -175,8 +171,8 @@ export const Header: React.FC<HeaderProps> = ({
     { text: ROBOT_LINES[0], robot: true, center: true },
     { text: ROBOT_LINES[1], robot: true, center: true },
     { text: '' },
-    { text: modelLine },
-    { text: shortDir },
+    { text: modelLine, center: true },
+    { text: shortDir, center: true },
     { text: '' },
   ];
 

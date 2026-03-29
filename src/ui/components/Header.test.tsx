@@ -6,7 +6,7 @@
 
 import { render } from 'ink-testing-library';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Header, AuthDisplayType } from './Header.js';
+import { Header } from './Header.js';
 import * as useTerminalSize from '../hooks/useTerminalSize.js';
 
 vi.mock('../hooks/useTerminalSize.js');
@@ -14,7 +14,8 @@ const useTerminalSizeMock = vi.mocked(useTerminalSize.useTerminalSize);
 
 const defaultProps = {
   version: '1.0.0',
-  authDisplayType: AuthDisplayType.QWEN_OAUTH,
+  agentMode: 'office' as const,
+  activeChannel: 'Feishu',
   model: 'qwen-coder-plus',
   workingDirectory: '/home/user/projects/test',
 };
@@ -41,34 +42,29 @@ describe('<Header />', () => {
     expect(lastFrame()).toContain('v1.0.0');
   });
 
-  it('displays auth type and model', () => {
+  it('displays mode and model', () => {
     const { lastFrame } = render(<Header {...defaultProps} />);
-    expect(lastFrame()).toContain('Qwen OAuth');
+    expect(lastFrame()).toContain('Office');
     expect(lastFrame()).toContain('qwen-coder-plus');
   });
 
-  it('displays Coding Plan auth type', () => {
+  it('displays coder mode', () => {
     const { lastFrame } = render(
-      <Header
-        {...defaultProps}
-        authDisplayType={AuthDisplayType.CODING_PLAN}
-      />,
+      <Header {...defaultProps} agentMode="coder" />,
     );
-    expect(lastFrame()).toContain('Coding Plan');
+    expect(lastFrame()).toContain('Coder');
   });
 
-  it('displays API Key auth type', () => {
-    const { lastFrame } = render(
-      <Header {...defaultProps} authDisplayType={AuthDisplayType.API_KEY} />,
-    );
-    expect(lastFrame()).toContain('API Key');
+  it('displays active channel', () => {
+    const { lastFrame } = render(<Header {...defaultProps} activeChannel="Feishu" />);
+    expect(lastFrame()).toContain('Feishu');
   });
 
-  it('displays Unknown when auth type is not set', () => {
+  it('omits channel when not provided', () => {
     const { lastFrame } = render(
-      <Header {...defaultProps} authDisplayType={undefined} />,
+      <Header {...defaultProps} activeChannel={undefined} />,
     );
-    expect(lastFrame()).toContain('Unknown');
+    expect(lastFrame()).not.toContain('· undefined');
   });
 
   it('displays working directory', () => {

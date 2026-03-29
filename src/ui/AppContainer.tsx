@@ -44,6 +44,7 @@ import { buildResumedHistoryItems } from './utils/resumeHistoryUtils.js';
 import { validateAuthMethod } from '../config/auth.js';
 import { loadHierarchicalGeminiMemory } from '../config/config.js';
 import process from 'node:process';
+import { DaemonClient } from '../utils/daemonClient.js';
 import { useHistory } from './hooks/useHistoryManager.js';
 import { useMemoryMonitor } from './hooks/useMemoryMonitor.js';
 import { useThemeCommand } from './hooks/useThemeCommand.js';
@@ -250,6 +251,13 @@ export const AppContainer = (props: AppContainerProps) => {
   const getCurrentModel = useCallback(() => config.getModel(), [config]);
 
   const [currentModel, setCurrentModel] = useState(getCurrentModel());
+  const [agentMode, setAgentMode] = useState<'office' | 'coder'>('office');
+
+  // Fetch mode from daemon once on mount
+  useEffect(() => {
+    const client = new DaemonClient();
+    client.getMode().then(setAgentMode).catch(() => {});
+  }, []);
 
   const [isConfigInitialized, setConfigInitialized] = useState(false);
 
@@ -1395,6 +1403,7 @@ export const AppContainer = (props: AppContainerProps) => {
       historyRemountKey,
       messageQueue,
       showAutoAcceptIndicator,
+      agentMode,
       currentModel,
       contextFileNames,
       availableTerminalHeight,
@@ -1488,6 +1497,7 @@ export const AppContainer = (props: AppContainerProps) => {
       historyRemountKey,
       messageQueue,
       showAutoAcceptIndicator,
+      agentMode,
       contextFileNames,
       availableTerminalHeight,
       mainAreaWidth,

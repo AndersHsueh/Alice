@@ -4,42 +4,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { useState, useEffect } from 'react';
 import { Box } from 'ink';
-import { AuthType } from '@qwen-code/qwen-code-core';
-import { Header, AuthDisplayType } from './Header.js';
+import { Header } from './Header.js';
 import { Tips } from './Tips.js';
 import { useSettings } from '../contexts/SettingsContext.js';
 import { useConfig } from '../contexts/ConfigContext.js';
 import { useUIState } from '../contexts/UIStateContext.js';
-import { isCodingPlanConfig } from '../../constants/codingPlan.js';
+import { DaemonClient } from '../../utils/daemonClient.js';
 
 interface AppHeaderProps {
   version: string;
 }
 
-/**
- * Determine the auth display type based on auth type and configuration.
- */
-function getAuthDisplayType(
-  authType?: AuthType,
-  baseUrl?: string,
-  apiKeyEnvKey?: string,
-): AuthDisplayType {
-  if (!authType) {
-    return AuthDisplayType.UNKNOWN;
-  }
-
-  // Check if it's a Coding Plan config
-  if (isCodingPlanConfig(baseUrl, apiKeyEnvKey)) {
-    return AuthDisplayType.CODING_PLAN;
-  }
-
-  switch (authType) {
-    case AuthType.QWEN_OAUTH:
-      return AuthDisplayType.QWEN_OAUTH;
-    default:
-      return AuthDisplayType.API_KEY;
-  }
+/** Map raw channel key to display label. */
+function channelLabel(raw: string): string {
+  const map: Record<string, string> = {
+    feishu: 'Feishu',
+    dingtalk: 'DingTalk',
+    wechat: 'WeChat',
+  };
+  return map[raw] ?? raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
 export const AppHeader = ({ version }: AppHeaderProps) => {
@@ -47,25 +32,32 @@ export const AppHeader = ({ version }: AppHeaderProps) => {
   const config = useConfig();
   const uiState = useUIState();
 
-  const contentGeneratorConfig = config.getContentGeneratorConfig();
-  const authType = contentGeneratorConfig?.authType;
+  const [activeChannel, setActiveChannel] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const client = new DaemonClient();
+    client.getStatus()
+      .then((status) => {
+        if (status?.defaultChannel) {
+          setActiveChannel(channelLabel(status.defaultChannel));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const model = uiState.currentModel;
+  const agentMode = uiState.agentMode;
   const targetDir = config.getTargetDir();
   const showBanner = !config.getScreenReader();
   const showTips = !(settings.merged.ui?.hideTips || config.getScreenReader());
-
-  const authDisplayType = getAuthDisplayType(
-    authType,
-    contentGeneratorConfig?.baseUrl,
-    contentGeneratorConfig?.apiKeyEnvKey,
-  );
 
   return (
     <Box flexDirection="column">
       {showBanner && (
         <Header
           version={version}
-          authDisplayType={authDisplayType}
+          agentMode={agentMode}
+          activeChannel={activeChannel}
           model={model}
           workingDirectory={targetDir}
         />
