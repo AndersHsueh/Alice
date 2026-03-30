@@ -6,12 +6,19 @@
 import type { Message } from './index.js';
 import type { ToolCallRecord } from './tool.js';
 
+export interface WorkspaceContext {
+  kind?: 'local' | 'channel';
+  channel?: string;
+  chatId?: string;
+}
+
 /** 流式对话请求（客户端 -> daemon） */
 export interface ChatStreamRequest {
   sessionId?: string;
   message: string;
   model?: string;
   workspace?: string;
+  workspaceContext?: WorkspaceContext;
   /** 为 true 时流式输出包含 <think>...</think> 块；默认 false，只返回回复正文 */
   includeThink?: boolean;
 }

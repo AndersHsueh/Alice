@@ -121,7 +121,7 @@ const useResultDisplayRenderer = (
       'type' in resultDisplay &&
       resultDisplay.type === 'mcp_tool_progress'
     ) {
-      const progress = resultDisplay as McpToolProgressData;
+      const progress = resultDisplay as unknown as McpToolProgressData;
       const msg = progress.message ?? `Progress: ${progress.progress}`;
       const totalStr = progress.total != null ? `/${progress.total}` : '';
       return {

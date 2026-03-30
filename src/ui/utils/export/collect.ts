@@ -6,207 +6,193 @@
 
 import { randomUUID } from 'node:crypto';
 import type { Config, ChatRecord } from '@qwen-code/qwen-code-core';
-import type { SessionContext } from '../../../acp-integration/session/types.js';
-import type { SessionUpdate, ToolCall } from '@agentclientprotocol/sdk';
-import { HistoryReplayer } from '../../../acp-integration/session/HistoryReplayer.js';
+import { ToolNames } from '@qwen-code/qwen-code-core';
+import { ExitPlanModeTool } from '@qwen-code/qwen-code-core';
 import type { ExportMessage, ExportSessionData } from './types.js';
 
-/**
- * Export session context that captures session updates into export messages.
- * Implements SessionContext to work with HistoryReplayer.
- */
-class ExportSessionContext implements SessionContext {
-  readonly sessionId: string;
-  readonly config: Config;
-  private messages: ExportMessage[] = [];
-  private currentMessage: {
-    type: 'user' | 'assistant';
-    role: 'user' | 'assistant' | 'thinking';
-    parts: Array<{ text: string }>;
-    timestamp: number;
-  } | null = null;
+type BufferedMessage = {
+  type: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'thinking';
+  parts: Array<{ text: string }>;
+};
+
+class ExportCollector {
+  private readonly sessionId: string;
+  private readonly config: Config;
+  private readonly messages: ExportMessage[] = [];
+  private currentMessage: BufferedMessage | null = null;
   private activeRecordId: string | null = null;
   private activeRecordTimestamp: string | null = null;
-  private toolCallMap: Map<string, ExportMessage['toolCall']> = new Map();
+  private seenToolCallIds = new Set<string>();
 
   constructor(sessionId: string, config: Config) {
     this.sessionId = sessionId;
     this.config = config;
   }
 
-  async sendUpdate(update: SessionUpdate): Promise<void> {
-    switch (update.sessionUpdate) {
-      case 'user_message_chunk':
-        this.handleMessageChunk('user', update.content);
+  async collect(records: ChatRecord[]): Promise<ExportMessage[]> {
+    for (const record of records) {
+      this.activeRecordId = record.uuid;
+      this.activeRecordTimestamp = record.timestamp;
+      this.processRecord(record);
+      this.activeRecordId = null;
+      this.activeRecordTimestamp = null;
+    }
+
+    this.flushCurrentMessage();
+    return this.messages;
+  }
+
+  private processRecord(record: ChatRecord): void {
+    switch (record.type) {
+      case 'user':
+        this.processMessageRecord(record, 'user');
         break;
-      case 'agent_message_chunk':
-        this.handleMessageChunk('assistant', update.content);
+      case 'assistant':
+        this.processMessageRecord(record, 'assistant');
         break;
-      case 'agent_thought_chunk':
-        this.handleMessageChunk('assistant', update.content, 'thinking');
-        break;
-      case 'tool_call':
-        this.flushCurrentMessage();
-        this.handleToolCallStart(update);
-        break;
-      case 'tool_call_update':
-        this.handleToolCallUpdate(update);
-        break;
-      case 'plan':
-        this.flushCurrentMessage();
-        this.handlePlanUpdate(update);
+      case 'tool_result':
+        this.processToolResultRecord(record);
         break;
       default:
-        // Ignore other update types
         break;
     }
   }
 
-  setActiveRecordId(recordId: string | null, timestamp?: string): void {
-    this.activeRecordId = recordId;
-    this.activeRecordTimestamp = timestamp ?? null;
-  }
-
-  private getMessageTimestamp(): string {
-    return this.activeRecordTimestamp ?? new Date().toISOString();
-  }
-
-  private getMessageUuid(): string {
-    return this.activeRecordId ?? randomUUID();
-  }
-
-  private handleMessageChunk(
+  private processMessageRecord(
+    record: ChatRecord,
     role: 'user' | 'assistant',
-    content: { type: string; text?: string },
-    messageRole: 'user' | 'assistant' | 'thinking' = role,
   ): void {
-    if (content.type !== 'text' || !content.text) return;
+    for (const part of record.message?.parts ?? []) {
+      if ('text' in part && part.text) {
+        const isThought =
+          role === 'assistant' &&
+          ((part as { thought?: boolean }).thought ?? false);
+        this.pushTextChunk(role, part.text, isThought);
+      }
 
-    // If we're starting a new message type, flush the previous one
-    if (
-      this.currentMessage &&
-      (this.currentMessage.type !== role ||
-        this.currentMessage.role !== messageRole)
-    ) {
-      this.flushCurrentMessage();
+      if ('functionCall' in part && part.functionCall) {
+        this.flushCurrentMessage();
+
+        const toolName = part.functionCall.name ?? '';
+        const toolCallId = part.functionCall.id ?? `${toolName}-${record.uuid}`;
+
+        if (this.seenToolCallIds.has(toolCallId)) {
+          continue;
+        }
+
+        this.seenToolCallIds.add(toolCallId);
+        this.messages.push({
+          uuid: this.getMessageUuid(),
+          sessionId: this.sessionId,
+          timestamp: this.getMessageTimestamp(),
+          type: 'tool_call',
+          toolCall: {
+            toolCallId,
+            kind: 'other',
+            title: toolName,
+            status: 'pending',
+            rawInput: (part.functionCall.args as Record<string, unknown>) ?? {},
+            timestamp: Date.parse(this.getMessageTimestamp()),
+          },
+        });
+      }
+    }
+  }
+
+  private processToolResultRecord(record: ChatRecord): void {
+    this.flushCurrentMessage();
+
+    const result = record.toolCallResult;
+    const toolName = extractToolNameFromRecord(record);
+    const toolCallId = result?.callId ?? record.uuid;
+
+    if (toolName === ToolNames.TODO_WRITE) {
+      const todoText = extractTodoText(result?.resultDisplay);
+      if (!todoText) {
+        return;
+      }
+
+      this.messages.push({
+        uuid: this.getMessageUuid(),
+        sessionId: this.sessionId,
+        timestamp: this.getMessageTimestamp(),
+        type: 'tool_call',
+        toolCall: {
+          toolCallId,
+          kind: 'todowrite',
+          title: 'TodoWrite',
+          status: 'completed',
+          content: [
+            {
+              type: 'content',
+              content: {
+                type: 'text',
+                text: todoText,
+              },
+            },
+          ],
+          timestamp: Date.parse(this.getMessageTimestamp()),
+        },
+      });
+      this.seenToolCallIds.add(toolCallId);
+      return;
     }
 
-    // Add to current message or create new one
+    if (this.seenToolCallIds.has(toolCallId)) {
+      return;
+    }
+
+    this.seenToolCallIds.add(toolCallId);
+    this.messages.push({
+      uuid: this.getMessageUuid(),
+      sessionId: this.sessionId,
+      timestamp: this.getMessageTimestamp(),
+      type: 'tool_call',
+      toolCall: {
+        toolCallId,
+        kind: mapToolKind(this.config, toolName),
+        title: toolName || 'tool_call',
+        status: result?.error ? 'failed' : 'completed',
+        rawInput: extractFunctionCallArgs(record),
+        timestamp: Date.parse(this.getMessageTimestamp()),
+      },
+    });
+  }
+
+  private pushTextChunk(
+    role: 'user' | 'assistant',
+    text: string,
+    isThought: boolean,
+  ): void {
+    const messageRole: BufferedMessage['role'] = isThought
+      ? 'thinking'
+      : role;
+
     if (
       this.currentMessage &&
       this.currentMessage.type === role &&
       this.currentMessage.role === messageRole
     ) {
-      this.currentMessage.parts.push({ text: content.text });
-    } else {
-      this.currentMessage = {
-        type: role,
-        role: messageRole,
-        parts: [{ text: content.text }],
-        timestamp: Date.now(),
-      };
+      this.currentMessage.parts.push({ text });
+      return;
     }
-  }
 
-  private handleToolCallStart(update: ToolCall): void {
-    const toolCall: ExportMessage['toolCall'] = {
-      toolCallId: update.toolCallId,
-      kind: update.kind || 'other',
-      title:
-        typeof update.title === 'string' ? update.title : update.title || '',
-      status: update.status || 'pending',
-      rawInput: update.rawInput as string | object | undefined,
-      locations: update.locations,
-      timestamp: Date.now(),
+    this.flushCurrentMessage();
+    this.currentMessage = {
+      type: role,
+      role: messageRole,
+      parts: [{ text }],
     };
-
-    this.toolCallMap.set(update.toolCallId, toolCall);
-
-    // Immediately add tool call to messages to preserve order
-    const uuid = this.getMessageUuid();
-    this.messages.push({
-      uuid,
-      sessionId: this.sessionId,
-      timestamp: this.getMessageTimestamp(),
-      type: 'tool_call',
-      toolCall,
-    });
-  }
-
-  private handleToolCallUpdate(update: {
-    toolCallId: string;
-    status?: 'pending' | 'in_progress' | 'completed' | 'failed' | null;
-    title?: string | null;
-    content?: Array<{ type: string; [key: string]: unknown }> | null;
-    kind?: string | null;
-  }): void {
-    const toolCall = this.toolCallMap.get(update.toolCallId);
-    if (toolCall) {
-      // Update the tool call in place
-      if (update.status) toolCall.status = update.status;
-      if (update.content) toolCall.content = update.content;
-      if (update.title)
-        toolCall.title = typeof update.title === 'string' ? update.title : '';
-    }
-  }
-
-  private handlePlanUpdate(update: {
-    entries: Array<{
-      content: string;
-      status: 'pending' | 'in_progress' | 'completed';
-      priority?: string;
-    }>;
-  }): void {
-    // Create a tool_call message for plan updates (TodoWriteTool)
-    // This ensures todos appear at the correct position in the chat
-    const uuid = this.getMessageUuid();
-    const timestamp = this.getMessageTimestamp();
-
-    // Format entries as markdown checklist text for UpdatedPlanToolCall.parsePlanEntries
-    const todoText = update.entries
-      .map((entry) => {
-        const checkbox =
-          entry.status === 'completed'
-            ? '[x]'
-            : entry.status === 'in_progress'
-              ? '[-]'
-              : '[ ]';
-        return `- ${checkbox} ${entry.content}`;
-      })
-      .join('\n');
-
-    const todoContent = [
-      {
-        type: 'content' as const,
-        content: {
-          type: 'text',
-          text: todoText,
-        },
-      },
-    ];
-
-    this.messages.push({
-      uuid,
-      sessionId: this.sessionId,
-      timestamp,
-      type: 'tool_call',
-      toolCall: {
-        toolCallId: uuid, // Use the same uuid as toolCallId for plan updates
-        kind: 'todowrite',
-        title: 'TodoWrite',
-        status: 'completed',
-        content: todoContent,
-        timestamp: Date.parse(timestamp),
-      },
-    });
   }
 
   private flushCurrentMessage(): void {
-    if (!this.currentMessage) return;
+    if (!this.currentMessage) {
+      return;
+    }
 
-    const uuid = this.getMessageUuid();
     this.messages.push({
-      uuid,
+      uuid: this.getMessageUuid(),
       sessionId: this.sessionId,
       timestamp: this.getMessageTimestamp(),
       type: this.currentMessage.type,
@@ -219,18 +205,93 @@ class ExportSessionContext implements SessionContext {
     this.currentMessage = null;
   }
 
-  flushMessages(): void {
-    this.flushCurrentMessage();
+  private getMessageTimestamp(): string {
+    return this.activeRecordTimestamp ?? new Date().toISOString();
   }
 
-  getMessages(): ExportMessage[] {
-    return this.messages;
+  private getMessageUuid(): string {
+    return this.activeRecordId ?? randomUUID();
   }
 }
 
+function extractToolNameFromRecord(record: ChatRecord): string {
+  for (const part of record.message?.parts ?? []) {
+    if ('functionResponse' in part && part.functionResponse?.name) {
+      return part.functionResponse.name;
+    }
+  }
+  return '';
+}
+
+function extractFunctionCallArgs(
+  record: ChatRecord,
+): Record<string, unknown> | undefined {
+  for (const part of record.message?.parts ?? []) {
+    if ('functionCall' in part && part.functionCall?.args) {
+      return part.functionCall.args as Record<string, unknown>;
+    }
+  }
+  return undefined;
+}
+
+function extractTodoText(resultDisplay: unknown): string | null {
+  if (!resultDisplay || typeof resultDisplay !== 'object') {
+    return null;
+  }
+
+  const obj = resultDisplay as Record<string, unknown>;
+  if (obj['type'] !== 'todo_list' || !Array.isArray(obj['todos'])) {
+    return null;
+  }
+
+  return obj['todos']
+    .map((todo) => {
+      const item = todo as { content?: string; status?: string };
+      const checkbox =
+        item.status === 'completed'
+          ? '[x]'
+          : item.status === 'in_progress'
+            ? '[-]'
+            : '[ ]';
+      return `- ${checkbox} ${item.content ?? ''}`;
+    })
+    .join('\n');
+}
+
+function mapToolKind(config: Config, toolName: string): string {
+  const tool = toolName ? config.getToolRegistry?.()?.getTool?.(toolName) : null;
+  const kind = tool?.kind as string | undefined;
+
+  if (toolName === ExitPlanModeTool.Name) {
+    return 'switch_mode';
+  }
+
+  if (toolName === ToolNames.TODO_WRITE) {
+    return 'todowrite';
+  }
+
+  const allowedKinds = new Set<string>([
+    'read',
+    'edit',
+    'delete',
+    'move',
+    'search',
+    'execute',
+    'think',
+    'fetch',
+    'other',
+  ]);
+
+  if (kind && allowedKinds.has(kind)) {
+    return kind;
+  }
+
+  return 'other';
+}
+
 /**
- * Collects session data from ChatRecord[] using HistoryReplayer.
- * Returns the raw ExportSessionData (SSOT) without normalization.
+ * Collects session data from ChatRecord[] without depending on ACP experimental
+ * session replay code. This keeps export on the active runtime side.
  */
 export async function collectSessionData(
   conversation: {
@@ -240,23 +301,8 @@ export async function collectSessionData(
   },
   config: Config,
 ): Promise<ExportSessionData> {
-  // Create export session context
-  const exportContext = new ExportSessionContext(
-    conversation.sessionId,
-    config,
-  );
-
-  // Create history replayer with export context
-  const replayer = new HistoryReplayer(exportContext);
-
-  // Replay chat records to build export messages
-  await replayer.replay(conversation.messages);
-
-  // Flush any buffered messages
-  exportContext.flushMessages();
-
-  // Get the export messages
-  const messages = exportContext.getMessages();
+  const collector = new ExportCollector(conversation.sessionId, config);
+  const messages = await collector.collect(conversation.messages);
 
   return {
     sessionId: conversation.sessionId,

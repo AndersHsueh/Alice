@@ -24,6 +24,7 @@ import { DaemonClient } from '../../utils/daemonClient.js';
 import type { ChatStreamEvent } from '../../types/chatStream.js';
 import type { ToolCallRecord } from '../../types/tool.js';
 import type { SlashCommandProcessorResult } from '../../ui/types.js';
+import { formatToolResult } from '../../runtime/tools/toolResultFormatter.js';
 
 // ─── Tool call tracking ───────────────────────────────────────────────────────
 
@@ -33,45 +34,6 @@ interface TrackedToolCall {
   status: ToolCallStatus;
   args?: Record<string, unknown>;
   resultDisplay?: string;
-}
-
-function formatToolResult(record: ToolCallRecord): string | undefined {
-  const result = record.result;
-  if (!result) {
-    return undefined;
-  }
-
-  const parts: string[] = [];
-
-  if (result.status) {
-    parts.push(result.status);
-  }
-
-  if (result.error) {
-    parts.push(`Error: ${result.error}`);
-  }
-
-  if (result.data !== undefined) {
-    if (typeof result.data === 'string') {
-      parts.push(result.data);
-    } else {
-      try {
-        parts.push(JSON.stringify(result.data, null, 2));
-      } catch {
-        parts.push(String(result.data));
-      }
-    }
-  }
-
-  if (parts.length === 0) {
-    try {
-      return JSON.stringify(result, null, 2);
-    } catch {
-      return String(result);
-    }
-  }
-
-  return parts.join('\n\n');
 }
 
 function isSlashCommandQuery(input: string): boolean {

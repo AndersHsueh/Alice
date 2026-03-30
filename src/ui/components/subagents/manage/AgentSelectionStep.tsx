@@ -8,7 +8,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../../../semantic-colors.js';
 import { useKeypress } from '../../../hooks/useKeypress.js';
-import { type SubagentConfig } from '@qwen-code/qwen-code-core';
+import {
+  type SubagentConfig,
+} from '@qwen-code/qwen-code-core';
 import { t } from '../../../../i18n/index.js';
 
 interface NavigationState {
@@ -28,6 +30,17 @@ export const AgentSelectionStep = ({
   availableAgents,
   onAgentSelect,
 }: AgentSelectionStepProps) => {
+  const toRenderAgent = (agent: SubagentConfig) => ({
+    name: agent.name,
+    level: (agent.level ?? 'user') as
+      | 'user'
+      | 'session'
+      | 'project'
+      | 'builtin'
+      | 'extension',
+    isBuiltin: (agent as { isBuiltin?: boolean }).isBuiltin,
+  });
+
   const [navigation, setNavigation] = useState<NavigationState>({
     currentBlock: 'project',
     projectIndex: 0,
@@ -366,7 +379,7 @@ export const AgentSelectionStep = ({
               const isSelected =
                 navigation.currentBlock === 'project' &&
                 navigation.projectIndex === index;
-              return renderAgentItem(agent, index, isSelected);
+              return renderAgentItem(toRenderAgent(agent), index, isSelected);
             })}
           </Box>
         </Box>
@@ -388,7 +401,7 @@ export const AgentSelectionStep = ({
               const isSelected =
                 navigation.currentBlock === 'user' &&
                 navigation.userIndex === index;
-              return renderAgentItem(agent, index, isSelected);
+              return renderAgentItem(toRenderAgent(agent), index, isSelected);
             })}
           </Box>
         </Box>
@@ -408,7 +421,7 @@ export const AgentSelectionStep = ({
               const isSelected =
                 navigation.currentBlock === 'builtin' &&
                 navigation.builtinIndex === index;
-              return renderAgentItem(agent, index, isSelected);
+              return renderAgentItem(toRenderAgent(agent), index, isSelected);
             })}
           </Box>
         </Box>
@@ -425,7 +438,7 @@ export const AgentSelectionStep = ({
               const isSelected =
                 navigation.currentBlock === 'extension' &&
                 navigation.extensionIndex === index;
-              return renderAgentItem(agent, index, isSelected);
+              return renderAgentItem(toRenderAgent(agent), index, isSelected);
             })}
           </Box>
         </Box>

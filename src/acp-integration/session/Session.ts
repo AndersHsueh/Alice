@@ -57,7 +57,7 @@ import type {
 } from '@agentclientprotocol/sdk';
 import type { LoadedSettings } from '../../config/settings.js';
 import { z } from 'zod';
-import { normalizePartList } from '../../utils/nonInteractiveHelpers.js';
+import { normalizePartList } from '../../nonInteractive/utils/nonInteractiveHelpers.js';
 import {
   handleSlashCommand,
   getAvailableCommands,

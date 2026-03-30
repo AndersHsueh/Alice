@@ -54,6 +54,9 @@ export const ExtensionsList = () => {
               break;
           }
 
+          const resolvedSettings = Array.isArray(ext.resolvedSettings)
+            ? ext.resolvedSettings
+            : [];
           return (
             <Box key={ext.name} flexDirection="column" marginBottom={1}>
               <Text>
@@ -61,10 +64,10 @@ export const ExtensionsList = () => {
                 <Text color={activeColor}>{` - ${activeString}`}</Text>
                 {<Text color={stateColor}>{` (${stateText})`}</Text>}
               </Text>
-              {ext.resolvedSettings && ext.resolvedSettings.length > 0 && (
+              {resolvedSettings.length > 0 && (
                 <Box flexDirection="column" paddingLeft={2}>
                   <Text>settings:</Text>
-                  {ext.resolvedSettings.map((setting) => (
+                  {resolvedSettings.map((setting) => (
                     <Text key={setting.name}>
                       - {setting.name}: {setting.value}
                     </Text>

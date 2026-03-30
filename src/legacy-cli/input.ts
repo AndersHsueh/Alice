@@ -1,4 +1,8 @@
 /**
+ * Legacy interactive CLI path.
+ * Retained for historical reference / possible extraction.
+ * Not used by the current main entrypoint.
+ *
  * Input handler — wraps Node readline for the REPL loop.
  * Handles line editing, history, tab completion for slash commands.
  * Provides question() and choice() for interactive prompts mid-conversation.

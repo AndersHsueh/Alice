@@ -36,7 +36,8 @@ export const ContextSummaryDisplay: React.FC<ContextSummaryDisplayProps> = ({
   const isNarrow = isNarrowWidth(terminalWidth);
   const mcpServerCount = Object.keys(mcpServers || {}).length;
   const blockedMcpServerCount = blockedMcpServers?.length || 0;
-  const openFileCount = ideContext?.workspaceState?.openFiles?.length ?? 0;
+  const openFiles = ideContext?.workspaceState?.openFiles;
+  const openFileCount = Array.isArray(openFiles) ? openFiles.length : 0;
 
   if (
     geminiMdFileCount === 0 &&

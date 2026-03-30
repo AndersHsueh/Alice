@@ -7,6 +7,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AsyncFzf } from 'fzf';
 import { createDebugLogger } from '@qwen-code/qwen-code-core';
+import type { FzfResultItem } from 'fzf';
 import type { Suggestion } from '../components/SuggestionsDisplay.js';
 import {
   CommandKind,
@@ -16,13 +17,7 @@ import {
 } from '../commands/types.js';
 
 // Type alias for improved type safety based on actual fzf result structure
-type FzfCommandResult = {
-  item: string;
-  start: number;
-  end: number;
-  score: number;
-  positions?: number[]; // Optional - fzf doesn't always provide match positions depending on algorithm/options used
-};
+type FzfCommandResult = FzfResultItem<string>;
 
 // Interface for FZF command cache entry
 interface FzfCommandCacheEntry {

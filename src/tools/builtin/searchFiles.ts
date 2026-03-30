@@ -37,7 +37,7 @@ export const searchFilesTool: AliceTool = {
     const { 
       pattern, 
       directory = '.', 
-      ignore = ['node_modules/**', '.git/**', 'dist/**'] 
+      ignore = ['**/node_modules/**', '**/.git/**', '**/dist/**'] 
     } = params;
     const base = context?.workspace ?? process.cwd();
     const resolvedDir = path.isAbsolute(directory) ? directory : path.resolve(base, directory);

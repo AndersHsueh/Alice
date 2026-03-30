@@ -1,12 +1,16 @@
 /**
+ * Legacy interactive CLI path.
+ * Retained for historical reference / possible extraction.
+ * Not used by the current main entrypoint.
+ *
  * Chat — the interactive REPL loop.
  * Replaces the old React/Ink app.tsx.
  * All business logic (daemon, tools, sessions) is unchanged.
  */
 
 import { DaemonClient } from '../utils/daemonClient.js';
-import { CommandRegistry } from '../core/commandRegistry.js';
-import { builtinCommands } from '../core/builtinCommands.js';
+import { CommandRegistry } from './commandRegistry.js';
+import { builtinCommands } from './builtinCommands.js';
 import { configManager } from '../utils/config.js';
 import { themeManager } from './theme.js';
 import { StatsTracker } from '../core/statsTracker.js';

@@ -58,15 +58,15 @@ async function testTools() {
   console.log('结果:', dirResult.data);
   console.log();
 
-  // 测试 3: searchFiles
-  console.log('--- 测试 3: searchFiles (*.ts) ---');
+  // 测试 3: searchFiles（递归）
+  console.log('--- 测试 3: searchFiles (**/*.ts) ---');
   const searchCall: ToolCall = {
     id: 'test-3',
     type: 'function',
     function: {
       name: 'searchFiles',
       arguments: JSON.stringify({
-        pattern: '*.ts',
+        pattern: '**/*.ts',
         directory: './src'
       })
     }

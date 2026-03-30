@@ -379,7 +379,7 @@ export async function handleAtCommand({
           processedQueryParts.push({ text: part });
         } else {
           // part is a Part object (text, inlineData, or fileData)
-          processedQueryParts.push(part);
+          processedQueryParts.push(part as unknown as { text: string });
         }
       }
     } else {

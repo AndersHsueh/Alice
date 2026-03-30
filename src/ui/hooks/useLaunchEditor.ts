@@ -22,7 +22,7 @@ function commandExists(cmd: string): boolean {
     return commandExistsCache.get(cmd)!;
   }
 
-  const exists = coreCommandExists(cmd);
+  const exists = Boolean(coreCommandExists(cmd));
   commandExistsCache.set(cmd, exists);
   return exists;
 }

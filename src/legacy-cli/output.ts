@@ -1,4 +1,8 @@
 /**
+ * Legacy interactive CLI path.
+ * Retained for historical reference / possible extraction.
+ * Not used by the current main entrypoint.
+ *
  * Terminal output engine
  * Handles all stdout writes: streaming text, tool status, messages, notices.
  * State machine tracks whether there's a live (overwritable) spinner line.

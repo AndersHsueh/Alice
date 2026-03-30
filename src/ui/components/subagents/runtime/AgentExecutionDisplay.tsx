@@ -80,6 +80,10 @@ export const AgentExecutionDisplay: React.FC<AgentExecutionDisplayProps> = ({
   config,
 }) => {
   const [displayMode, setDisplayMode] = React.useState<DisplayMode>('compact');
+  const executionSummary =
+    data.executionSummary && typeof data.executionSummary !== 'string'
+      ? data.executionSummary
+      : undefined;
 
   const agentColor = useMemo(() => {
     const colorOption = COLOR_OPTIONS.find(
@@ -169,7 +173,9 @@ export const AgentExecutionDisplay: React.FC<AgentExecutionDisplayProps> = ({
             {data.pendingConfirmation && (
               <Box flexDirection="column" marginTop={1} paddingLeft={1}>
                 <ToolConfirmationMessage
-                  confirmationDetails={data.pendingConfirmation}
+                  confirmationDetails={
+                    (data.pendingConfirmation as any) ?? { type: 'unknown' }
+                  }
                   isFocused={true}
                   availableTerminalHeight={availableHeight}
                   contentWidth={childWidth - 4}
@@ -182,12 +188,12 @@ export const AgentExecutionDisplay: React.FC<AgentExecutionDisplayProps> = ({
         )}
 
         {/* Completed state: Show summary line */}
-        {data.status === 'completed' && data.executionSummary && (
+        {data.status === 'completed' && executionSummary && (
           <Box flexDirection="row" marginTop={1}>
             <Text color={theme.text.secondary}>
-              Execution Summary: {data.executionSummary.totalToolCalls} tool
-              uses · {data.executionSummary.totalTokens.toLocaleString()} tokens
-              · {fmtDuration(data.executionSummary.totalDurationMs)}
+              Execution Summary: {executionSummary.totalToolCalls} tool uses ·{' '}
+              {executionSummary.totalTokens.toLocaleString()} tokens ·{' '}
+              {fmtDuration(executionSummary.totalDurationMs)}
             </Text>
           </Box>
         )}
@@ -237,8 +243,10 @@ export const AgentExecutionDisplay: React.FC<AgentExecutionDisplayProps> = ({
       {/* Inline approval prompt when awaiting confirmation */}
       {data.pendingConfirmation && (
         <Box flexDirection="column">
-          <ToolConfirmationMessage
-            confirmationDetails={data.pendingConfirmation}
+            <ToolConfirmationMessage
+            confirmationDetails={
+              (data.pendingConfirmation as any) ?? { type: 'unknown' }
+            }
             config={config}
             isFocused={true}
             availableTerminalHeight={availableHeight}
@@ -438,7 +446,10 @@ const ExecutionSummaryDetails: React.FC<{
   data: TaskResultDisplay;
   displayMode: DisplayMode;
 }> = ({ data, displayMode: _displayMode }) => {
-  const stats = data.executionSummary;
+  const stats =
+    data.executionSummary && typeof data.executionSummary !== 'string'
+      ? data.executionSummary
+      : undefined;
 
   if (!stats) {
     return (
@@ -469,7 +480,11 @@ const ExecutionSummaryDetails: React.FC<{
 const ToolUsageStats: React.FC<{
   executionSummary?: SubagentStatsSummary;
 }> = ({ executionSummary }) => {
-  if (!executionSummary) {
+  const summary =
+    executionSummary && typeof executionSummary !== 'string'
+      ? executionSummary
+      : undefined;
+  if (!summary) {
     return (
       <Box flexDirection="column" paddingLeft={1}>
         <Text color={theme.text.secondary}>• No tool usage data available</Text>
@@ -480,20 +495,20 @@ const ToolUsageStats: React.FC<{
   return (
     <Box flexDirection="column" paddingLeft={1}>
       <Text>
-        • <Text>Total Calls:</Text> {executionSummary.totalToolCalls}
+        • <Text>Total Calls:</Text> {summary.totalToolCalls ?? 0}
       </Text>
       <Text>
         • <Text>Success Rate:</Text>{' '}
         <Text color={theme.status.success}>
-          {executionSummary.successRate.toFixed(1)}%
+          {(summary.successRate ?? 0).toFixed(1)}%
         </Text>{' '}
         (
         <Text color={theme.status.success}>
-          {executionSummary.successfulToolCalls} success
+          {summary.successfulToolCalls ?? 0} success
         </Text>
         ,{' '}
         <Text color={theme.status.error}>
-          {executionSummary.failedToolCalls} failed
+          {summary.failedToolCalls ?? 0} failed
         </Text>
         )
       </Text>
@@ -530,7 +545,13 @@ const ResultsSection: React.FC<{
         <Box flexDirection="row" marginBottom={1}>
           <Text color={theme.text.primary}>Tool Usage:</Text>
         </Box>
-        <ToolUsageStats executionSummary={data.executionSummary} />
+        <ToolUsageStats
+          executionSummary={
+            typeof data.executionSummary === 'string'
+              ? undefined
+              : data.executionSummary
+          }
+        />
       </Box>
     )}
 

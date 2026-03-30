@@ -1,4 +1,8 @@
 /**
+ * Legacy interactive CLI path.
+ * Retained for historical reference / possible extraction.
+ * Not used by the current main entrypoint.
+ *
  * 主题系统
  * 支持可自定义的颜色主题和热重载
  */

@@ -231,6 +231,7 @@ export class DaemonClient {
     message: string;
     model?: string;
     workspace?: string;
+    workspaceContext?: import('../types/chatStream.js').WorkspaceContext;
     includeThink?: boolean;
   }): AsyncGenerator<ChatStreamEvent> {
     await this.ensureDaemonRunning();

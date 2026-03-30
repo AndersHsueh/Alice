@@ -51,6 +51,7 @@ export type TrackedWaitingToolCall = WaitingToolCall & {
 export type TrackedExecutingToolCall = ExecutingToolCall & {
   responseSubmittedToGemini?: boolean;
   pid?: number;
+  liveOutput?: string;
 };
 export type TrackedCompletedToolCall = CompletedToolCall & {
   responseSubmittedToGemini?: boolean;
@@ -59,13 +60,12 @@ export type TrackedCancelledToolCall = CancelledToolCall & {
   responseSubmittedToGemini?: boolean;
 };
 
-export type TrackedToolCall =
-  | TrackedScheduledToolCall
-  | TrackedValidatingToolCall
-  | TrackedWaitingToolCall
-  | TrackedExecutingToolCall
-  | TrackedCompletedToolCall
-  | TrackedCancelledToolCall;
+export type TrackedToolCall = ToolCall & {
+  responseSubmittedToGemini?: boolean;
+  pid?: number;
+  liveOutput?: string;
+  confirmationDetails?: unknown;
+};
 
 export function useReactToolScheduler(
   onComplete: (tools: CompletedToolCall[]) => Promise<void>,
@@ -185,7 +185,7 @@ export function useReactToolScheduler(
 /**
  * Maps a CoreToolScheduler status to the UI's ToolCallStatus enum.
  */
-function mapCoreStatusToDisplayStatus(coreStatus: CoreStatus): ToolCallStatus {
+function mapCoreStatusToDisplayStatus(coreStatus: CoreStatus | string): ToolCallStatus {
   switch (coreStatus) {
     case 'validating':
       return ToolCallStatus.Executing;
@@ -201,11 +201,9 @@ function mapCoreStatusToDisplayStatus(coreStatus: CoreStatus): ToolCallStatus {
       return ToolCallStatus.Error;
     case 'scheduled':
       return ToolCallStatus.Pending;
-    default: {
-      const exhaustiveCheck: never = coreStatus;
-      debugLogger.warn(`Unknown core status encountered: ${exhaustiveCheck}`);
+    default:
+      debugLogger.warn(`Unknown core status encountered: ${String(coreStatus)}`);
       return ToolCallStatus.Error;
-    }
   }
 }
 
@@ -272,7 +270,8 @@ export function mapToDisplay(
             ...baseDisplayProperties,
             status: mapCoreStatusToDisplayStatus(trackedCall.status),
             resultDisplay: undefined,
-            confirmationDetails: trackedCall.confirmationDetails,
+            confirmationDetails:
+              (trackedCall.confirmationDetails as any) ?? { type: 'unknown' },
           };
         case 'executing':
           return {
@@ -291,10 +290,9 @@ export function mapToDisplay(
             resultDisplay: undefined,
             confirmationDetails: undefined,
           };
-        default: {
-          const exhaustiveCheck: never = trackedCall;
+        default:
           return {
-            callId: (exhaustiveCheck as TrackedToolCall).request.callId,
+            callId: trackedCall.request.callId,
             name: 'Unknown Tool',
             description: 'Encountered an unknown tool call state.',
             status: ToolCallStatus.Error,
@@ -302,7 +300,6 @@ export function mapToDisplay(
             confirmationDetails: undefined,
             renderOutputAsMarkdown: false,
           };
-        }
       }
     },
   );

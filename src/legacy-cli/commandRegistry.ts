@@ -1,4 +1,8 @@
 /**
+ * Legacy interactive CLI path.
+ * Retained for historical reference / possible extraction.
+ * Not used by the current main entrypoint.
+ *
  * 命令注册表和命令系统
  * 提供标准化的命令接口和注册机制
  */

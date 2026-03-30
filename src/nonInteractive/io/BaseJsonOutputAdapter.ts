@@ -36,7 +36,7 @@ import type {
   ToolUseBlock,
   Usage,
 } from '../types.js';
-import { functionResponsePartsToString } from '../../utils/nonInteractiveHelpers.js';
+import { functionResponsePartsToString } from '../utils/nonInteractiveHelpers.js';
 
 /**
  * Internal state for managing a single message context (main agent or subagent).

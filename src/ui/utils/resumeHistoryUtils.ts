@@ -73,7 +73,7 @@ function extractFunctionCalls(
     if ('functionCall' in part && part.functionCall) {
       const fc = part.functionCall as FunctionCall;
       calls.push({
-        id: fc.id || `call-${calls.length}`,
+        id: `call-${calls.length}`,
         name: fc.name || 'unknown',
         args: (fc.args as Record<string, unknown>) || {},
       });

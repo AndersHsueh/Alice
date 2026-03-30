@@ -7,7 +7,6 @@
 import type { CommandModule } from 'yargs';
 import { getErrorMessage } from '../../utils/errors.js';
 import { writeStdoutLine, writeStderrLine } from '../../utils/stdioHelpers.js';
-import { ExtensionUpdateState } from '../../ui/state/extensions.js';
 import {
   checkForExtensionUpdate,
   type ExtensionUpdateInfo,
@@ -58,7 +57,7 @@ export async function handleUpdate(args: UpdateArgs) {
         extension,
         extensionManager,
       );
-      if (updateState !== ExtensionUpdateState.UPDATE_AVAILABLE) {
+      if (!updateState) {
         writeStdoutLine(
           t('Extension "{{name}}" is already up to date.', { name: args.name }),
         );

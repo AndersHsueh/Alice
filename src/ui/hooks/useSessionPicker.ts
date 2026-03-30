@@ -124,8 +124,8 @@ export function useSessionPicker({
           size: SESSION_PAGE_SIZE,
         });
         setSessionState({
-          sessions: result.items,
-          hasMore: result.hasMore,
+          sessions: result.items ?? result.sessions ?? [],
+          hasMore: result.hasMore ?? false,
           nextCursor: result.nextCursor,
         });
       } finally {
@@ -148,8 +148,8 @@ export function useSessionPicker({
         cursor: sessionState.nextCursor,
       });
       setSessionState((prev) => ({
-        sessions: [...prev.sessions, ...result.items],
-        hasMore: result.hasMore && result.nextCursor !== undefined,
+        sessions: [...prev.sessions, ...(result.items ?? result.sessions ?? [])],
+        hasMore: (result.hasMore ?? false) && result.nextCursor !== undefined,
         nextCursor: result.nextCursor,
       }));
     } finally {

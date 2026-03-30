@@ -7,12 +7,7 @@ import { LLMClient } from '../core/llm.js';
 import { configManager } from '../utils/config.js';
 import { resolveTaskModel } from './taskModelResolver.js';
 import { sendNotification } from './notification.js';
-import {
-  getCronWorkspacePaths,
-  readWorkspaceProfile,
-  type MaintenanceTaskItem,
-  type TaskState,
-} from './cronWorkspace.js';
+import type { MaintenanceTaskItem, TaskState } from './cronWorkspace.js';
 import {
   readTaskState,
   writeTaskState,
@@ -22,6 +17,10 @@ import {
 } from './taskState.js';
 import type { DaemonConfig } from '../types/daemon.js';
 import type { DaemonLogger } from './logger.js';
+import {
+  resolveCronWorkspaces,
+  readResolvedWorkspaceProfile,
+} from '../runtime/workspace/workspaceResolver.js';
 
 /** 已发过降级通知的 taskId（进程内去重） */
 const downgradeNotifiedTaskIds = new Set<string>();
@@ -44,23 +43,23 @@ function toTaskId(workspacePath: string, task: MaintenanceTaskItem, index: numbe
 async function collectRunnableTasks(
   config: DaemonConfig,
 ): Promise<Array<{ workspacePath: string; task: MaintenanceTaskItem; index: number; taskId: string }>> {
-  const dirs = getCronWorkspacePaths(config);
+  const dirs = await resolveCronWorkspaces(config);
   const list: Array<{ workspacePath: string; task: MaintenanceTaskItem; index: number; taskId: string }> = [];
   for (const dir of dirs) {
-    const profile = await readWorkspaceProfile(dir);
+    const profile = await readResolvedWorkspaceProfile(dir.workspace);
     if (!profile || profile.briefcaseType !== 'project-management') continue;
     const tasks = profile.maintenanceTasks ?? [];
-    const state = await readTaskState(dir);
+    const state = await readTaskState(dir.workspace);
     for (let i = 0; i < tasks.length; i++) {
       const task = tasks[i];
       if (task.enabled === false) continue;
-      const taskId = toTaskId(dir, task, i);
+      const taskId = toTaskId(dir.workspace, task, i);
       const entry = getTaskStateEntry(state, taskId);
       if (entry && entry.state !== '未开始' && entry.state !== '完成' && entry.state !== '中断' && entry.state !== '异常') {
         continue; // 执行中不重复拉
       }
       if (entry?.state === '执行中') continue;
-      list.push({ workspacePath: dir, task, index: i, taskId });
+      list.push({ workspacePath: dir.workspace, task, index: i, taskId });
     }
   }
   return list;
@@ -140,9 +139,9 @@ export async function runOnePlaceholderTask(
  * 是否有任意任务处于执行中（用于 6.1 自适应间隔）
  */
 export async function hasAnyTaskRunningInWorkspaces(config: DaemonConfig): Promise<boolean> {
-  const dirs = getCronWorkspacePaths(config);
+  const dirs = await resolveCronWorkspaces(config);
   for (const dir of dirs) {
-    const state = await readTaskState(dir);
+    const state = await readTaskState(dir.workspace);
     if (hasAnyTaskRunning(state)) return true;
   }
   return false;
@@ -152,19 +151,19 @@ export async function hasAnyTaskRunningInWorkspaces(config: DaemonConfig): Promi
  * 将持久化中「执行中」的任务置为异常（实施方案 6.3 启动时调用）
  */
 export async function fixStaleRunningTasks(config: DaemonConfig, log: DaemonLogger): Promise<void> {
-  const dirs = getCronWorkspacePaths(config);
+  const dirs = await resolveCronWorkspaces(config);
   for (const dir of dirs) {
-    const state = await readTaskState(dir);
+    const state = await readTaskState(dir.workspace);
     let changed = false;
     for (const [taskId, entry] of Object.entries(state.tasks)) {
       if (entry.state === '执行中') {
         state.tasks[taskId] = { ...entry, state: '异常', updatedAt: Date.now() };
         changed = true;
-        log.info('将重启前未结束的任务置为异常', { taskId, workspace: dir });
+        log.info('将重启前未结束的任务置为异常', { taskId, workspace: dir.workspace });
       }
     }
     if (changed) {
-      await writeTaskState(dir, state);
+      await writeTaskState(dir.workspace, state);
     }
   }
 }
@@ -178,20 +177,20 @@ export async function checkExecutionTimeouts(
   config: DaemonConfig,
   log: DaemonLogger,
 ): Promise<void> {
-  const dirs = getCronWorkspacePaths(config);
+  const dirs = await resolveCronWorkspaces(config);
   const now = Date.now();
   for (const dir of dirs) {
-    const state = await readTaskState(dir);
+    const state = await readTaskState(dir.workspace);
     let changed = false;
     for (const [taskId, entry] of Object.entries(state.tasks)) {
       if (entry.state === '执行中' && now - entry.updatedAt > MAX_EXECUTION_MS) {
         state.tasks[taskId] = { ...entry, state: '中断', updatedAt: now };
         changed = true;
-        log.warn('任务执行超时，已置为中断', { taskId, workspace: dir });
+        log.warn('任务执行超时，已置为中断', { taskId, workspace: dir.workspace });
       }
     }
     if (changed) {
-      await writeTaskState(dir, state);
+      await writeTaskState(dir.workspace, state);
     }
   }
 }

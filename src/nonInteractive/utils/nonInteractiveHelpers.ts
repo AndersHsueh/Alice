@@ -13,26 +13,26 @@ import type {
   ToolCallResponseInfo,
   SessionMetrics,
   McpToolProgressData,
-} from '../shim/qwen-code-core.js';
+} from '../../shim/qwen-code-core.js';
 import {
   OutputFormat,
   ToolErrorType,
   createDebugLogger,
   getMCPServerStatus,
-} from '../shim/qwen-code-core.js';
+} from '../../shim/qwen-code-core.js';
 import type { Part, PartListUnion } from '@google/genai';
 import type {
   CLIUserMessage,
   Usage,
   PermissionMode,
   CLISystemMessage,
-} from '../nonInteractive/types.js';
+} from '../types.js';
 import type {
   JsonOutputAdapterInterface,
   MessageEmitter,
-} from '../nonInteractive/io/BaseJsonOutputAdapter.js';
-import { computeSessionStats } from '../ui/utils/computeStats.js';
-import { getAvailableCommands } from '../nonInteractiveCliCommands.js';
+} from '../io/BaseJsonOutputAdapter.js';
+import { computeSessionStats } from '../../ui/utils/computeStats.js';
+import { getAvailableCommands } from '../../nonInteractiveCliCommands.js';
 
 const debugLogger = createDebugLogger('NON_INTERACTIVE');
 

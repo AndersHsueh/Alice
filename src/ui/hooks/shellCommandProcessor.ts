@@ -224,7 +224,7 @@ export const useShellCommandProcessor = (
                             }
                           : tool,
                       ),
-                    };
+                    } as HistoryItemWithoutId;
                   }
                   return prevItem;
                 });
@@ -248,7 +248,7 @@ export const useShellCommandProcessor = (
                   tools: prevItem.tools.map((tool) =>
                     tool.callId === callId ? { ...tool, ptyId: pid } : tool,
                   ),
-                };
+                } as HistoryItemWithoutId;
               }
               return prevItem;
             });
@@ -260,9 +260,20 @@ export const useShellCommandProcessor = (
 
               let mainContent: string;
 
-              if (isBinary(result.rawOutput)) {
-                mainContent =
-                  '[Command produced binary output, which is not shown.]';
+              if (
+                typeof result.rawOutput === 'string' ||
+                result.rawOutput instanceof Uint8Array
+              ) {
+                if (
+                  typeof result.rawOutput === 'string' &&
+                  isBinary(result.rawOutput)
+                ) {
+                  mainContent =
+                    '[Command produced binary output, which is not shown.]';
+                } else {
+                  mainContent =
+                    result.output.trim() || '(Command produced no output)';
+                }
               } else {
                 mainContent =
                   result.output.trim() || '(Command produced no output)';
@@ -273,7 +284,11 @@ export const useShellCommandProcessor = (
 
               if (result.error) {
                 finalStatus = ToolCallStatus.Error;
-                finalOutput = `${result.error.message}\n${finalOutput}`;
+                const errorMessage =
+                  typeof result.error === 'string'
+                    ? result.error
+                    : (result.error.message ?? 'Unknown error');
+                finalOutput = `${errorMessage}\n${finalOutput}`;
               } else if (result.aborted) {
                 finalStatus = ToolCallStatus.Canceled;
                 finalOutput = `Command was cancelled.\n${finalOutput}`;

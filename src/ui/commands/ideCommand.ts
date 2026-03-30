@@ -92,7 +92,7 @@ async function getIdeStatusMessageWithFiles(ideClient: IdeClient): Promise<{
     case IDEConnectionStatus.Connected: {
       let content = `🟢 Connected to ${ideClient.getDetectedIdeDisplayName()}`;
       const context = ideContextStore.get();
-      const openFiles = context?.workspaceState?.openFiles;
+      const openFiles = context?.workspaceState?.openFiles as File[] | undefined;
       if (openFiles && openFiles.length > 0) {
         content += formatFileList(openFiles);
       }
@@ -190,7 +190,7 @@ export const ideCommand = async (): Promise<SlashCommand> => {
     },
     kind: CommandKind.BUILT_IN,
     action: async (context) => {
-      const installer = getIdeInstaller(currentIDE);
+      const installer = getIdeInstaller(currentIDE.type);
       const isSandBox = !!process.env['SANDBOX'];
       if (isSandBox) {
         context.ui.addItem(

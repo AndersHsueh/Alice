@@ -52,6 +52,11 @@ export async function handleChannelMessage(
       {
         sessionId: payload.sessionId,
         workspace: payload.workspace || undefined,
+        workspaceContext: {
+          kind: 'channel',
+          channel,
+          chatId,
+        },
         message: text,
       },
       logger

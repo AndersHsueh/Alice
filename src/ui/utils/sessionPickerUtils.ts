@@ -12,7 +12,7 @@ import type { SessionListItem } from '@qwen-code/qwen-code-core';
 export interface SessionState {
   sessions: SessionListItem[];
   hasMore: boolean;
-  nextCursor?: number;
+  nextCursor?: string | number;
 }
 
 /**

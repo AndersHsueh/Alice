@@ -58,11 +58,13 @@ export const useQwenAuth = (
       setQwenAuthState((prev) => ({
         ...prev,
         deviceAuth: {
-          verification_uri: deviceAuth.verification_uri,
+          verificationUri:
+            deviceAuth.verificationUri ?? deviceAuth.verification_uri ?? '',
           verification_uri_complete: deviceAuth.verification_uri_complete,
-          user_code: deviceAuth.user_code,
+          userCode: deviceAuth.userCode ?? deviceAuth.user_code ?? '',
+          expiresIn: deviceAuth.expiresIn ?? deviceAuth.expires_in ?? 0,
+          deviceCode: deviceAuth.deviceCode ?? deviceAuth.device_code ?? '',
           expires_in: deviceAuth.expires_in,
-          device_code: deviceAuth.device_code,
         },
         authStatus: 'polling',
       }));

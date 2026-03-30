@@ -191,9 +191,12 @@ export class FileCommandLoader implements ICommandLoader {
    * Returns paths from config.commands if specified, otherwise defaults to 'commands' directory.
    */
   private getExtensionCommandsPaths(ext: {
-    path: string;
+    path?: string;
     name: string;
   }): string[] {
+    if (!ext.path) {
+      return [];
+    }
     // Try to get extension config
     try {
       const configPath = path.join(ext.path, EXTENSIONS_CONFIG_FILENAME);
@@ -284,12 +287,22 @@ export class FileCommandLoader implements ICommandLoader {
     }
 
     const validDef = validationResult.data;
+    if (typeof validDef.prompt !== 'string') {
+      return null;
+    }
+    const definition: CommandDefinition = {
+      prompt: validDef.prompt,
+      description:
+        typeof validDef.description === 'string'
+          ? validDef.description
+          : undefined,
+    };
 
     // Use factory to create command
     return createSlashCommandFromDefinition(
       filePath,
       baseDir,
-      validDef,
+      definition,
       extensionName,
       '.toml',
     );
@@ -340,16 +353,20 @@ export class FileCommandLoader implements ICommandLoader {
     }
 
     const validDef = validationResult.data;
+    if (typeof validDef.prompt !== 'string') {
+      return null;
+    }
 
     // Convert to CommandDefinition format
     const definition: CommandDefinition = {
       prompt: validDef.prompt,
-      description:
-        validDef.frontmatter?.description &&
-        typeof validDef.frontmatter.description === 'string'
-          ? validDef.frontmatter.description
-          : undefined,
     };
+    if (
+      validDef.frontmatter?.description &&
+      typeof validDef.frontmatter.description === 'string'
+    ) {
+      definition.description = validDef.frontmatter.description;
+    }
 
     // Use factory to create command
     return createSlashCommandFromDefinition(

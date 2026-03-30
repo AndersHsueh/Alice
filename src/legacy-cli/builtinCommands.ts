@@ -1,4 +1,8 @@
 /**
+ * Legacy interactive CLI path.
+ * Retained for historical reference / possible extraction.
+ * Not used by the current main entrypoint.
+ *
  * 内置命令定义
  * 所有输出走 ctx.notify()，不污染对话历史
  */
@@ -6,7 +10,7 @@
 import path from 'path';
 import type { AliceCommand, CommandContext } from './commandRegistry.js';
 import { exportToHTML, exportToMarkdown, generateDefaultFilename } from '../utils/exporter.js';
-import { themeManager } from '../cli/theme.js';
+import { themeManager } from './theme.js';
 import { getErrorMessage } from '../utils/error.js';
 import { DaemonClient } from '../utils/daemonClient.js';
 import { modelsCommand, sessionsCommand } from './extendedCommands.js';

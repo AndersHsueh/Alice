@@ -1324,7 +1324,7 @@ export function getSettingsSchema(): SettingsSchemaType {
   const schema = SETTINGS_SCHEMA as unknown as SettingsSchema;
   if (schema['general']?.properties?.['language']) {
     (
-      schema['general'].properties['language'] as {
+      schema['general'].properties['language'] as unknown as {
         options?: SettingEnumOption[];
       }
     ).options = getLanguageSettingsOptions();

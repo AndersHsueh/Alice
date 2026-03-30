@@ -103,7 +103,7 @@ export async function showResumeSessionPicker(
           onCancel={() => {
             selectedId = undefined;
           }}
-          currentBranch={getGitBranch(cwd)}
+          currentBranch={getGitBranch(cwd) ?? undefined}
         />
       </KeypressProvider>,
       {

@@ -123,7 +123,7 @@ export const useFeedbackDialog = ({
       if (rating >= FEEDBACK_OPTIONS.GOOD && rating <= FEEDBACK_OPTIONS.FINE) {
         const feedbackEvent = new UserFeedbackEvent(
           sessionStats.sessionId,
-          rating as UserFeedbackRating,
+          rating as unknown as UserFeedbackRating,
           config.getModel(),
           config.getApprovalMode(),
         );

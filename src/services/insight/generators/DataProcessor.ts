@@ -58,15 +58,17 @@ export class DataProcessor {
     output += `Duration: ${records.length} turns\n\n`;
 
     for (const record of records) {
+      const messageParts =
+        typeof record.message === 'string' ? undefined : record.message?.parts;
       if (record.type === 'user') {
         const text =
-          record.message?.parts
+          messageParts
             ?.map((p) => ('text' in p ? p.text : ''))
             .join('') || '';
         output += `[User]: ${text}\n`;
       } else if (record.type === 'assistant') {
-        if (record.message?.parts) {
-          for (const part of record.message.parts) {
+        if (messageParts) {
+          for (const part of messageParts) {
             if ('text' in part && part.text) {
               output += `[Assistant]: ${part.text}\n`;
             } else if ('functionCall' in part) {
@@ -193,7 +195,7 @@ export class DataProcessor {
     };
 
     const sessionText = this.formatRecordsForAnalysis(records);
-    const prompt = `${getInsightPrompt('analysis')}\n\nSESSION:\n${sessionText}`;
+    const prompt = `${getInsightPrompt()}\n\nSESSION:\n${sessionText}`;
 
     try {
       const result = await this.config.getBaseLlmClient().generateJson({
@@ -594,49 +596,49 @@ export class DataProcessor {
       ] = await Promise.all([
         limit(() =>
           generate<InsightImpressiveWorkflows>(
-            getInsightPrompt('impressive_workflows'),
+            getInsightPrompt(),
             schemaImpressiveWorkflows,
           ),
         ),
         limit(() =>
           generate<InsightProjectAreas>(
-            getInsightPrompt('project_areas'),
+            getInsightPrompt(),
             schemaProjectAreas,
           ),
         ),
         limit(() =>
           generate<InsightFutureOpportunities>(
-            getInsightPrompt('future_opportunities'),
+            getInsightPrompt(),
             schemaFutureOpportunities,
           ),
         ),
         limit(() =>
           generate<InsightFrictionPoints>(
-            getInsightPrompt('friction_points'),
+            getInsightPrompt(),
             schemaFrictionPoints,
           ),
         ),
         limit(() =>
           generate<InsightMemorableMoment>(
-            getInsightPrompt('memorable_moment'),
+            getInsightPrompt(),
             schemaMemorableMoment,
           ),
         ),
         limit(() =>
           generate<InsightImprovements>(
-            getInsightPrompt('improvements'),
+            getInsightPrompt(),
             schemaImprovements,
           ),
         ),
         limit(() =>
           generate<InsightInteractionStyle>(
-            getInsightPrompt('interaction_style'),
+            getInsightPrompt(),
             schemaInteractionStyle,
           ),
         ),
         limit(() =>
           generate<InsightAtAGlance>(
-            getInsightPrompt('at_a_glance'),
+            getInsightPrompt(),
             schemaAtAGlance,
           ),
         ),
@@ -841,7 +843,7 @@ None captured`;
       // Process batch sequentially to minimize memory usage
       for (const fileInfo of batch) {
         try {
-          const records = await readJsonlFile<ChatRecord>(fileInfo.path);
+          const records = await readJsonlFile<ChatRecord[]>(fileInfo.path);
 
           // Process each record
           for (const record of records) {
@@ -870,8 +872,12 @@ None captured`;
             sessionEndTimes[record.sessionId] = timestamp;
 
             // Track tool usage
-            if (record.type === 'assistant' && record.message?.parts) {
-              for (const part of record.message.parts) {
+            const messageParts =
+              typeof record.message === 'string'
+                ? undefined
+                : record.message?.parts;
+            if (record.type === 'assistant' && messageParts) {
+              for (const part of messageParts) {
                 if ('functionCall' in part) {
                   const name = part.functionCall!.name!;
                   toolUsage[name] = (toolUsage[name] || 0) + 1;
@@ -882,9 +888,15 @@ None captured`;
             // Track lines and files from tool results
             if (
               record.type === 'tool_result' &&
-              record.toolCallResult?.resultDisplay
+              typeof record.toolCallResult === 'object' &&
+              record.toolCallResult !== null &&
+              'resultDisplay' in record.toolCallResult &&
+              (record.toolCallResult as { resultDisplay?: unknown })
+                .resultDisplay
             ) {
-              const display = record.toolCallResult.resultDisplay;
+              const display = (
+                record.toolCallResult as { resultDisplay?: unknown }
+              ).resultDisplay;
               // Check if it matches FileDiff shape
               if (
                 typeof display === 'object' &&
@@ -1018,7 +1030,7 @@ None captured`;
       }
 
       try {
-        const records = await readJsonlFile<ChatRecord>(fileInfo.path);
+        const records = await readJsonlFile<ChatRecord[]>(fileInfo.path);
         if (!this.hasUserAndAssistantRecords(records)) {
           continue;
         }

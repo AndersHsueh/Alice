@@ -1,7 +1,7 @@
 import { BaseProvider, ProviderFactory } from './providers/index.js';
 import { configManager } from '../utils/config.js';
-import { toolRegistry } from '../tools/index.js';
-import { ToolExecutor } from '../tools/index.js';
+import { runtimeToolRegistry } from '../runtime/tools/toolRegistry.js';
+import { RuntimeToolExecutor } from '../runtime/tools/toolExecutor.js';
 import type { ModelConfig, Config } from '../types/index.js';
 import type { Message } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
@@ -14,7 +14,7 @@ export class LLMClient {
   private systemPrompt: string;
   private fallbackProvider: BaseProvider | null = null;
   private fallbackModelConfig: ModelConfig | null = null;
-  private toolExecutor: ToolExecutor | null = null;
+  private toolExecutor: RuntimeToolExecutor | null = null;
 
   constructor(modelConfig: ModelConfig, systemPrompt: string) {
     this.modelConfig = modelConfig;
@@ -127,7 +127,7 @@ export class LLMClient {
    * 启用工具支持
    */
   enableTools(config: Config): void {
-    this.toolExecutor = new ToolExecutor(config);
+    this.toolExecutor = new RuntimeToolExecutor(config, runtimeToolRegistry);
   }
 
   /**
@@ -150,7 +150,7 @@ export class LLMClient {
       throw new Error('工具系统未启用，请先调用 enableTools()');
     }
 
-    const tools = toolRegistry.toOpenAIFunctions();
+    const tools = runtimeToolRegistry.toOpenAIFunctions();
     let conversationMessages = [...messages];
     const maxIterations = configManager.getMaxIterations();
     let iteration = 0;
@@ -244,7 +244,7 @@ export class LLMClient {
       throw new Error('工具系统未启用');
     }
 
-    const tools = toolRegistry.toOpenAIFunctions();
+    const tools = runtimeToolRegistry.toOpenAIFunctions();
     let conversationMessages = [...messages];
     const maxIterations = configManager.getMaxIterations();
     let iteration = 0;

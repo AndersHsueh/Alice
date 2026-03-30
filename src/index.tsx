@@ -12,6 +12,7 @@ import { parseArgs } from './utils/cliArgs.js';
 import { DaemonClient } from './utils/daemonClient.js';
 import { configManager } from './utils/config.js';
 import { getErrorMessage } from './utils/error.js';
+import { getPackageJson } from './utils/package.js';
 
 // ─── One-shot prompt mode (-p flag) ─────────────────────────────────────────
 
@@ -106,7 +107,8 @@ async function startTUI(cliOptions: any): Promise<void> {
     geminiMdFileCount: 0,
   };
 
-  const version = '0.5.6';
+  const packageJson = await getPackageJson();
+  const version = packageJson?.version ?? '0.0.0';
 
   // App wrapper using hooks inside render
   const AppWrapper = () => {

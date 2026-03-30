@@ -127,7 +127,9 @@ export function ToolSelector({
 
         return (
           categoryToolsSet.size === inputToolsSet.size &&
-          [...categoryToolsSet].every((tool) => inputToolsSet.has(tool))
+          [...categoryToolsSet].every((tool) =>
+            inputToolsSet.has(tool as string),
+          )
         );
       });
 

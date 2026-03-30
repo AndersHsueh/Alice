@@ -15,7 +15,7 @@ import {
   IdeClient,
   IDEConnectionStatus,
   ideContextStore,
-  type IDEConnectionState,
+  IDEConnectionState,
 } from '@qwen-code/qwen-code-core';
 import { useSettings } from '../contexts/SettingsContext.js';
 import { isWorkspaceTrusted } from '../../config/trustedFolders.js';
@@ -38,7 +38,11 @@ export function useIdeTrustListener() {
 
   const subscribe = useCallback((onStoreChange: () => void) => {
     const handleStatusChange = (state: IDEConnectionState) => {
-      setConnectionStatus(state.status);
+      setConnectionStatus(
+        state === IDEConnectionState.Connected
+          ? IDEConnectionStatus.Connected
+          : IDEConnectionStatus.Disconnected,
+      );
       setRestartReason('CONNECTION_CHANGE');
       // Also notify useSyncExternalStore that the data has changed
       onStoreChange();
@@ -53,7 +57,12 @@ export function useIdeTrustListener() {
       const ideClient = await IdeClient.getInstance();
       ideClient.addTrustChangeListener(handleTrustChange);
       ideClient.addStatusChangeListener(handleStatusChange);
-      setConnectionStatus(ideClient.getConnectionStatus().status);
+      const status = ideClient.getConnectionStatus().status;
+      setConnectionStatus(
+        status === IDEConnectionStatus.Connected
+          ? IDEConnectionStatus.Connected
+          : IDEConnectionStatus.Disconnected,
+      );
     })();
     return () => {
       (async () => {

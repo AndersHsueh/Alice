@@ -8,8 +8,8 @@
 import type { CommandModule } from 'yargs';
 import { loadSettings } from '../../config/settings.js';
 import { writeStdoutLine } from '../../utils/stdioHelpers.js';
-import type { MCPServerConfig } from '../../shim/qwen-code-core.js';
 import {
+  MCPServerConfig,
   MCPServerStatus,
   createTransport,
   ExtensionManager,
@@ -22,9 +22,7 @@ const COLOR_YELLOW = '\u001b[33m';
 const COLOR_RED = '\u001b[31m';
 const RESET_COLOR = '\u001b[0m';
 
-async function getMcpServersFromConfig(): Promise<
-  Record<string, MCPServerConfig>
-> {
+async function getMcpServersFromConfig(): Promise<Record<string, any>> {
   const settings = loadSettings();
   const extensionManager = new ExtensionManager({
     isWorkspaceTrusted: !!isWorkspaceTrusted(settings.merged),
@@ -40,10 +38,10 @@ async function getMcpServersFromConfig(): Promise<
           if (mcpServers[key]) {
             return;
           }
-          mcpServers[key] = {
+          mcpServers[key] = new MCPServerConfig({
             ...server,
             extensionName: extension.config.name,
-          };
+          });
         },
       );
     }

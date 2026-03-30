@@ -1,4 +1,8 @@
 /**
+ * Legacy interactive CLI path.
+ * Retained for historical reference / possible extraction.
+ * Not used by the current main entrypoint.
+ *
  * /mode 命令 — 模型管理
  * /sessions 命令 — 历史会话
  */

@@ -7,13 +7,14 @@
 import { type CreationWizardState, type WizardAction } from './types.js';
 import { WIZARD_STEPS } from './constants.js';
 import { getStepKind, getTotalSteps } from './utils.js';
+import { SubagentLevel } from '@qwen-code/qwen-code-core';
 
 /**
  * Initial state for the creation wizard.
  */
 export const initialWizardState: CreationWizardState = {
   currentStep: WIZARD_STEPS.LOCATION_SELECTION,
-  location: 'project',
+  location: SubagentLevel.Project,
   generationMethod: 'qwen',
   userDescription: '',
   generatedSystemPrompt: '',

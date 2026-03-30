@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Part } from '@google/genai';
 import { ExitPlanModeTool, ToolNames } from '@qwen-code/qwen-code-core';
 import type { ChatRecord, Config, Kind } from '@qwen-code/qwen-code-core';
 import type { ExportMessage, ExportSessionData } from './types.js';
@@ -151,11 +150,12 @@ function buildToolCallMessageFromResult(
  * Extracts tool name from a ChatRecord.
  */
 function extractToolNameFromRecord(record: ChatRecord): string {
-  if (!record.message?.parts) {
+  const parts = record.message?.parts;
+  if (!parts) {
     return '';
   }
 
-  for (const part of record.message.parts) {
+  for (const part of parts) {
     if ('functionResponse' in part && part.functionResponse?.name) {
       return part.functionResponse.name;
     }
@@ -170,11 +170,12 @@ function extractToolNameFromRecord(record: ChatRecord): string {
 function extractFunctionCallArgs(
   record: ChatRecord,
 ): Record<string, unknown> | undefined {
-  if (!record.message?.parts) {
+  const parts = record.message?.parts;
+  if (!parts) {
     return undefined;
   }
 
-  for (const part of record.message.parts) {
+  for (const part of parts) {
     if ('functionCall' in part && part.functionCall?.args) {
       return part.functionCall.args as Record<string, unknown>;
     }
@@ -287,7 +288,10 @@ function normalizeRawInput(value: unknown): string | object | undefined {
  * Transforms Parts to tool call content array.
  */
 function transformPartsToToolCallContent(
-  parts: Part[],
+  parts: Array<{
+    text?: string;
+    functionResponse?: { response?: Record<string, unknown> };
+  }>,
 ): Array<{ type: string; [key: string]: unknown }> {
   const content: Array<{ type: string; [key: string]: unknown }> = [];
 

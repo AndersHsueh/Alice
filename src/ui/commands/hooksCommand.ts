@@ -9,6 +9,7 @@ import type {
   SlashCommandActionReturn,
   CommandContext,
   MessageActionReturn,
+  CommandCompletionItem,
 } from './types.js';
 import { CommandKind } from './types.js';
 import { t } from '../../i18n/index.js';
@@ -164,7 +165,10 @@ const enableCommand: SlashCommand = {
       }),
     };
   },
-  completion: async (context: CommandContext, partialArg: string) => {
+  completion: async (
+    context: CommandContext,
+    partialArg: string,
+  ): Promise<Array<string | CommandCompletionItem>> => {
     const { config } = context.services;
     if (!config) return [];
 
@@ -175,11 +179,17 @@ const enableCommand: SlashCommand = {
     const allHooks = registry.getAllHooks();
 
     // Return disabled hooks for enable command (deduplicated by name)
-    const disabledHookNames = allHooks
+    const disabledHookNames: string[] = allHooks
       .filter((hook) => !hook.enabled)
-      .map((hook) => hook.config.name || hook.config.command || '')
-      .filter((name) => name && name.startsWith(partialArg));
-    return [...new Set(disabledHookNames)];
+      .map((hook) =>
+        typeof hook.config.name === 'string'
+          ? hook.config.name
+          : typeof hook.config.command === 'string'
+            ? hook.config.command
+            : '',
+      )
+      .filter((name): name is string => Boolean(name && name.startsWith(partialArg)));
+    return Array.from(new Set<string>(disabledHookNames));
   },
 };
 
@@ -233,7 +243,10 @@ const disableCommand: SlashCommand = {
       }),
     };
   },
-  completion: async (context: CommandContext, partialArg: string) => {
+  completion: async (
+    context: CommandContext,
+    partialArg: string,
+  ): Promise<Array<string | CommandCompletionItem>> => {
     const { config } = context.services;
     if (!config) return [];
 
@@ -244,11 +257,17 @@ const disableCommand: SlashCommand = {
     const allHooks = registry.getAllHooks();
 
     // Return enabled hooks for disable command (deduplicated by name)
-    const enabledHookNames = allHooks
+    const enabledHookNames: string[] = allHooks
       .filter((hook) => hook.enabled)
-      .map((hook) => hook.config.name || hook.config.command || '')
-      .filter((name) => name && name.startsWith(partialArg));
-    return [...new Set(enabledHookNames)];
+      .map((hook) =>
+        typeof hook.config.name === 'string'
+          ? hook.config.name
+          : typeof hook.config.command === 'string'
+            ? hook.config.command
+            : '',
+      )
+      .filter((name): name is string => Boolean(name && name.startsWith(partialArg)));
+    return Array.from(new Set<string>(enabledHookNames));
   },
 };
 
@@ -266,7 +285,9 @@ export const hooksCommand: SlashCommand = {
     // If no subcommand provided, show list
     if (!args.trim()) {
       const result = await listCommand.action?.(context, '');
-      return result ?? { type: 'message', messageType: 'info', content: '' };
+      return (
+        result ?? { type: 'message', messageType: 'info', content: '' }
+      ) as SlashCommandActionReturn;
     }
 
     const [subcommand, ...rest] = args.trim().split(/\s+/);
@@ -295,9 +316,14 @@ export const hooksCommand: SlashCommand = {
           ),
         };
     }
-    return result ?? { type: 'message', messageType: 'info', content: '' };
+    return (
+      result ?? { type: 'message', messageType: 'info', content: '' }
+    ) as SlashCommandActionReturn;
   },
-  completion: async (context: CommandContext, partialArg: string) => {
+  completion: async (
+    context: CommandContext,
+    partialArg: string,
+  ): Promise<Array<string | CommandCompletionItem>> => {
     const subcommands = ['list', 'enable', 'disable'];
     const parts = partialArg.split(/\s+/);
 
@@ -312,9 +338,13 @@ export const hooksCommand: SlashCommand = {
 
     switch (subcommand.toLowerCase()) {
       case 'enable':
-        return enableCommand.completion?.(context, subArgs) ?? [];
+        return (
+          (await enableCommand.completion?.(context, subArgs)) ?? []
+        ) as Array<string | CommandCompletionItem>;
       case 'disable':
-        return disableCommand.completion?.(context, subArgs) ?? [];
+        return (
+          (await disableCommand.completion?.(context, subArgs)) ?? []
+        ) as Array<string | CommandCompletionItem>;
       default:
         return [];
     }

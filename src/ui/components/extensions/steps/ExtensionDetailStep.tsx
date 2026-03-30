@@ -31,6 +31,9 @@ export const ExtensionDetailStep = ({
 
   // Fixed width for labels to ensure alignment
   const LABEL_WIDTH = 12;
+  const resolvedSettings = Array.isArray(ext.resolvedSettings)
+    ? ext.resolvedSettings
+    : [];
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -108,13 +111,13 @@ export const ExtensionDetailStep = ({
           </Box>
         )}
 
-        {ext.resolvedSettings && ext.resolvedSettings.length > 0 && (
+        {resolvedSettings.length > 0 && (
           <Box flexDirection="column" marginTop={1}>
             <Box width={LABEL_WIDTH} flexShrink={0}>
               <Text color={theme.text.primary}>{t('Settings:')}</Text>
             </Box>
             <Box flexDirection="column" paddingLeft={2}>
-              {ext.resolvedSettings.map((setting) => (
+              {resolvedSettings.map((setting) => (
                 <Text key={setting.name}>
                   - {setting.name}: {setting.value}
                 </Text>

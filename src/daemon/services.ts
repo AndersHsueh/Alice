@@ -7,7 +7,7 @@ import { configManager } from '../utils/config.js';
 import { mcpConfigManager } from '../utils/mcpConfig.js';
 import { sessionManager } from '../core/session.js';
 import { skillManager } from '../core/skillManager.js';
-import { toolRegistry, builtinTools } from '../tools/index.js';
+import { builtinTools } from '../tools/index.js';
 import { mcpManager } from '../core/mcp.js';
 import { LLMClient } from '../core/llm.js';
 import type { Config, ModelConfig } from '../types/index.js';
@@ -15,6 +15,7 @@ import type { DaemonLogger } from './logger.js';
 import { getErrorMessage } from '../utils/error.js';
 import { eventBus } from '../core/events.js';
 import type { ToolCallEvent, ToolExecuteEvent, ToolErrorEvent } from '../types/events.js';
+import { runtimeToolRegistry } from '../runtime/tools/toolRegistry.js';
 
 let initialized = false;
 const llmClientCache = new Map<string, LLMClient>();
@@ -92,7 +93,7 @@ export async function initServices(logger: DaemonLogger): Promise<void> {
       logger.warn('Skills 初始化失败', getErrorMessage(error));
     }
 
-    toolRegistry.registerAll(builtinTools);
+    runtimeToolRegistry.registerAll(builtinTools);
     logger.info('内置工具已注册');
 
     // 挂载工具调用审计日志（仅在 daemon 环境）

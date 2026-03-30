@@ -53,7 +53,7 @@ export function useCodingPlanUpdates(
         // Get current configs
         const currentConfigs =
           (
-            settings.merged.modelProviders as
+            settings.merged.modelProviders as unknown as
               | Record<string, Array<Record<string, unknown>>>
               | undefined
           )?.[AuthType.USE_OPENAI] || [];
@@ -91,7 +91,7 @@ export function useCodingPlanUpdates(
 
         // Hot-reload model providers configuration first (in-memory only)
         const updatedModelProviders = {
-          ...(settings.merged.modelProviders as
+          ...(settings.merged.modelProviders as unknown as
             | Record<string, unknown>
             | undefined),
           [AuthType.USE_OPENAI]: updatedConfigs,

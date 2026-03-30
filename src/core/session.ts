@@ -3,6 +3,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import { configManager } from '../utils/config.js';
 import type { Message, Session } from '../types/index.js';
+import { inferWorkspaceMetadataFromSession } from '../runtime/workspace/workspaceResolver.js';
 
 export class SessionManager {
   private sessionDir: string;
@@ -40,7 +41,7 @@ export class SessionManager {
     try {
       const filePath = path.join(this.sessionDir, `${id}.json`);
       const data = await fs.readFile(filePath, 'utf-8');
-      const session = JSON.parse(data);
+      const session = JSON.parse(data) as Session;
       
       // 转换日期字符串为 Date 对象
       session.createdAt = new Date(session.createdAt);
@@ -48,6 +49,22 @@ export class SessionManager {
         ...msg,
         timestamp: new Date(msg.timestamp),
       }));
+
+      const inferred = inferWorkspaceMetadataFromSession(session);
+      const prevMeta = (session.metadata ?? {}) as Record<string, any>;
+      const missingBinding =
+        prevMeta.workspaceBackendId !== inferred.workspaceBackendId ||
+        prevMeta.workspaceBackendKind !== inferred.workspaceBackendKind ||
+        ((prevMeta.channel ?? undefined) !== (inferred.channel ?? undefined)) ||
+        ((prevMeta.chatId ?? undefined) !== (inferred.chatId ?? undefined));
+
+      if (missingBinding) {
+        session.metadata = {
+          ...prevMeta,
+          ...inferred,
+        };
+        await this.saveSession(session);
+      }
       
       return session;
     } catch (error) {

@@ -99,7 +99,7 @@ export class ShellProcessor implements IPromptProcessor {
     }
 
     const { shell } = getShellConfiguration();
-    const userArgsEscaped = escapeShellArg(userArgsRaw, shell);
+    const userArgsEscaped = escapeShellArg(userArgsRaw);
 
     const resolvedInjections: ResolvedShellInjection[] = injections.map(
       (injection) => {
@@ -184,37 +184,39 @@ export class ShellProcessor implements IPromptProcessor {
           defaultFg: activeTheme.colors.Foreground,
           defaultBg: activeTheme.colors.Background,
         };
-        const { result } = await ShellExecutionService.execute(
+        const executionResult = await ShellExecutionService.execute(
           injection.resolvedCommand,
-          config.getTargetDir(),
-          () => {},
-          new AbortController().signal,
-          config.getShouldUseNodePtyShell(),
           shellExecutionConfig,
         );
 
-        const executionResult = await result;
-
         // Handle Spawn Errors
-        if (executionResult.error && !executionResult.aborted) {
+        const maybeExec = executionResult as {
+          error?: { message?: string } | string;
+          aborted?: boolean;
+          output?: string;
+          exitCode?: number | null;
+          signal?: string | null;
+        };
+        if (maybeExec.error && !maybeExec.aborted) {
           throw new Error(
-            `Failed to start shell command in '${this.commandName}': ${executionResult.error.message}. Command: ${injection.resolvedCommand}`,
+            `Failed to start shell command in '${this.commandName}': ${typeof maybeExec.error === 'string' ? maybeExec.error : (maybeExec.error?.message ?? 'unknown error')}. Command: ${injection.resolvedCommand}`,
           );
         }
 
         // Append the output, making stderr explicit for the model.
-        processedPrompt += executionResult.output;
+        processedPrompt += maybeExec.output ?? '';
 
         // Append a status message if the command did not succeed.
-        if (executionResult.aborted) {
+        if (maybeExec.aborted) {
           processedPrompt += `\n[Shell command '${injection.resolvedCommand}' aborted]`;
         } else if (
-          executionResult.exitCode !== 0 &&
-          executionResult.exitCode !== null
+          maybeExec.exitCode !== 0 &&
+          maybeExec.exitCode !== null &&
+          maybeExec.exitCode !== undefined
         ) {
-          processedPrompt += `\n[Shell command '${injection.resolvedCommand}' exited with code ${executionResult.exitCode}]`;
-        } else if (executionResult.signal !== null) {
-          processedPrompt += `\n[Shell command '${injection.resolvedCommand}' terminated by signal ${executionResult.signal}]`;
+          processedPrompt += `\n[Shell command '${injection.resolvedCommand}' exited with code ${maybeExec.exitCode}]`;
+        } else if (maybeExec.signal !== null && maybeExec.signal !== undefined) {
+          processedPrompt += `\n[Shell command '${injection.resolvedCommand}' terminated by signal ${maybeExec.signal}]`;
         }
       }
 
