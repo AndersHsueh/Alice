@@ -46,6 +46,8 @@ export const AppHeader = ({ version }: AppHeaderProps) => {
   }, []);
 
   const model = uiState.currentModel;
+  const modelDegraded = uiState.currentModelDegraded;
+  const activeModelName = uiState.activeModelName;
   const agentMode = uiState.agentMode;
   const targetDir = config.getTargetDir();
   const showBanner = !config.getScreenReader();
@@ -60,6 +62,8 @@ export const AppHeader = ({ version }: AppHeaderProps) => {
           activeChannel={activeChannel}
           model={model}
           workingDirectory={targetDir}
+          modelDegraded={modelDegraded}
+          activeModelName={activeModelName}
         />
       )}
       {showTips && <Tips />}

@@ -7,6 +7,12 @@ import type { Message } from '../types/index.js';
 import type { ToolCallRecord } from '../types/tool.js';
 import { getErrorMessage } from '../utils/error.js';
 import { ToolLoopDetector } from './loopDetection.js';
+import {
+  createBudgetTracker,
+  checkTokenBudget,
+  estimateTokens,
+} from '../runtime/agent/tokenBudget.js';
+import type { ModelRegistry } from '../daemon/modelRegistry.js';
 
 export class LLMClient {
   private provider: BaseProvider;
@@ -15,6 +21,8 @@ export class LLMClient {
   private fallbackProvider: BaseProvider | null = null;
   private fallbackModelConfig: ModelConfig | null = null;
   private toolExecutor: RuntimeToolExecutor | null = null;
+  /** 模型注册表（通过 setModelRegistry 注入，避免循环依赖） */
+  private modelRegistry: ModelRegistry | null = null;
 
   constructor(modelConfig: ModelConfig, systemPrompt: string) {
     this.modelConfig = modelConfig;
@@ -79,13 +87,16 @@ export class LLMClient {
   }
 
   async *chatStream(messages: Message[]): AsyncGenerator<string> {
+    const start = Date.now();
     try {
       yield* this.provider.chatStream(messages);
+      this.modelRegistry?.recordSuccess(this.modelConfig.name, Date.now() - start);
     } catch (error) {
       // 流式响应失败时尝试降级
       if (this.fallbackProvider && this.shouldFallback(error)) {
         console.warn(`\n⚠️  主模型 (${this.modelConfig.name}) 连接失败，已自动切换到备用模型 (${this.fallbackModelConfig?.name})`);
         console.warn(`💡 提示：运行 'alice --test-model' 重新测速并更新推荐模型\n`);
+        this.modelRegistry?.recordFailure(this.modelConfig.name);
         
         try {
           yield* this.fallbackProvider.chatStream(messages);
@@ -93,6 +104,7 @@ export class LLMClient {
           throw new Error(`主模型和备用模型均失败\n主模型错误: ${error instanceof Error ? error.message : '未知错误'}\n备用模型错误: ${fallbackError instanceof Error ? fallbackError.message : '未知错误'}`);
         }
       } else {
+        this.modelRegistry?.recordFailure(this.modelConfig.name);
         throw error;
       }
     }
@@ -121,6 +133,14 @@ export class LLMClient {
 
   getModelName(): string {
     return this.modelConfig.name;
+  }
+
+  /**
+   * 注入模型注册表（由 services.ts 在创建 LLMClient 后调用）
+   * 用于上报成功/失败，实现健康追踪和路由降级
+   */
+  setModelRegistry(registry: ModelRegistry | null): void {
+    this.modelRegistry = registry;
   }
 
   /**
@@ -233,12 +253,16 @@ export class LLMClient {
 
   /**
    * 带工具的流式对话
-   * @param workspace - 可选，当前会话绑定的工作目录，工具基于此解析路径与 cwd
+   * @param workspace   - 可选，当前会话绑定的工作目录
+   * @param tokenBudget - 可选，本次任务允许的最大输出 token 数。
+   *                      超过 80% 时发送 nudge，收益递减时主动停止。
+   *                      为 null 或 0 时禁用 budget 管理。
    */
   async *chatStreamWithTools(
     messages: Message[],
     onToolUpdate?: (record: ToolCallRecord) => void,
-    workspace?: string
+    workspace?: string,
+    tokenBudget?: number | null,
   ): AsyncGenerator<string> {
     if (!this.toolExecutor) {
       throw new Error('工具系统未启用');
@@ -249,86 +273,136 @@ export class LLMClient {
     const maxIterations = configManager.getMaxIterations();
     let iteration = 0;
     const loopDetector = new ToolLoopDetector();
+    const start = Date.now();
 
-    while (iteration < maxIterations) {
-      iteration++;
+    // Budget 追踪（tokenBudget 为 null/0/undefined 时，checkTokenBudget 直接返回 no_budget）
+    const budget = (tokenBudget && tokenBudget > 0) ? tokenBudget : null;
+    const budgetTracker = createBudgetTracker();
 
-      let accumulatedToolCalls: any[] = [];
-      let accumulatedContent = '';
+    try {
+      while (iteration < maxIterations) {
+        iteration++;
 
-      // 流式获取 LLM 响应
-      for await (const chunk of this.provider.chatStreamWithTools(conversationMessages, tools)) {
-        if (chunk.type === 'text' && chunk.content) {
-          accumulatedContent += chunk.content;
-          yield chunk.content;
-        } else if (chunk.type === 'tool_calls' && chunk.tool_calls) {
-          accumulatedToolCalls = chunk.tool_calls;
+        let accumulatedToolCalls: any[] = [];
+        let accumulatedContent = '';
+        let iterationOutputTokens = 0;
+
+        // 流式获取 LLM 响应
+        for await (const chunk of this.provider.chatStreamWithTools(conversationMessages, tools)) {
+          if (chunk.type === 'text' && chunk.content) {
+            accumulatedContent += chunk.content;
+            yield chunk.content;
+          } else if (chunk.type === 'tool_calls' && chunk.tool_calls) {
+            accumulatedToolCalls = chunk.tool_calls;
+          }
+          // 从 provider 获取精确 usage；若无则按字符数估算
+          if (chunk.usage) {
+            iterationOutputTokens = chunk.usage.outputTokens;
+          }
         }
-      }
 
-      // 如果没有工具调用，对话结束
-      if (accumulatedToolCalls.length === 0) {
-        return;
-      }
+        // 若 provider 未返回 usage，用文本长度估算
+        if (iterationOutputTokens === 0 && accumulatedContent) {
+          iterationOutputTokens = estimateTokens(accumulatedContent);
+        }
 
-      // 工具调用循环检测：同一工具 + 相同参数连续多次调用
-      const loop = loopDetector.check(
-        accumulatedToolCalls.map((c: any) => ({
-          id: c.id,
-          type: 'function',
-          function: {
-            name: c.function.name,
-            arguments: c.function.arguments,
-          },
-        })),
-      );
-      if (loop.loopDetected) {
-        const reason = `检测到工具调用循环: 工具 "${loop.toolName ?? ''}" 使用相同参数连续调用 ${loop.repeatCount ?? 0} 次。\n参数示例: ${loop.argumentsSnippet ?? ''}\n请检查提示词或工具设计，避免在同一输入上反复调用同一工具。`;
-        throw new Error(reason);
-      }
+        // 如果没有工具调用，对话自然结束
+        if (accumulatedToolCalls.length === 0) {
+          this.modelRegistry?.recordSuccess(this.modelConfig.name, Date.now() - start);
+          return;
+        }
 
-      // 有工具调用，添加到对话历史
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: accumulatedContent,
-        tool_calls: accumulatedToolCalls,
-        timestamp: new Date()
-      };
-      conversationMessages.push(assistantMessage);
+        // 工具调用循环检测：同一工具 + 相同参数连续多次调用
+        const loop = loopDetector.check(
+          accumulatedToolCalls.map((c: any) => ({
+            id: c.id,
+            type: 'function',
+            function: {
+              name: c.function.name,
+              arguments: c.function.arguments,
+            },
+          })),
+        );
+        if (loop.loopDetected) {
+          const reason = `检测到工具调用循环: 工具 "${loop.toolName ?? ''}" 使用相同参数连续调用 ${loop.repeatCount ?? 0} 次。\n参数示例: ${loop.argumentsSnippet ?? ''}\n请检查提示词或工具设计，避免在同一输入上反复调用同一工具。`;
+          throw new Error(reason);
+        }
 
-      // 显示工具调用提示
-      yield '\n\n';
+        // Token budget 检查（有工具调用时才有意义检查，因为还要继续循环）
+        const budgetDecision = checkTokenBudget(budgetTracker, iterationOutputTokens, budget);
 
-      // 执行工具（传入 session 绑定的 workspace）
-      const toolContext = workspace ? { workspace } : undefined;
-      const toolResults = await this.toolExecutor.executeAll(
-        accumulatedToolCalls,
-        (record) => {
-          onToolUpdate?.(record);
-        },
-        toolContext
-      );
-
-      // 添加工具结果到对话
-      for (let i = 0; i < accumulatedToolCalls.length; i++) {
-        const toolCall = accumulatedToolCalls[i];
-        const result = toolResults[i];
-
-        const toolMessage: Message = {
-          role: 'tool',
-          content: JSON.stringify(result),
-          tool_call_id: toolCall.id,
-          name: toolCall.function.name,
-          timestamp: new Date()
+        // 有工具调用，添加到对话历史
+        const assistantMessage: Message = {
+          role: 'assistant',
+          content: accumulatedContent,
+          tool_calls: accumulatedToolCalls,
+          timestamp: new Date(),
         };
-        conversationMessages.push(toolMessage);
+        conversationMessages.push(assistantMessage);
+
+        yield '\n\n';
+
+        // 执行工具（传入 session 绑定的 workspace）
+        const toolContext = workspace ? { workspace } : undefined;
+        const toolResults = await this.toolExecutor.executeAll(
+          accumulatedToolCalls,
+          (record) => { onToolUpdate?.(record); },
+          toolContext,
+        );
+
+        // 添加工具结果到对话
+        for (let i = 0; i < accumulatedToolCalls.length; i++) {
+          const toolCall = accumulatedToolCalls[i];
+          const result = toolResults[i];
+          conversationMessages.push({
+            role: 'tool',
+            content: JSON.stringify(result),
+            tool_call_id: toolCall.id,
+            name: toolCall.function.name,
+            timestamp: new Date(),
+          });
+        }
+
+        yield '\n';
+
+        // Budget 决策：stop → 终止循环；continue → 注入 nudge 再继续
+        if (budgetDecision.action === 'stop') {
+          if (budgetDecision.reason === 'diminishing_returns') {
+            // 收益递减：模型已在空转，直接停止
+            this.modelRegistry?.recordSuccess(this.modelConfig.name, Date.now() - start);
+            return;
+          }
+          if (budgetDecision.reason === 'exhausted') {
+            // 预算耗尽：让模型知道，给它一次收尾机会
+            conversationMessages.push({
+              role: 'user',
+              content: '[系统提示] token 预算已耗尽，请立即用一段话总结当前进度并停止操作。',
+              timestamp: new Date(),
+            });
+            // 做最后一次调用（不带工具，让模型只输出文本收尾）
+            for await (const chunk of this.provider.chatStream(conversationMessages)) {
+              yield chunk;
+            }
+            this.modelRegistry?.recordSuccess(this.modelConfig.name, Date.now() - start);
+            return;
+          }
+          // reason === 'no_budget'：未启用 budget，正常继续（不 return）
+        } else {
+          // action === 'continue'：注入 nudge 消息提醒模型关注 token 用量
+          conversationMessages.push({
+            role: 'user',
+            content: budgetDecision.nudgeMessage,
+            timestamp: new Date(),
+          });
+        }
+
+        // 继续循环，让 LLM 生成基于工具结果的回复
       }
 
-      yield '\n';
-
-      // 继续循环，让 LLM 生成基于工具结果的回复
+      throw new Error('工具调用超过最大迭代次数');
+    } catch (error: unknown) {
+      this.modelRegistry?.recordFailure(this.modelConfig.name);
+      throw error;
     }
-
-    throw new Error('工具调用超过最大迭代次数');
   }
 }

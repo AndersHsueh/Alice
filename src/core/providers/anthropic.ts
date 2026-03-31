@@ -5,6 +5,7 @@
 
 import axios from 'axios';
 import { BaseProvider, type ProviderConfig, type ChatResponse } from './base.js';
+import type { TokenUsage } from './base.js';
 import type { Message, ProviderSpecificConfig } from '../../types/index.js';
 import type { OpenAIFunction, ToolCall } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
@@ -256,13 +257,20 @@ export class AnthropicProvider extends BaseProvider {
       throw error;
     }
 
-    const data = response.data as { content: AnthropicContentBlock[] };
+    const data = response.data as {
+      content: AnthropicContentBlock[];
+      usage?: { input_tokens: number; output_tokens: number };
+    };
+
+    const usage: TokenUsage | undefined = data.usage
+      ? { inputTokens: data.usage.input_tokens, outputTokens: data.usage.output_tokens }
+      : undefined;
 
     // 检查是否有工具调用
     const toolUseBlocks = data.content.filter(
       (block): block is AnthropicToolUseBlock => block.type === 'tool_use'
     );
-    
+
     if (toolUseBlocks.length > 0) {
       // 转换为 OpenAI 格式的 tool_calls
       const tool_calls: ToolCall[] = toolUseBlocks.map((block) => ({
@@ -277,7 +285,8 @@ export class AnthropicProvider extends BaseProvider {
       return {
         type: 'tool_calls',
         content: '',
-        tool_calls
+        tool_calls,
+        usage,
       };
     }
 
@@ -289,7 +298,8 @@ export class AnthropicProvider extends BaseProvider {
 
     return {
       type: 'text',
-      content
+      content,
+      usage,
     };
   }
 
@@ -298,7 +308,7 @@ export class AnthropicProvider extends BaseProvider {
     tools: OpenAIFunction[]
   ): AsyncGenerator<ChatResponse> {
     // Anthropic streaming with tools 需要处理多个 content blocks
-    // 简化实现：先不支持流式工具调用
+    // 简化实现：先不支持流式工具调用，usage 直接从非流式响应中获取
     const result = await this.chatWithTools(messages, tools);
     yield result;
   }

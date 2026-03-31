@@ -11,12 +11,22 @@ export interface ProviderConfig {
 }
 
 /**
+ * 单次 API 调用的 token 使用量
+ */
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/**
  * Function Calling 响应类型
  */
 export interface ChatResponse {
   type: 'text' | 'tool_calls';
   content?: string;              // 文本内容
   tool_calls?: ToolCall[];       // 工具调用列表
+  /** 本次 API 调用的 token 使用量（最后一个 chunk 携带） */
+  usage?: TokenUsage;
 }
 
 export abstract class BaseProvider {

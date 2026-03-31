@@ -10,6 +10,7 @@ import { skillManager } from '../core/skillManager.js';
 import { builtinTools } from '../tools/index.js';
 import { mcpManager } from '../core/mcp.js';
 import { LLMClient } from '../core/llm.js';
+import { ModelRegistry } from './modelRegistry.js';
 import type { Config, ModelConfig } from '../types/index.js';
 import type { DaemonLogger } from './logger.js';
 import { getErrorMessage } from '../utils/error.js';
@@ -23,6 +24,9 @@ let cachedSystemPrompt = '';
 let cachedConfig: Config | null = null;
 let currentAgentMode: 'office' | 'coder' = 'office';
 let toolCallSeq = 0;
+
+/** 模型注册表单例，multi_model_routing = true 时生效 */
+export let modelRegistry: ModelRegistry | null = null;
 
 function safeJson(value: unknown, maxLen = 200): string {
   try {
@@ -99,6 +103,19 @@ export async function initServices(logger: DaemonLogger): Promise<void> {
     // 挂载工具调用审计日志（仅在 daemon 环境）
     attachToolLogging(logger);
 
+    // 初始化模型注册表（异步探测，不阻塞 daemon 启动）
+    try {
+      const config = configManager.get();
+      modelRegistry = new ModelRegistry(config);
+      await modelRegistry.initialize();
+      logger.info('模型注册表已初始化', {
+        total: config.models.length,
+        routing: config.multi_model_routing ? 'enabled' : 'disabled',
+      });
+    } catch (error: unknown) {
+      logger.warn('模型注册表初始化失败', getErrorMessage(error));
+    }
+
     try {
       const mcpSettings = await mcpConfigManager.load();
       const enabledServers = Object.fromEntries(
@@ -155,6 +172,7 @@ export function getLLMClient(modelConfig: ModelConfig, systemPrompt: string): LL
     client.setConfirmHandler(async (_message: string, _command: string) => {
       return Promise.resolve(getConfig().dangerous_cmd === false);
     });
+    client.setModelRegistry(modelRegistry);
     llmClientCache.set(key, client);
   }
   return client;

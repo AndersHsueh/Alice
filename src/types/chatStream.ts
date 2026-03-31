@@ -28,4 +28,13 @@ export type ChatStreamEvent =
   | { type: 'text'; content: string }
   | { type: 'tool_call'; record: ToolCallRecord }
   | { type: 'done'; sessionId: string; messages: Message[] }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | {
+      type: 'model_selected';
+      /** 实际使用的模型名称 */
+      modelName: string;
+      /** 是否处于降级状态（实际模型 ≠ 首选模型） */
+      degraded: boolean;
+      /** 当前路由到的能力层 */
+      tier: import('./index.js').ModelCapabilityTier;
+    };

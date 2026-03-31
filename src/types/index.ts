@@ -68,7 +68,21 @@ export interface ModelConfig {
   
   // 提供商特有配置
   providerConfig?: ProviderSpecificConfig;
+
+  /**
+   * 用户手写的模型能力备注，VERONICA 会读取关键词辅助能力推断
+   * 示例："本地 Qwen3 35B，适合中文写作和代码，速度稳定"
+   *       "GLM-4.7-flash 轻量版，只做格式化，不适合推理"
+   */
+  notes?: string;
 }
+
+/** 模型能力层级（从低到高） */
+export type ModelCapabilityTier =
+  | 'format'     // 简单格式化、文本转换、字段提取
+  | 'writing'    // 中文写作、总结、翻译、行政文档
+  | 'code'       // 代码生成、调试、重构
+  | 'reasoning'  // 复杂推理、规划、架构分析
 
 export interface UIConfig {
   banner: {
@@ -96,6 +110,30 @@ export interface Config {
   dangerous_cmd: boolean;  // 危险命令确认开关
   keybindings?: Record<string, string | string[]>;  // 键绑定配置
   maxIterations?: number;  // 工具调用最大迭代次数（5-20，默认10）
+
+  /**
+   * 异构模型路由开关
+   * true  = 启用：VERONICA 启动时探测所有模型，运行时按任务类型动态路由
+   * false = 禁用：始终使用 default_model，行为与现在完全一致
+   * 默认 false（不破坏现有用户的配置行为）
+   */
+  multi_model_routing?: boolean;
+
+  /**
+   * 各能力层对应的首选模型名称（需在 models[] 中存在）
+   * 未配置的层自动回退到 default_model
+   * 仅 multi_model_routing = true 时生效
+   */
+  model_routing?: {
+    /** 简单格式化、文本转换、字段提取 */
+    format?: string;
+    /** 中文写作、总结、翻译、行政文档 */
+    writing?: string;
+    /** 代码生成、调试、重构 */
+    code?: string;
+    /** 复杂推理、规划、架构分析 */
+    reasoning?: string;
+  };
 }
 
 // 导出工具相关类型

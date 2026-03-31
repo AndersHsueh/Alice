@@ -44,6 +44,13 @@ export async function* runChatStream(
       };
     } else if (event.type === 'error') {
       yield { type: 'error', message: event.message };
+    } else if (event.type === 'model_selected') {
+      yield {
+        type: 'model_selected',
+        modelName: event.modelName,
+        degraded: event.degraded,
+        tier: event.tier,
+      };
     } else if (event.type === 'warning') {
       logger.warn('Runtime warning', event.warning.message);
     }

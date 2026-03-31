@@ -96,6 +96,10 @@ export interface UIState {
   agentMode: 'office' | 'coder';
   // Quota-related state
   currentModel: string;
+  /** 是否处于模型降级状态（实际模型 ≠ 首选模型），由 model_selected 事件驱动 */
+  currentModelDegraded?: boolean;
+  /** 当前实际使用的模型名称（由 model_selected 事件驱动，与 currentModel 可能不同） */
+  activeModelName?: string;
   contextFileNames: string[];
   availableTerminalHeight: number | undefined;
   mainAreaWidth: number;

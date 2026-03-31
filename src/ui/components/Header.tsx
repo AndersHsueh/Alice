@@ -19,6 +19,10 @@ interface HeaderProps {
   activeChannel?: string;
   model: string;
   workingDirectory: string;
+  /** 是否处于模型降级状态（实际模型 ≠ 首选模型） */
+  modelDegraded?: boolean;
+  /** 当前实际使用的模型名称（由 model_selected 事件驱动） */
+  activeModelName?: string;
 }
 
 import { robotArtLines } from './RobotArt.js';
@@ -123,6 +127,8 @@ export const Header: React.FC<HeaderProps> = ({
   activeChannel,
   model,
   workingDirectory,
+  modelDegraded,
+  activeModelName,
 }) => {
   const { columns: terminalWidth } = useTerminalSize();
 
@@ -144,9 +150,21 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Left column content
   const modeLabel = agentMode === 'coder' ? 'Coder' : 'Office';
+
+  // 模型显示名称：优先用 activeModelName（实时），fallback 到 model（来自 config）
+  const displayModelName = activeModelName ?? model;
+
+  // 模型来源图标 + 降级标记
+  // ⚡ 本地模型 / ☁ 云端模型 / ↓ 降级状态
+  const isLocal = displayModelName.includes('local') || displayModelName.includes('localhost') ||
+    displayModelName.includes('lmstudio') || displayModelName.includes('ollama')
+  const sourceIcon = isLocal ? '⚡' : '☁'
+  const degradedSuffix = modelDegraded ? ' ↓' : ''
+  const modelDisplayStr = `${displayModelName} ${sourceIcon}${degradedSuffix}`
+
   const modelLine = activeChannel
-    ? `${model} · ${modeLabel} · ${activeChannel}`
-    : `${model} · ${modeLabel}`;
+    ? `${modelDisplayStr} · ${modeLabel} · ${activeChannel}`
+    : `${modelDisplayStr} · ${modeLabel}`;
   const home = process.env.HOME ?? '';
   const tildeDir = home && workingDirectory.startsWith(home)
     ? '~' + workingDirectory.slice(home.length)
@@ -164,14 +182,15 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   // Build left column rows (matched to right col length)
-  const leftLines: Array<{ text: string; robot?: boolean; center?: boolean }> = [
+  const leftLines: Array<{ text: string; robot?: boolean; center?: boolean; color?: string }> = [
     { text: '' },
     { text: 'Welcome to ALICE!', center: true },
     { text: '' },
     { text: ROBOT_LINES[0], robot: true, center: true },
     { text: ROBOT_LINES[1], robot: true, center: true },
     { text: '' },
-    { text: modelLine, center: true },
+    // 降级状态用淡黄色提示（不用红色，红色暗示错误）
+    { text: modelLine, center: true, color: modelDegraded ? '#B8A000' : undefined },
     { text: shortDir, center: true },
     { text: '' },
   ];
@@ -201,7 +220,7 @@ export const Header: React.FC<HeaderProps> = ({
             rightWidth={rightColWidth}
             centerLeft={lEntry.center}
             isRobot={lEntry.robot}
-            leftColor={lEntry.robot ? ALICE_BLUE : theme.text.primary}
+            leftColor={lEntry.robot ? ALICE_BLUE : (lEntry.color ?? theme.text.primary)}
             rightColor={rAccent ? ALICE_BLUE : DIM_COLOR}
           />
         );

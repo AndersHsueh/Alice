@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { Readable } from 'stream';
 import { BaseProvider, ProviderConfig, ChatResponse } from './base.js';
+import type { TokenUsage } from './base.js';
 import type { Message } from '../../types/index.js';
 import type { OpenAIFunction } from '../../types/tool.js';
 
@@ -297,6 +298,8 @@ export class OpenAICompatibleProvider extends BaseProvider {
           })),
           tool_choice: 'auto',
           stream: true,
+          // 获取 token 使用量（OpenAI 兼容接口大多支持此选项）
+          stream_options: { include_usage: true },
         },
         {
           responseType: 'stream',
@@ -307,6 +310,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
       let buffer = '';
       let accumulatedToolCalls: any[] = [];
       let accumulatedContent = '';
+      let usage: TokenUsage | undefined;
 
       for await (const chunk of stream) {
         buffer += chunk.toString();
@@ -316,23 +320,35 @@ export class OpenAICompatibleProvider extends BaseProvider {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6).trim();
-            
+
             if (data === '[DONE]') {
-              // 流结束，如果有累积的工具调用，返回
+              // 流结束，如果有累积的工具调用，返回（携带 usage）
               if (accumulatedToolCalls.length > 0) {
                 yield {
                   type: 'tool_calls',
                   tool_calls: accumulatedToolCalls,
-                  content: accumulatedContent || undefined
+                  content: accumulatedContent || undefined,
+                  usage,
                 };
+              } else if (accumulatedContent) {
+                // 纯文本响应还没 yield usage，补充一个携带 usage 的空 chunk
+                yield { type: 'text', content: '', usage };
               }
               return;
             }
 
             try {
               const parsed = JSON.parse(data);
+
+              // OpenAI stream_options: {include_usage: true} 会在最后一个 chunk 携带 usage
+              if (parsed.usage) {
+                usage = {
+                  inputTokens: parsed.usage.prompt_tokens ?? 0,
+                  outputTokens: parsed.usage.completion_tokens ?? 0,
+                };
+              }
+
               const delta = parsed.choices?.[0]?.delta;
-              
               if (!delta) continue;
 
               // 处理文本内容
@@ -340,7 +356,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
                 accumulatedContent += delta.content;
                 yield {
                   type: 'text',
-                  content: delta.content
+                  content: delta.content,
                 };
               }
 
@@ -348,15 +364,15 @@ export class OpenAICompatibleProvider extends BaseProvider {
               if (delta.tool_calls) {
                 for (const toolCall of delta.tool_calls) {
                   const index = toolCall.index;
-                  
+
                   if (!accumulatedToolCalls[index]) {
                     accumulatedToolCalls[index] = {
                       id: toolCall.id || '',
                       type: 'function',
                       function: {
                         name: toolCall.function?.name || '',
-                        arguments: ''
-                      }
+                        arguments: '',
+                      },
                     };
                   }
 

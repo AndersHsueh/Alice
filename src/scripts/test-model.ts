@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { configManager } from '../utils/config.js';
 import { ProviderFactory } from '../core/providers/index.js';
+import { ModelRegistry } from '../daemon/modelRegistry.js';
 import type { ModelConfig } from '../types/index.js';
 import { getErrorMessage } from '../utils/error.js';
 
@@ -80,6 +81,23 @@ export async function testAllModels(): Promise<void> {
 
   if (fastest) {
     await configManager.updateSuggestModel(fastest.model.name);
+  }
+
+  // 同步测试结果到 model_profiles.jsonc（与 ModelRegistry 共享数据）
+  try {
+    const registry = new ModelRegistry(config);
+    await registry.initialize();
+    for (const r of results) {
+      if (r.success) {
+        // speed 单位是秒，转换为 ms
+        registry.recordSuccess(r.model.name, r.speed * 1000);
+      } else {
+        registry.recordFailure(r.model.name);
+      }
+    }
+    // 注意：recordSuccess/recordFailure 已异步写盘，这里无需额外调用
+  } catch (err: unknown) {
+    console.warn(dim('  警告: model_profiles.jsonc 同步失败 ') + dim(getErrorMessage(err)));
   }
 
   console.log(dim('─'.repeat(48)));

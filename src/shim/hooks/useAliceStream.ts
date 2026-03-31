@@ -76,6 +76,10 @@ export const useAliceStream = (
   const [pendingText, setPendingText] = useState('');
   const [toolCalls, setToolCalls] = useState<TrackedToolCall[]>([]);
   const [userMessages, setUserMessages] = useState<string[]>([]);
+  /** 是否处于模型降级状态（实际模型 ≠ 首选模型） */
+  const [modelDegraded, setModelDegraded] = useState(false);
+  /** 当前实际使用的模型名称（由 model_selected 事件更新） */
+  const [activeModelName, setActiveModelName] = useState<string | undefined>(undefined);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -188,6 +192,9 @@ export const useAliceStream = (
       if (event.sessionId) {
         sessionIdRef.current = event.sessionId;
       }
+    } else if (event.type === 'model_selected') {
+      setModelDegraded(event.degraded);
+      setActiveModelName(event.modelName);
     }
   }, []);
 
@@ -283,5 +290,7 @@ export const useAliceStream = (
     handleApprovalModeChange,
     activePtyId: undefined as number | undefined,
     loopDetectionConfirmationRequest: null,
+    modelDegraded,
+    activeModelName,
   };
 };

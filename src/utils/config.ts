@@ -42,6 +42,13 @@ const DEFAULT_CONFIG: Config = {
   workspace: process.cwd(),
   dangerous_cmd: true,  // 默认开启危险命令确认
   maxIterations: 15,    // 工具调用最大迭代次数
+  multi_model_routing: false,
+  model_routing: {
+    format: undefined,
+    writing: undefined,
+    code: undefined,
+    reasoning: undefined,
+  },
 };
 
 export class ConfigManager {
@@ -286,7 +293,21 @@ export class ConfigManager {
     lines.push(`  "dangerous_cmd": ${config.dangerous_cmd},`);
     lines.push('');
     lines.push('  // 工具调用最大迭代次数（最小 5，最大 20，超出范围默认 15）');
-    lines.push(`  "maxIterations": ${config.maxIterations ?? 15}`);
+    lines.push(`  "maxIterations": ${config.maxIterations ?? 15},`);
+    lines.push('');
+    lines.push('  // 异构模型路由开关（实验性功能）');
+    lines.push('  // true  = VERONICA 启动时探测所有模型，按任务类型动态选择最合适的可用模型');
+    lines.push('  // false = 始终使用 default_model（默认，推荐新用户保持此设置）');
+    lines.push(`  "multi_model_routing": ${config.multi_model_routing ?? false},`);
+    lines.push('');
+    lines.push('  // 各任务类型首选模型（仅 multi_model_routing = true 时生效）');
+    lines.push('  // 模型名称需在 models[] 中存在；若首选模型不可用，自动降级到同层其他可用模型');
+    lines.push('  "model_routing": {');
+    lines.push(`    "format":    ${config.model_routing?.format ? `"${config.model_routing.format}"` : 'null'},`);
+    lines.push(`    "writing":   ${config.model_routing?.writing ? `"${config.model_routing.writing}"` : 'null'},`);
+    lines.push(`    "code":      ${config.model_routing?.code ? `"${config.model_routing.code}"` : 'null'},`);
+    lines.push(`    "reasoning": ${config.model_routing?.reasoning ? `"${config.model_routing.reasoning}"` : 'null'}`);
+    lines.push('  }');
     lines.push('}');
     
     return lines.join('\n');

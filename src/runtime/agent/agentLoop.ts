@@ -1,4 +1,4 @@
-import type { Message, ModelConfig } from '../../types/index.js';
+import type { Message, ModelConfig, ModelCapabilityTier } from '../../types/index.js';
 import type { ToolCallRecord } from '../../types/tool.js';
 import type { RuntimeChatRequest } from '../kernel/runtimeTypes.js';
 import type { RuntimeEvent } from '../kernel/runtimeEvents.js';
@@ -8,6 +8,7 @@ import { resolveWorkspace } from '../workspace/workspaceResolver.js';
 import { splitThinkContent } from '../../utils/thinkParser.js';
 import { getErrorMessage } from '../../utils/error.js';
 import type { DaemonLogger } from '../../daemon/logger.js';
+import { modelRegistry } from '../../daemon/services.js';
 
 const THINK_CLOSE_TAG = '</think>';
 
@@ -19,11 +20,31 @@ export interface RuntimeSessionManagerLike {
 
 export interface AgentLoopDependencies {
   logger: DaemonLogger;
-  getConfig(): { models: ModelConfig[] };
+  getConfig(): { models: ModelConfig[]; default_model: string; multi_model_routing?: boolean };
   getDefaultModel(): ModelConfig | undefined;
   getSystemPrompt(): Promise<string>;
   getLLMClient(modelConfig: ModelConfig, systemPrompt: string): any;
   getSessionManager(): RuntimeSessionManagerLike;
+}
+
+/**
+ * 根据请求内容推断任务能力需求
+ * office 模式下：短文本 → format，长文本 → writing
+ * coder 模式下：含架构/分析关键词 → reasoning，否则 → code
+ */
+function inferCapability(req: RuntimeChatRequest, agentMode?: string): ModelCapabilityTier {
+  const text = req.message ?? ''
+
+  if (agentMode === 'coder') {
+    if (/架构|设计|方案|分析|为什么|权衡|选型/.test(text)) return 'reasoning'
+    return 'code'
+  }
+
+  // office 模式（默认）
+  if (text.length < 500 && !/```|function|class|import/.test(text)) {
+    return 'format'
+  }
+  return 'writing'
 }
 
 function serializeMessage(m: Message): Message {
@@ -136,6 +157,15 @@ export async function* runAgentLoop(
     const selected = config.models.find((m) => m.name === req.model);
     if (selected) modelConfig = selected;
   }
+
+  // 若启用异构路由，用 inferCapability + selectModel 覆盖 default 选择
+  const capability = inferCapability(req);
+  if (!req.model && modelRegistry && config.multi_model_routing) {
+    const routedName = modelRegistry.selectModel(capability);
+    const routedConfig = config.models.find(m => m.name === routedName);
+    if (routedConfig) modelConfig = routedConfig;
+  }
+
   if (!modelConfig && config.models?.length) {
     modelConfig = config.models[0];
   }
@@ -145,10 +175,26 @@ export async function* runAgentLoop(
     );
   }
 
+  // 判断是否处于降级状态（实际选中的模型与首选模型不同）
+  const preferredName = config.multi_model_routing
+    ? (config as any).model_routing?.[capability] ?? config.default_model
+    : config.default_model;
+  const isDegraded = modelConfig.name !== preferredName;
+
+  yield {
+    type: 'model_selected',
+    modelName: modelConfig.name,
+    degraded: isDegraded,
+    tier: capability,
+  };
+
   const baseSystemPrompt = await deps.getSystemPrompt();
   const workspaceNote = `\n\n## 当前工作目录\nworkspace: ${session.workspace}\n所有相对路径均相对于此目录。文件操作时请使用绝对路径或基于此目录的完整路径。`;
   const systemPrompt = baseSystemPrompt + workspaceNote;
   const client = deps.getLLMClient(modelConfig, systemPrompt);
+
+  // Token budget：从 request 或 config 获取（0 / undefined 表示不限制）
+  const tokenBudget: number | null = (req as any).tokenBudget ?? null;
 
   const userMsg: Message = {
     role: 'user',
@@ -176,7 +222,8 @@ export async function* runAgentLoop(
       (record: ToolCallRecord) => {
         toolState.upsert(record);
       },
-      session.workspace
+      session.workspace,
+      tokenBudget,
     )) {
       if (toolState.hasPending()) {
         const records = flushToolState(toolState, finalMessages, accumulatedContent);
