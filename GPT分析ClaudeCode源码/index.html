@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Claude Code Agent 架构图 + 运行流程图 + ALICE/VERONICA 对照分析</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #11182d;
+        --panel-2: #17213d;
+        --text: #e8ecff;
+        --muted: #aab3d6;
+        --accent: #00d9ff;
+        --accent-2: #9b7bff;
+        --border: rgba(255, 255, 255, 0.12);
+        --code: #0f1730;
+        --good: #63e6be;
+        --warn: #ffd43b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(0, 217, 255, 0.12), transparent 30%),
+          radial-gradient(circle at 80% 0%, rgba(155, 123, 255, 0.14), transparent 28%),
+          var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      .wrap {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 32px 24px 48px;
+      }
+
+      .hero {
+        padding: 28px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        background: linear-gradient(180deg, rgba(17, 24, 45, 0.96), rgba(11, 16, 32, 0.94));
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
+      }
+
+      .eyebrow {
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 12px;
+        margin: 0 0 10px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        line-height: 1.2;
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(30px, 4vw, 48px);
+        margin-bottom: 12px;
+      }
+
+      .subtitle {
+        color: var(--muted);
+        font-size: 16px;
+        max-width: 980px;
+        margin: 0;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 18px;
+        margin-top: 18px;
+      }
+
+      .card {
+        border: 1px solid var(--border);
+        background: rgba(17, 24, 45, 0.78);
+        border-radius: 18px;
+        padding: 18px;
+      }
+
+      .card h2 {
+        font-size: 22px;
+        margin-bottom: 12px;
+      }
+
+      .card h3 {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .diagram {
+        margin-top: 12px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--code);
+        overflow: auto;
+      }
+
+      pre {
+        margin: 0;
+        padding: 16px;
+        color: #d7deff;
+        font-size: 13px;
+        line-height: 1.45;
+        overflow: auto;
+      }
+
+      code {
+        font-family: SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, monospace;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .chip strong {
+        color: var(--accent);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+        overflow: hidden;
+        border-radius: 14px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--border);
+        padding: 12px 10px;
+        vertical-align: top;
+        text-align: left;
+      }
+
+      th {
+        background: rgba(255, 255, 255, 0.04);
+        color: #f1f4ff;
+        font-weight: 700;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      .note {
+        padding: 12px 14px;
+        border-left: 3px solid var(--accent);
+        background: rgba(0, 217, 255, 0.08);
+        border-radius: 12px;
+        color: var(--text);
+      }
+
+      .compare {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 18px;
+      }
+
+      .svgbox {
+        width: 100%;
+        background: linear-gradient(180deg, rgba(13, 18, 36, 0.98), rgba(8, 12, 24, 0.98));
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+      }
+
+      .footer {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        display: inline-block;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+
+      .dot.cc {
+        background: var(--accent);
+      }
+
+      .dot.alice {
+        background: #7dd3fc;
+      }
+
+      .dot.veronica {
+        background: var(--accent-2);
+      }
+
+      @media (max-width: 980px) {
+        .grid,
+        .compare {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <script>
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+          primaryColor: '#11182d',
+          primaryTextColor: '#e8ecff',
+          primaryBorderColor: '#00d9ff',
+          lineColor: '#00d9ff',
+          secondaryColor: '#17213d',
+          tertiaryColor: '#0f1730',
+        },
+      });
+    </script>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="hero">
+        <p class="eyebrow">Claude Code Agent Study</p>
+        <h1>Claude Code Agent 架构图 + 运行流程图 + ALICE / VERONICA 对照分析</h1>
+        <p class="subtitle">
+          这份页面把 Claude Code 的 Agent 设计拆成「定义层、执行层、生命周期层、特殊模式」四块，
+          并映射到咱们的 ALICE / VERONICA 架构里，方便快速理解：谁负责编排，谁负责执行，谁负责会话与常驻。
+        </p>
+
+        <div class="chips">
+          <span class="chip"><strong>重点1</strong> Agent 定义统一，来源可覆盖</span>
+          <span class="chip"><strong>重点2</strong> 上下文隔离，不靠全局状态</span>
+          <span class="chip"><strong>重点3</strong> Fork / Resume / Worktree 是三大关键能力</span>
+          <span class="chip"><strong>重点4</strong> Memory / Tool / Permission 重新裁剪</span>
+        </div>
+      </section>
+
+      <div class="grid">
+        <section class="card">
+          <h2>1. Claude Code Agent 架构图</h2>
+          <p class="muted">
+            从源码看，Claude Code 不是一个单一 Agent，而是一套「定义加载 → 执行编排 → 运行时隔离 → 持久化记忆」系统。
+          </p>
+
+          <div class="diagram mermaid">
+            flowchart TB
+              U[用户 / CLI / 任务触发]
+              A[AgentTool / spawn]
+              L[Agent Definitions<br/>built-in / custom / plugin / CLI]
+              R[RunAgent / 执行器]
+              C[AsyncLocalStorage<br/>Agent Context]
+              T[Tool Pool / Permission / MCP]
+              M[Agent Memory<br/>user / project / local]
+              F[Fork Subagent<br/>byte-stable cache]
+              W[Worktree / Remote Isolation]
+              S[Summary / Resume / Transcript]
+
+              U --> A
+              A --> L
+              A --> R
+              R --> C
+              R --> T
+              R --> M
+              R --> F
+              R --> W
+              R --> S
+              F --> C
+              F --> T
+              W --> S
+              S --> A
+              M --> R
+              L --> A
+          </div>
+
+          <div class="legend">
+            <span><i class="dot cc"></i>Claude Code 的公共调度骨架</span>
+            <span><i class="dot alice"></i>ALICE 可对照的位置：TUI / CLI 调用层</span>
+            <span><i class="dot veronica"></i>VERONICA 可对照的位置：常驻执行与会话编排层</span>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>2. 设计特点速览</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>设计点</th>
+                <th>Claude Code 做法</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Agent 定义</td>
+                <td>统一 `AgentDefinition`，来源多样，但按优先级合并。</td>
+              </tr>
+              <tr>
+                <td>上下文</td>
+                <td>用 `AsyncLocalStorage` 隔离并发 Agent 的 telemetry 和 invocation 边界。</td>
+              </tr>
+              <tr>
+                <td>模型策略</td>
+                <td>默认 `inherit`，并保持父模型 tier / Bedrock region 语义。</td>
+              </tr>
+              <tr>
+                <td>Fork</td>
+                <td>通过固定 placeholder 和 rendered system prompt 实现 prompt cache 稳定。</td>
+              </tr>
+              <tr>
+                <td>Memory</td>
+                <td>按 user / project / local scope 持久化，并支持 snapshot 同步。</td>
+              </tr>
+              <tr>
+                <td>生命周期</td>
+                <td>Spawn / Resume / Summary / Worktree cleanup 一体化。</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="note" style="margin-top: 14px">
+            你可以把 Claude Code 理解成：<strong>Agent 是一个可恢复、可分叉、可隔离、可缓存的任务实体</strong>，而不是一个单纯的“模型调用函数”。
+          </div>
+        </section>
+      </div>
+
+      <section class="card" style="margin-top: 18px">
+        <h2>3. 运行流程图</h2>
+        <p class="muted">
+          从一次 Agent 触发开始，Claude Code 会先找定义、再组装工具和权限、然后进入运行态；如果命中 fork/resume/worktree 等特殊路径，会切换到对应分支。
+        </p>
+
+        <div class="diagram mermaid">
+          flowchart TD
+            S[触发 Agent 请求] --> D[加载 AgentDefinition]
+            D --> O{是否有覆盖来源?}
+            O -->|是| X[解析 active / shadowed]
+            O -->|否| Y[使用当前定义]
+            X --> P[计算模型 / memory / tools / permission]
+            Y --> P
+            P --> Q{是否 fork 模式?}
+            Q -->|是| F[buildForkedMessages<br/>父上下文 + 占位 tool_result]
+            Q -->|否| N[标准 Agent spawn]
+            F --> R[子 Agent 进入后台执行]
+            N --> R
+            R --> T[AsyncLocalStorage 写入上下文]
+            T --> U[工具调用 / MCP / 权限检查]
+            U --> V{是否需要工作区隔离?}
+            V -->|worktree| W[切到独立 git worktree]
+            V -->|remote| Z[远程隔离 / teleport]
+            V -->|否| K[本地执行]
+            W --> K
+            Z --> K
+            K --> H[运行中 summary / transcript / progress]
+            H --> I{是否中断或结束?}
+            I -->|结束| J[写 transcript / metadata / memory sync]
+            I -->|resume| M[resumeAgent 重建现场]
+            M --> R
+            J --> S2[返回结果 / 进入下一轮]
+        </div>
+      </section>
+
+      <div class="compare">
+        <section class="card">
+          <h2>4. 与 ALICE / VERONICA 的对照分析</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>维度</th>
+                <th>Claude Code</th>
+                <th>咱们的 ALICE / VERONICA</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>系统形态</td>
+                <td>Agent 体系更像“编排框架 + 任务实体”</td>
+                <td>ALICE + VERONICA 是“CLI + 常驻 daemon”的双进程产品</td>
+              </tr>
+              <tr>
+                <td>运行核心</td>
+                <td>Agent 运行态强调 spawn / resume / background / fork</td>
+                <td>VERONICA 负责会话、工具、LLM、事件流与常驻编排</td>
+              </tr>
+              <tr>
+                <td>前端入口</td>
+                <td>CLI / 交互 / 任务触发一体</td>
+                <td>ALICE 主要承担用户交互、TUI、命令入口</td>
+              </tr>
+              <tr>
+                <td>隔离方式</td>
+                <td>AsyncLocalStorage + worktree + remote + fork</td>
+                <td>可以借鉴为：会话隔离、工具隔离、任务上下文隔离</td>
+              </tr>
+              <tr>
+                <td>记忆系统</td>
+                <td>Agent scoped memory + snapshot sync</td>
+                <td>可映射到 profile / workspace / project 级别知识层</td>
+              </tr>
+              <tr>
+                <td>产品定位</td>
+                <td>更偏“Agent runtime 平台”</td>
+                <td>更偏“办公 CLI 产品 + daemon 执行中枢”</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="card">
+          <h2>5. 结构上的启发</h2>
+          <div class="note">
+            Claude Code 的关键启发是：<strong>把 Agent 当成一个可治理的运行单元</strong>，围绕它建立定义、上下文、权限、工作区、记忆和恢复机制。
+          </div>
+          <table style="margin-top: 14px">
+            <thead>
+              <tr>
+                <th>可借鉴点</th>
+                <th>对 ALICE / VERONICA 的启发</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Agent 定义中心化</td>
+                <td>把“能力 / 工具 / 模型 / memory / isolation”收敛到统一定义层。</td>
+              </tr>
+              <tr>
+                <td>上下文隔离</td>
+                <td>用会话级或任务级上下文，避免后台并发互相覆盖。</td>
+              </tr>
+              <tr>
+                <td>可恢复生命周期</td>
+                <td>让中断后的任务能依据 transcript / metadata 续跑。</td>
+              </tr>
+              <tr>
+                <td>特殊模式显式化</td>
+                <td>fork / worktree / remote 这类高阶模式应单独命名、单独约束。</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </div>
+
+      <section class="card" style="margin-top: 18px">
+        <h2>6. 简洁 SVG 总览</h2>
+        <p class="muted">
+          这个 SVG 用来帮助快速建立“前端 / 中枢 / Agent / 记忆 / 工作区”五层直觉。
+        </p>
+        <div class="svgbox">
+          <svg viewBox="0 0 1200 280" width="100%" height="auto" role="img" aria-label="Claude Code 与 ALICE/VERONICA 的层级示意图">
+            <defs>
+              <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#00d9ff" />
+                <stop offset="100%" stop-color="#9b7bff" />
+              </linearGradient>
+            </defs>
+            <rect x="20" y="25" rx="18" ry="18" width="210" height="220" fill="#11182d" stroke="url(#g1)" stroke-width="2" />
+            <text x="125" y="65" fill="#00d9ff" font-size="22" text-anchor="middle" font-weight="700">ALICE</text>
+            <text x="125" y="95" fill="#e8ecff" font-size="16" text-anchor="middle">CLI / TUI / 命令入口</text>
+            <text x="125" y="145" fill="#aab3d6" font-size="14" text-anchor="middle">用户交互</text>
+            <text x="125" y="170" fill="#aab3d6" font-size="14" text-anchor="middle">一次性任务</text>
+            <text x="125" y="195" fill="#aab3d6" font-size="14" text-anchor="middle">本地状态</text>
+
+            <rect x="260" y="25" rx="18" ry="18" width="250" height="220" fill="#17213d" stroke="#00d9ff" stroke-width="2" />
+            <text x="385" y="65" fill="#00d9ff" font-size="22" text-anchor="middle" font-weight="700">VERONICA</text>
+            <text x="385" y="95" fill="#e8ecff" font-size="16" text-anchor="middle">常驻 daemon / 编排中枢</text>
+            <text x="385" y="145" fill="#aab3d6" font-size="14" text-anchor="middle">会话管理</text>
+            <text x="385" y="170" fill="#aab3d6" font-size="14" text-anchor="middle">工具执行</text>
+            <text x="385" y="195" fill="#aab3d6" font-size="14" text-anchor="middle">事件 / 任务调度</text>
+
+            <rect x="550" y="25" rx="18" ry="18" width="260" height="220" fill="#11182d" stroke="#9b7bff" stroke-width="2" />
+            <text x="680" y="65" fill="#9b7bff" font-size="22" text-anchor="middle" font-weight="700">Claude Code Agent</text>
+            <text x="680" y="95" fill="#e8ecff" font-size="16" text-anchor="middle">定义 / 上下文 / 记忆 / 权限</text>
+            <text x="680" y="145" fill="#aab3d6" font-size="14" text-anchor="middle">spawn / fork / resume</text>
+            <text x="680" y="170" fill="#aab3d6" font-size="14" text-anchor="middle">worktree / remote</text>
+            <text x="680" y="195" fill="#aab3d6" font-size="14" text-anchor="middle">AsyncLocalStorage</text>
+
+            <rect x="860" y="25" rx="18" ry="18" width="150" height="220" fill="#11182d" stroke="#63e6be" stroke-width="2" />
+            <text x="935" y="65" fill="#63e6be" font-size="22" text-anchor="middle" font-weight="700">Memory</text>
+            <text x="935" y="95" fill="#e8ecff" font-size="14" text-anchor="middle">user</text>
+            <text x="935" y="120" fill="#e8ecff" font-size="14" text-anchor="middle">project</text>
+            <text x="935" y="145" fill="#e8ecff" font-size="14" text-anchor="middle">local</text>
+            <text x="935" y="170" fill="#aab3d6" font-size="14" text-anchor="middle">snapshot</text>
+            <text x="935" y="195" fill="#aab3d6" font-size="14" text-anchor="middle">sync</text>
+
+            <rect x="1030" y="25" rx="18" ry="18" width="150" height="220" fill="#11182d" stroke="#ffd43b" stroke-width="2" />
+            <text x="1105" y="65" fill="#ffd43b" font-size="22" text-anchor="middle" font-weight="700">Workspace</text>
+            <text x="1105" y="95" fill="#e8ecff" font-size="14" text-anchor="middle">git worktree</text>
+            <text x="1105" y="120" fill="#e8ecff" font-size="14" text-anchor="middle">remote</text>
+            <text x="1105" y="145" fill="#e8ecff" font-size="14" text-anchor="middle">isolated</text>
+            <text x="1105" y="170" fill="#aab3d6" font-size="14" text-anchor="middle">recoverable</text>
+            <text x="1105" y="195" fill="#aab3d6" font-size="14" text-anchor="middle">safe</text>
+
+            <path d="M230 135 L260 135" stroke="#00d9ff" stroke-width="4" stroke-linecap="round" />
+            <path d="M510 135 L550 135" stroke="#00d9ff" stroke-width="4" stroke-linecap="round" />
+            <path d="M810 135 L860 135" stroke="#00d9ff" stroke-width="4" stroke-linecap="round" />
+            <path d="M1010 135 L1030 135" stroke="#00d9ff" stroke-width="4" stroke-linecap="round" />
+          </svg>
+        </div>
+      </section>
+
+      <p class="footer">
+        资料来源：Claude Code 源码 `src/` 目录分析；ALICE / VERONICA 名称与定位参考本仓库 `docs/A.L.I.C.E.md`、`docs/V.E.R.O.N.I.C.A.md`、`docs/REFACTOR_PLAN.md`。
+      </p>
+    </div>
+
+    <script>
+      window.addEventListener('load', () => {
+        const diagrams = document.querySelectorAll('.mermaid');
+        diagrams.forEach((el) => {
+          el.style.overflowX = 'auto';
+        });
+      });
+    </script>
+  </body>
+</html>
