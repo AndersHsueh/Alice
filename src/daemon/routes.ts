@@ -10,7 +10,8 @@ import { daemonConfigManager } from './config.js';
 import { getLastHeartbeat } from './heartbeatState.js';
 import { DaemonLogger } from './logger.js';
 import { sendNotification } from './notification.js';
-import { getConfig, getSessionManager, setAgentMode, getAgentMode } from './services.js';
+import { getConfig, getSessionManager, setAgentMode, getAgentMode, taskManager } from './services.js';
+import type { TaskStatus } from '../runtime/task/runtimeTask.js';
 import { runChatStream, type ChatStreamRequest } from './chatHandler.js';
 import { getErrorMessage } from '../utils/error.js';
 import { FeishuAdapter } from './gateway/feishuAdapter.js';
@@ -89,6 +90,8 @@ export class DaemonRoutes {
         await this.handleGetMode(res);
       } else if (pathname === '/chat-stream' && method === 'POST') {
         await this.handleChatStream(req, res);
+      } else if (pathname === '/tasks' && method === 'GET') {
+        await this.handleListTasks(req, res);
       } else if (pathname === '/notify' && method === 'POST') {
         await this.handleNotify(req, res);
       } else if (pathname === '/register-cron-workspace' && method === 'POST') {
@@ -517,6 +520,24 @@ export class DaemonRoutes {
     const mode = getAgentMode();
     res.writeHead(200);
     res.end(JSON.stringify({ mode }));
+  }
+
+  private async handleListTasks(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const url = new URL(req.url ?? '/tasks', 'http://localhost');
+    const statusFilter = url.searchParams.get('status');
+
+    let tasks;
+    if (statusFilter === 'all') {
+      tasks = taskManager.listTasks();
+    } else if (statusFilter) {
+      tasks = taskManager.listTasks({ status: statusFilter as TaskStatus });
+    } else {
+      // 默认只返回活跃任务
+      tasks = taskManager.listActiveTasks();
+    }
+
+    res.writeHead(200);
+    res.end(JSON.stringify({ tasks }));
   }
 
   /**

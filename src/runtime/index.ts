@@ -1,6 +1,7 @@
 export * from './kernel/createRuntime.js';
 export * from './kernel/runtimeEvents.js';
 export * from './kernel/runtimeTypes.js';
+export * from './agent/agentProfile.js';
 export * from './tools/toolCallState.js';
 export * from './tools/toolRegistry.js';
 export * from './tools/toolExecutor.js';
@@ -12,3 +13,6 @@ export * from './workspace/cronWorkspaceBackend.js';
 export * from './workspace/cronWorkspacePaths.js';
 export * from './workspace/workspaceResolver.js';
 export * from './scenarios/scenarioPack.js';
+export * from './task/runtimeTask.js';
+export * from './task/taskStore.js';
+export * from './task/taskManager.js';

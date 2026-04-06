@@ -5,7 +5,7 @@
 import type { Message } from '../types/index.js';
 import type { ChatStreamRequest, ChatStreamEvent } from '../types/chatStream.js';
 import { configManager } from '../utils/config.js';
-import { getConfig, getSystemPrompt, getLLMClient, getSessionManager } from './services.js';
+import { getConfig, getSystemPrompt, getLLMClient, getSessionManager, taskManager } from './services.js';
 import type { DaemonLogger } from './logger.js';
 import { createRuntime } from '../runtime/kernel/createRuntime.js';
 
@@ -29,6 +29,7 @@ export async function* runChatStream(
     getSystemPrompt,
     getLLMClient,
     getSessionManager,
+    taskManager,
   });
 
   for await (const event of runtime.runChat(req)) {
@@ -41,6 +42,7 @@ export async function* runChatStream(
         type: 'done',
         sessionId: event.sessionId,
         messages: event.messages.map((m) => serializeMessage(m)),
+        ...(event.taskId ? { taskId: event.taskId } : {}),
       };
     } else if (event.type === 'error') {
       yield { type: 'error', message: event.message };

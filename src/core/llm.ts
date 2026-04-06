@@ -159,18 +159,22 @@ export class LLMClient {
 
   /**
    * 带工具的对话（非流式）
+   * @param messages - 对话历史消息
+   * @param onToolUpdate - 可选，工具执行回调
    * @param workspace - 可选，当前会话绑定的工作目录，工具基于此解析路径与 cwd
+   * @param tools - 可选，工具列表（支持按 AgentProfile 裁剪）；若不提供则使用全局 registry
    */
   async chatWithTools(
     messages: Message[],
     onToolUpdate?: (record: ToolCallRecord) => void,
-    workspace?: string
+    workspace?: string,
+    tools?: any[]
   ): Promise<Message> {
     if (!this.toolExecutor) {
       throw new Error('工具系统未启用，请先调用 enableTools()');
     }
 
-    const tools = runtimeToolRegistry.toOpenAIFunctions();
+    const toolsList = tools ?? runtimeToolRegistry.toOpenAIFunctions();
     let conversationMessages = [...messages];
     const maxIterations = configManager.getMaxIterations();
     let iteration = 0;
@@ -180,7 +184,7 @@ export class LLMClient {
       iteration++;
 
       // 调用 LLM
-      const response = await this.provider.chatWithTools(conversationMessages, tools);
+      const response = await this.provider.chatWithTools(conversationMessages, toolsList);
 
       if (response.type === 'text') {
         // 返回文本响应
@@ -253,22 +257,26 @@ export class LLMClient {
 
   /**
    * 带工具的流式对话
+   * @param messages - 对话历史消息
+   * @param onToolUpdate - 可选，工具执行回调
    * @param workspace   - 可选，当前会话绑定的工作目录
    * @param tokenBudget - 可选，本次任务允许的最大输出 token 数。
    *                      超过 80% 时发送 nudge，收益递减时主动停止。
    *                      为 null 或 0 时禁用 budget 管理。
+   * @param tools       - 可选，工具列表（支持按 AgentProfile 裁剪）；若不提供则使用全局 registry
    */
   async *chatStreamWithTools(
     messages: Message[],
     onToolUpdate?: (record: ToolCallRecord) => void,
     workspace?: string,
     tokenBudget?: number | null,
+    tools?: any[]
   ): AsyncGenerator<string> {
     if (!this.toolExecutor) {
       throw new Error('工具系统未启用');
     }
 
-    const tools = runtimeToolRegistry.toOpenAIFunctions();
+    const toolsList = tools ?? runtimeToolRegistry.toOpenAIFunctions();
     let conversationMessages = [...messages];
     const maxIterations = configManager.getMaxIterations();
     let iteration = 0;
@@ -288,7 +296,7 @@ export class LLMClient {
         let iterationOutputTokens = 0;
 
         // 流式获取 LLM 响应
-        for await (const chunk of this.provider.chatStreamWithTools(conversationMessages, tools)) {
+        for await (const chunk of this.provider.chatStreamWithTools(conversationMessages, toolsList)) {
           if (chunk.type === 'text' && chunk.content) {
             accumulatedContent += chunk.content;
             yield chunk.content;

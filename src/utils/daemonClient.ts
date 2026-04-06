@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import type { DaemonConfig, PingResponse, StatusResponse, ReloadConfigResponse } from '../types/daemon.js';
+import type { RuntimeTask } from '../runtime/task/runtimeTask.js';
 import type { ChatStreamEvent } from '../types/chatStream.js';
 import type { Config } from '../types/index.js';
 import type { Session } from '../types/index.js';
@@ -356,6 +357,12 @@ export class DaemonClient {
 
   async getConfig(): Promise<Config> {
     return await this.request('/config', 'GET');
+  }
+
+  async listTasks(filter?: { status?: 'all' | string }): Promise<RuntimeTask[]> {
+    const qs = filter?.status ? `?status=${filter.status}` : '';
+    const result = await this.request(`/tasks${qs}`, 'GET');
+    return result.tasks ?? [];
   }
 
   async listSessions(): Promise<Array<{

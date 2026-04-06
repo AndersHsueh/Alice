@@ -3,6 +3,7 @@ node_modules/
 
 # Reference code
 pi-mono/
+documentation-starter-kit/
 
 # Build output
 dist/

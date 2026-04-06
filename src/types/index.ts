@@ -138,3 +138,4 @@ export interface Config {
 
 // 导出工具相关类型
 export * from './tool.js';
+export * from './simplify.js';

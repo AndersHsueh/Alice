@@ -21,13 +21,18 @@ export interface ChatStreamRequest {
   workspaceContext?: WorkspaceContext;
   /** 为 true 时流式输出包含 <think>...</think> 块；默认 false，只返回回复正文 */
   includeThink?: boolean;
+  /**
+   * 指定使用的 AgentProfile ID（如 'main'、'consultant'、'researcher' 等）。
+   * 未指定时默认使用 'main'。
+   */
+  agentProfileId?: string;
 }
 
 /** 流式对话事件（daemon -> 客户端，NDJSON 每行一个事件） */
 export type ChatStreamEvent =
   | { type: 'text'; content: string }
   | { type: 'tool_call'; record: ToolCallRecord }
-  | { type: 'done'; sessionId: string; messages: Message[] }
+  | { type: 'done'; sessionId: string; taskId?: string; messages: Message[] }
   | { type: 'error'; message: string }
   | {
       type: 'model_selected';

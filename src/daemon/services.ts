@@ -17,6 +17,7 @@ import { getErrorMessage } from '../utils/error.js';
 import { eventBus } from '../core/events.js';
 import type { ToolCallEvent, ToolExecuteEvent, ToolErrorEvent } from '../types/events.js';
 import { runtimeToolRegistry } from '../runtime/tools/toolRegistry.js';
+import { TaskManager } from '../runtime/task/taskManager.js';
 
 let initialized = false;
 const llmClientCache = new Map<string, LLMClient>();
@@ -27,6 +28,9 @@ let toolCallSeq = 0;
 
 /** 模型注册表单例，multi_model_routing = true 时生效 */
 export let modelRegistry: ModelRegistry | null = null;
+
+/** 任务管理器单例，跨请求共享，记录每次对话的任务生命周期 */
+export const taskManager = new TaskManager();
 
 function safeJson(value: unknown, maxLen = 200): string {
   try {
