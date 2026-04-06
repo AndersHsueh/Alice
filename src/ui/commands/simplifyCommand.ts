@@ -3,7 +3,7 @@
  *
  * 三阶段代码审查与自动修复命令，完全复现 Claude Code 的功能。
  * - Phase 1：识别变更（git diff）
- * - Phase 2：并发启动三个审查智能体
+ * - Phase 2：并发启动三个审查智能体（使用 Promise.all()）
  * - Phase 3：聚合结果并应用修复
  */
 
@@ -12,6 +12,8 @@ import type { SlashCommand, CommandContext, StreamMessagesActionReturn } from '.
 import type { SimplifyOptions, SimplifyIssue } from '../../types/simplify.js';
 import { CommandKind } from './types.js';
 import { DaemonClient } from '../../utils/daemonClient.js';
+import { ConcurrentReviewerCaller, type ReviewerConfig } from '../../services/simplify/ConcurrentReviewerCaller.js';
+import { MetricsCollector } from '../../services/simplify/MetricsCollector.js';
 
 /**
  * Phase 1: 识别变更
