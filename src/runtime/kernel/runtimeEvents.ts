@@ -6,7 +6,7 @@ export type RuntimeEvent =
   | { type: 'text_delta'; content: string }
   | { type: 'tool_finished'; record: ToolCallRecord }
   | { type: 'warning'; warning: RuntimeWarning }
-  | { type: 'done'; sessionId: string; messages: Message[]; summary: RuntimeTurnSummary }
+  | { type: 'done'; sessionId: string; taskId?: string; messages: Message[]; summary: RuntimeTurnSummary }
   | { type: 'error'; message: string }
   | {
       type: 'model_selected';

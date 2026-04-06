@@ -9,6 +9,14 @@ import { splitThinkContent } from '../../utils/thinkParser.js';
 import { getErrorMessage } from '../../utils/error.js';
 import type { DaemonLogger } from '../../daemon/logger.js';
 import { modelRegistry } from '../../daemon/services.js';
+import {
+  getAgentProfile,
+  isValidProfileId,
+  profileTierToCapability,
+  type AgentProfile,
+} from './agentProfile.js';
+import type { TaskManager } from '../task/taskManager.js';
+import { generateTaskTitle } from '../task/taskManager.js';
 
 const THINK_CLOSE_TAG = '</think>';
 
@@ -25,6 +33,8 @@ export interface AgentLoopDependencies {
   getSystemPrompt(): Promise<string>;
   getLLMClient(modelConfig: ModelConfig, systemPrompt: string): any;
   getSessionManager(): RuntimeSessionManagerLike;
+  /** 可选：注入 TaskManager 以记录任务生命周期 */
+  taskManager?: TaskManager;
 }
 
 /**
@@ -113,6 +123,19 @@ export async function* runAgentLoop(
   const config = deps.getConfig();
   const sessionManager = deps.getSessionManager();
 
+  // 加载 AgentProfile（默认使用 'main'）
+  const profileId = req.agentProfileId && isValidProfileId(req.agentProfileId)
+    ? req.agentProfileId
+    : 'main';
+  const profile: AgentProfile = getAgentProfile(profileId);
+
+  // 创建 RuntimeTask（若注入了 TaskManager）
+  const task = deps.taskManager?.createTask({
+    agentProfileId: profileId,
+    title: generateTaskTitle(req.message),
+    sessionId: req.sessionId,
+  });
+
   let session = req.sessionId
     ? await sessionManager.loadSession(req.sessionId)
     : null;
@@ -153,14 +176,27 @@ export async function* runAgentLoop(
   }
 
   let modelConfig: ModelConfig | undefined = deps.getDefaultModel();
+
+  // profile 指定了固定模型：直接查找
+  if (profile.modelPolicy.type === 'fixed') {
+    const fixedModelName = profile.modelPolicy.model;
+    const fixedConfig = config.models.find(m => m.name === fixedModelName);
+    if (fixedConfig) modelConfig = fixedConfig;
+  }
+
+  // 请求级 model 字段优先级最高，覆盖 profile 策略
   if (req.model) {
     const selected = config.models.find((m) => m.name === req.model);
     if (selected) modelConfig = selected;
   }
 
-  // 若启用异构路由，用 inferCapability + selectModel 覆盖 default 选择
-  const capability = inferCapability(req);
-  if (!req.model && modelRegistry && config.multi_model_routing) {
+  // 能力层推断：先按 profile tier 覆盖，再按内容自动推断
+  const profileCapability = profileTierToCapability(profile);
+  const capability: ModelCapabilityTier = profileCapability ?? inferCapability(req);
+
+  // 若启用异构路由，用 capability + selectModel 覆盖 default 选择
+  // profile 为 'fixed' 或请求指定了 model 时跳过路由
+  if (!req.model && profile.modelPolicy.type !== 'fixed' && modelRegistry && config.multi_model_routing) {
     const routedName = modelRegistry.selectModel(capability);
     const routedConfig = config.models.find(m => m.name === routedName);
     if (routedConfig) modelConfig = routedConfig;
@@ -216,6 +252,14 @@ export async function* runAgentLoop(
   let accumulatedContent = '';
   let lastYieldedNormalLength = 0;
 
+  // 任务状态：pending → running
+  if (task) {
+    deps.taskManager?.updateTask(task.taskId, {
+      status: 'running',
+      sessionId: session.id,
+    });
+  }
+
   try {
     for await (const chunk of client.chatStreamWithTools(
       conversationMessages,
@@ -224,6 +268,7 @@ export async function* runAgentLoop(
       },
       session.workspace,
       tokenBudget,
+      req.allowedTools, // 可选的工具列表过滤
     )) {
       if (toolState.hasPending()) {
         const records = flushToolState(toolState, finalMessages, accumulatedContent);
@@ -290,9 +335,16 @@ export async function* runAgentLoop(
     });
 
     const messages = finalMessages.map((m) => serializeMessage(m));
+
+    // 任务状态：running → completed
+    if (task) {
+      deps.taskManager?.updateTask(task.taskId, { status: 'completed' });
+    }
+
     yield {
       type: 'done',
       sessionId: session.id,
+      taskId: task?.taskId,
       messages,
       summary: { sessionId: session.id, messages },
     };
@@ -306,6 +358,14 @@ export async function* runAgentLoop(
       provider: modelConfig.provider,
       workspace: session.workspace,
     };
+
+    // 任务状态：running → failed（中止视为 cancelled）
+    if (task) {
+      deps.taskManager?.updateTask(task.taskId, {
+        status: lower.includes('aborted') ? 'cancelled' : 'failed',
+        errorMessage: msg,
+      });
+    }
 
     if (lower.includes('aborted')) {
       deps.logger.warn('Runtime agent loop 中止（连接已关闭）', msg, commonMeta);
