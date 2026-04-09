@@ -11,12 +11,15 @@ import { getLastHeartbeat } from './heartbeatState.js';
 import { DaemonLogger } from './logger.js';
 import { sendNotification } from './notification.js';
 import { getConfig, getSessionManager, setAgentMode, getAgentMode, taskManager } from './services.js';
+import { runtimeToolRegistry } from '../runtime/tools/toolRegistry.js';
 import type { TaskStatus } from '../runtime/task/runtimeTask.js';
 import { runChatStream, type ChatStreamRequest } from './chatHandler.js';
 import { getErrorMessage } from '../utils/error.js';
 import { FeishuAdapter } from './gateway/feishuAdapter.js';
 import { handleChannelMessage } from './gateway/handler.js';
 import { getFeishuWsState } from './gateway/feishuWsState.js';
+import { createHarnessRouteHandler } from './harnessRoutes.js';
+import { getHarnessBridge } from './harnessBridge.js';
 
 function readBody(req: IncomingMessage): Promise<string> {
   const withBody = (req as IncomingMessage & { bodyPromise?: Promise<string> }).bodyPromise;
@@ -34,6 +37,7 @@ export class DaemonRoutes {
   private logger: DaemonLogger;
   private startTime: number;
   private pid: number;
+  private harnessHandler: ((req: IncomingMessage, res: ServerResponse) => Promise<void>) | null = null;
 
   constructor(config: DaemonConfig, logger: DaemonLogger) {
     this.config = config;
@@ -98,6 +102,14 @@ export class DaemonRoutes {
         await this.handleRegisterCronWorkspace(req, res);
       } else if (pathname === '/channels/feishu' && method === 'POST') {
         await this.handleChannelFeishu(req, res);
+      } else if (pathname === '/tools/reload' && method === 'POST') {
+        await this.handleReloadTools(req, res);
+      } else if (pathname.startsWith('/harness/')) {
+        // 委托给 harness 路由处理器（懒加载）
+        if (!this.harnessHandler) {
+          this.harnessHandler = createHarnessRouteHandler(getHarnessBridge(this.logger), this.logger);
+        }
+        await this.harnessHandler(req, res);
       } else {
         res.writeHead(404);
         res.end(JSON.stringify({ error: 'Not Found' }));
@@ -358,6 +370,30 @@ export class DaemonRoutes {
       this.logger.error('配置重新加载失败', msg);
       res.writeHead(500);
       res.end(JSON.stringify(response));
+    }
+  }
+
+  /**
+   * POST /tools/reload - 热重载工具（不清除已有工具，重新注册）
+   */
+  private async handleReloadTools(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    try {
+      await runtimeToolRegistry.reload({
+        info: (msg, meta) => this.logger.info(msg, meta),
+        warn: (msg, meta) => this.logger.warn(msg, meta),
+      });
+      const tools = runtimeToolRegistry.getAll();
+      res.writeHead(200);
+      res.end(JSON.stringify({
+        status: 'ok',
+        message: `工具热重载完成，共 ${tools.length} 个工具`,
+        tools: tools.map(t => t.name),
+      }));
+    } catch (error: unknown) {
+      const msg = getErrorMessage(error);
+      this.logger.error('工具热重载失败', msg);
+      res.writeHead(500);
+      res.end(JSON.stringify({ status: 'error', message: `工具热重载失败: ${msg}` }));
     }
   }
 

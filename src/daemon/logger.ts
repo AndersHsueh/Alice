@@ -22,11 +22,14 @@ export class DaemonLogger {
     warn: 2,
     error: 3,
   };
+  /** Source tag in log output: [TIMESTAMP] [LEVEL] [source] message */
+  public readonly source: string;
 
-  constructor(config: LoggingConfig) {
+  constructor(config: LoggingConfig, source: string = 'alice-daemon') {
     this.config = config;
     this.currentLogFile = config.file;
     this.currentHour = this.getHourString();
+    this.source = source;
   }
 
   /**
@@ -153,10 +156,10 @@ export class DaemonLogger {
    */
   private formatMessage(level: LogLevel, timestamp: string, message: string, ...args: any[]): string {
     const levelUpper = level.toUpperCase().padEnd(5);
-    const argsStr = args.length > 0 ? ' ' + args.map(arg => 
+    const argsStr = args.length > 0 ? ' ' + args.map(arg =>
       typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
     ).join(' ') : '';
-    return `[${timestamp}] ${levelUpper} ${message}${argsStr}`;
+    return `[${timestamp}] ${levelUpper} [${this.source}] ${message}${argsStr}`;
   }
 
   debug(message: string, ...args: any[]): Promise<void> {

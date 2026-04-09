@@ -14,6 +14,7 @@ import { CommandKind } from './types.js';
 import { DaemonClient } from '../../utils/daemonClient.js';
 import { ConcurrentReviewerCaller, type ReviewerConfig } from '../../services/simplify/ConcurrentReviewerCaller.js';
 import { MetricsCollector } from '../../services/simplify/MetricsCollector.js';
+import { applyFixToFile, previewFix, generateFixReport } from '../../services/simplify/fixApplier.js';
 
 /**
  * Phase 1: 识别变更
@@ -374,6 +375,74 @@ async function* phase3_aggregateAndFix(
       content: `  - 已分类：${appliedFixes.length} 个自动修复，${suggestedFixes.length} 个建议修复`,
     };
 
+    // ✅ 新增：实际应用修复
+    if (appliedFixes.length > 0 && options?.applyFixes !== false) {
+      yield {
+        messageType: 'info',
+        content: `⏳ 应用 ${appliedFixes.length} 个自动修复...`,
+      };
+
+      const fixResults = [];
+      for (const fix of appliedFixes) {
+        if (fix.beforeSnippet && fix.afterSnippet) {
+          try {
+            const result = await applyFixToFile(fix.affectedFile, fix.beforeSnippet, fix.afterSnippet);
+            fixResults.push(result);
+
+            if (result.success) {
+              yield {
+                messageType: 'info',
+                content: `  ✓ ${fix.affectedFile}: ${result.message}`,
+              };
+            } else {
+              yield {
+                messageType: 'error',
+                content: `  ✗ ${fix.affectedFile}: ${result.message}`,
+              };
+            }
+          } catch (error: unknown) {
+            yield {
+              messageType: 'error',
+              content: `  ✗ ${fix.affectedFile}: ${error instanceof Error ? error.message : '未知错误'}`,
+            };
+          }
+        }
+      }
+
+      // 生成修复报告
+      const report = generateFixReport(fixResults);
+      yield {
+        messageType: 'info',
+        content: `✓ 修复完成：${report.summary}`,
+      };
+    }
+
+    // ✅ 新增：生成建议修复的预览
+    if (suggestedFixes.length > 0 && options?.showPreviews !== false) {
+      yield {
+        messageType: 'info',
+        content: `⏳ 生成 ${suggestedFixes.length} 个建议修复的预览...`,
+      };
+
+      for (const fix of suggestedFixes.slice(0, 5)) {
+        const issue = uniqueIssues.find(i => i.id === fix.issueIds[0]);
+        if (issue?.snippet?.before && issue?.snippet?.after) {
+          try {
+            const preview = await previewFix(fix.affectedFile, issue.snippet.before, issue.snippet.after);
+            if (preview) {
+              yield {
+                messageType: 'info',
+                content: `📋 建议修复 #${fix.id} (${fix.priority}): ${fix.affectedFile}
+  变更行数: ${preview.lineChanges.length}`,
+              };
+            }
+          } catch {
+            // 预览生成失败，忽略
+          }
+        }
+      }
+    }
+
     yield {
       messageType: 'info',
       content: '✓ 聚合完成',
@@ -489,6 +558,7 @@ ${finalResult?.issues?.length > 0 ? '📋 前 3 个问题:\n' + finalResult.issu
 
 export const simplifyCommand: SlashCommand = {
   name: 'simplify',
+  altNames: ['simp'],
   description: '三阶段代码审查与自动修复：识别变更 → 并发审查 → 聚合修复',
   kind: CommandKind.BUILT_IN,
 
