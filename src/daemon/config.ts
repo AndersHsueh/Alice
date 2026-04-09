@@ -32,9 +32,68 @@ function sanitizeChannelsForSave(channels: ChannelsConfig | undefined): Channels
 export class DaemonConfigManager {
   private configPath: string;
   private config: DaemonConfig | null = null;
+  private watchHandle: import('fs').FSWatcher | null = null;
+  private reloadDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private reloadCallbacks: Array<(config: DaemonConfig) => void> = [];
 
   constructor() {
     this.configPath = path.join(os.homedir(), '.alice', 'daemon_settings.jsonc');
+  }
+
+  /**
+   * 注册配置重载回调
+   */
+  onReload(callback: (config: DaemonConfig) => void): void {
+    this.reloadCallbacks.push(callback);
+  }
+
+  /**
+   * 启动文件监听（热重载）
+   */
+  async startWatching(): Promise<void> {
+    if (this.watchHandle) return;
+    try {
+      const fsWatch = await import('fs');
+      const dir = path.dirname(this.configPath);
+      this.watchHandle = fsWatch.watch(dir, { persistent: false });
+      this.watchHandle.addListener('change', (_eventType, filename) => {
+        if (typeof filename === 'string' && path.basename(filename) === path.basename(this.configPath)) {
+          this._debouncedReload();
+        }
+      });
+    } catch {
+      // 文件监听不可用，忽略
+    }
+  }
+
+  /**
+   * 停止文件监听
+   */
+  async stopWatching(): Promise<void> {
+    if (this.watchHandle) {
+      await this.watchHandle.close();
+      this.watchHandle = null;
+    }
+    if (this.reloadDebounceTimer) {
+      clearTimeout(this.reloadDebounceTimer);
+      this.reloadDebounceTimer = null;
+    }
+  }
+
+  private _debouncedReload(): void {
+    if (this.reloadDebounceTimer) {
+      clearTimeout(this.reloadDebounceTimer);
+    }
+    this.reloadDebounceTimer = setTimeout(async () => {
+      try {
+        const newConfig = await this.load();
+        for (const cb of this.reloadCallbacks) {
+          try { cb(newConfig); } catch { /* ignore callback errors */ }
+        }
+      } catch {
+        // reload 失败，不中断
+      }
+    }, 500);
   }
 
   /**

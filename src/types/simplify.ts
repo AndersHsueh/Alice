@@ -150,4 +150,10 @@ export interface SimplifyOptions {
   
   /** 审查超时时间（默认 300000ms） */
   timeoutMs?: number;
+  
+  /** 是否实际应用修复（默认 true） */
+  applyFixes?: boolean;
+  
+  /** 是否显示建议修复的预览（默认 true） */
+  showPreviews?: boolean;
 }

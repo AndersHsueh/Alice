@@ -18,6 +18,7 @@ import { eventBus } from '../core/events.js';
 import type { ToolCallEvent, ToolExecuteEvent, ToolErrorEvent } from '../types/events.js';
 import { runtimeToolRegistry } from '../runtime/tools/toolRegistry.js';
 import { TaskManager } from '../runtime/task/taskManager.js';
+import { daemonConfigManager } from './config.js';
 
 let initialized = false;
 const llmClientCache = new Map<string, LLMClient>();
@@ -131,6 +132,27 @@ export async function initServices(logger: DaemonLogger): Promise<void> {
       }
     } catch (error: unknown) {
       logger.warn('MCP 初始化失败', getErrorMessage(error));
+    }
+
+    // 启动配置热重载监听
+    try {
+      daemonConfigManager.onReload((newConfig) => {
+        logger.info('配置热重载已触发', {
+          transport: newConfig.transport,
+          httpPort: newConfig.httpPort,
+        });
+        eventBus.emit('config:reload', newConfig);
+        // 清除 LLM 客户端缓存使新配置生效
+        llmClientCache.clear();
+        // 同时热重载工具
+        runtimeToolRegistry.reload(logger).catch((err: unknown) => {
+          logger.warn('工具热重载失败', getErrorMessage(err));
+        });
+      });
+      await daemonConfigManager.startWatching();
+      logger.info('配置热重载监听已启动');
+    } catch (error: unknown) {
+      logger.warn('配置热重载监听启动失败', getErrorMessage(error));
     }
 
     initialized = true;
