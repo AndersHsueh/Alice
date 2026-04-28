@@ -158,13 +158,13 @@ export const Header: React.FC<HeaderProps> = ({
   // ⚡ 本地模型 / ☁ 云端模型 / ↓ 降级状态
   const isLocal = displayModelName.includes('local') || displayModelName.includes('localhost') ||
     displayModelName.includes('lmstudio') || displayModelName.includes('ollama')
-  const sourceIcon = isLocal ? '⚡' : '☁'
-  const degradedSuffix = modelDegraded ? ' ↓' : ''
-  const modelDisplayStr = `${displayModelName} ${sourceIcon}${degradedSuffix}`
+  const sourceIcon = isLocal ? ' [Local]' : ' [Cloud]'
+  const degradedSuffix = modelDegraded ? ' ↓' : ' '
+  const modelDisplayStr = `${displayModelName}${sourceIcon}${degradedSuffix}`
 
   const modelLine = activeChannel
-    ? `${modelDisplayStr} · ${modeLabel} · ${activeChannel}`
-    : `${modelDisplayStr} · ${modeLabel}`;
+    ? `${modelDisplayStr} · ${modeLabel} · ${activeChannel} `
+    : `${modelDisplayStr} · ${modeLabel} `;
   const home = process.env.HOME ?? '';
   const tildeDir = home && workingDirectory.startsWith(home)
     ? '~' + workingDirectory.slice(home.length)

@@ -116,8 +116,8 @@ class QwenAgent implements Agent {
     return {
       protocolVersion: PROTOCOL_VERSION,
       agentInfo: {
-        name: 'qwen-code',
-        title: 'Qwen Code',
+        name: 'alice-agent',
+        title: 'Alice Agent',
         version,
       },
       authMethods,

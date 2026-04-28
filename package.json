@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "tsx src/index.tsx",
     "dev:watch": "tsx watch src/index.tsx",
-    "build": "tsc",
+    "build": "tsc && cp -r src/i18n/locales dist/i18n/locales",
     "postbuild": "chmod +x dist/index.js dist/daemon/cli.js",
     "start": "node dist/index.js",
     "clean": "rimraf dist",

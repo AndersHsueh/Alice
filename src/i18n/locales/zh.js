@@ -1282,7 +1282,7 @@ export default {
   // ============================================================================
   // Exit Screen / Stats
   // ============================================================================
-  'Agent powering down. Goodbye!': 'Qwen Code 正在关闭，再见！',
+  'Agent powering down. Goodbye!': 'Agent 正在关闭，再见！',
   'To continue this session, run': '要继续此会话，请运行',
   'Interaction Summary': '交互摘要',
   'Session ID:': '会话 ID：',
