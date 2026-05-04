@@ -46,16 +46,40 @@ export class DaemonClient {
       return;
     }
 
+    // 避免 socket 瞬断时重复 spawn daemon
+    const pidAlive = await this.checkDaemonPid();
+    if (pidAlive) {
+      // 等 1s 让瞬态 socket 错误恢复
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (await this.checkDaemonRunning()) {
+        return;
+      }
+      console.warn('⚠️  Daemon 进程已存在但无法连接，请运行 veronica status 检查状态');
+      return;
+    }
+
     console.log('Daemon 未运行，正在启动...');
     await this.startDaemon(config.transport);
 
-    // 等待 3 秒后重试（daemon 启动通常很快）
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // 再次检查
     const isRunningAfterWait = await this.checkDaemonRunning();
     if (!isRunningAfterWait) {
       throw new Error('服务启动失败：启动后无法连接到 daemon');
+    }
+  }
+
+  /** 通过 PID 文件检查进程存在性（不依赖 socket/http 连接） */
+  private async checkDaemonPid(): Promise<boolean> {
+    const pidFile = path.join(os.homedir(), '.alice', 'run', 'daemon.pid');
+    try {
+      const pidStr = await fs.promises.readFile(pidFile, 'utf-8');
+      const pid = parseInt(pidStr.trim(), 10);
+      if (!Number.isFinite(pid) || pid <= 0) return false;
+      process.kill(pid, 0); // signal 0 仅检查进程存在，不发送实际信号
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -93,7 +117,7 @@ export class DaemonClient {
       }
 
       const child = spawn(command, args, {
-        stdio: 'inherit',
+        stdio: 'ignore',
         env: process.env,
       });
 

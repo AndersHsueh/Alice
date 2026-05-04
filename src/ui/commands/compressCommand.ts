@@ -69,7 +69,7 @@ export const compressCommand: SlashCommand = {
           if (!compressed) {
             yield {
               messageType: 'error' as const,
-              content: t('Failed to compress chat history.'),
+              content: t('Context compression is not available in this mode.'),
             };
             return;
           }
@@ -106,7 +106,7 @@ export const compressCommand: SlashCommand = {
           ui.addItem(
             {
               type: MessageType.ERROR,
-              text: t('Failed to compress chat history.'),
+              text: t('Context compression is not available in this mode.'),
             },
             Date.now(),
           );
@@ -116,7 +116,7 @@ export const compressCommand: SlashCommand = {
         return {
           type: 'message',
           messageType: 'error',
-          content: t('Failed to compress chat history.'),
+          content: t('Context compression is not available in this mode.'),
         };
       }
 

@@ -68,6 +68,7 @@ export const summaryCommand: SlashCommand = {
 
     const getChatHistory = () => {
       const chat = geminiClient.getChat();
+      if (!chat) return [];
       return chat.getHistory();
     };
 

@@ -32,8 +32,8 @@ export const skillsCommand: SlashCommand = {
     if (!skillManager) {
       context.ui.addItem(
         {
-          type: MessageType.ERROR,
-          text: t('Could not retrieve skill manager.'),
+          type: MessageType.INFO,
+          text: t('No skills are currently available.'),
         },
         Date.now(),
       );
