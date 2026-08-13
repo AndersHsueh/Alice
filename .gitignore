@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 
-# Reference code
+# Reference code (huge, external)
 pi-mono/
 
 # Build output
@@ -15,7 +15,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Environment variables
+# Environment variables / secrets
 .env
 .env.local
 .env.*.local
@@ -37,8 +37,22 @@ desktop.ini
 # User config (runtime configuration directory)
 .alice/
 
-# Obsidian workspace (local)
+# Obsidian workspace (local-only)
 .obsidian/
+
+# Claude Code settings + memory (local-only, may carry session/permission state)
+.claude/
+memory/
+
+# Raw / internal knowledge bases (not part of public distribution)
+raw/
+wiki/
+outputs/
+
+# Subprojects kept locally only (not part of alice-cli)
+gitee-cli/
+prototype/node_modules/
+prototype/dist/
 
 # Misc local
 QWEN.md
@@ -64,3 +78,16 @@ coverage/
 # Test directory
 test/
 
+# ----- Credentials / secrets (CRITICAL: do not push) -----
+github_auth.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+id_rsa*
+id_ed25519*
+*.gpg
+credentials*
+secrets.*
+*.secret

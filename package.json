@@ -8,16 +8,16 @@
     "veronica": "./dist/daemon/cli.js"
   },
   "scripts": {
-    "dev": "tsx src/index.tsx",
-    "dev:watch": "tsx watch src/index.tsx",
+    "dev": "bun run src/index.tsx",
+    "dev:watch": "bun --watch run src/index.tsx",
     "build": "tsc",
-    "postbuild": "chmod +x dist/index.js dist/daemon/cli.js",
-    "start": "node dist/index.js",
-    "clean": "rimraf dist",
-    "script:test-model": "tsx src/scripts/test-model.ts",
-    "script:test-tools": "tsx src/scripts/test-tools.ts",
-    "script:test-function-calling": "tsx src/scripts/test-function-calling.ts",
-    "test:xai": "tsx test/xai-connection.ts"
+    "postbuild": "node -e \"if (process.platform !== 'win32') { require('child_process').execSync('chmod +x dist/index.js dist/daemon/cli.js'); }\"",
+    "start": "bun run dist/index.js",
+    "clean": "bun rm -rf dist",
+    "script:test-model": "bun run src/scripts/test-model.ts",
+    "script:test-tools": "bun run src/scripts/test-tools.ts",
+    "script:test-function-calling": "bun run src/scripts/test-function-calling.ts",
+    "test:xai": "bun run test/xai-connection.ts"
   },
   "keywords": [
     "cli",
@@ -41,7 +41,6 @@
     "@iarna/toml": "^2.2.5",
     "@larksuiteoapi/node-sdk": "^1.59.0",
     "@modelcontextprotocol/sdk": "^1.26.0",
-    "@qwen-code/web-templates": "file:../../powerful-app/qwen-code/packages/web-templates",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "ansi-escapes": "^7.0.0",
@@ -93,15 +92,14 @@
     "@types/react": "^19.1.0",
     "@types/shell-quote": "^1.7.5",
     "@types/yargs": "^17.0.35",
-    "rimraf": "^5.0.5",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "@types/bun": "latest"
   },
   "imports": {
     "@qwen-code/qwen-code-core": "./dist/shim/qwen-code-core.js"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "bun": ">=1.0.0"
   },
   "pkg": {
     "targets": [
@@ -114,5 +112,7 @@
     "assets": [
       "node_modules/figlet/fonts/**/*"
     ]
-  }
+  },
+  "module": "src/index.tsx",
+  "private": true
 }

@@ -9,6 +9,7 @@
 [![Version](https://img.shields.io/badge/version-0.5.10-blue.svg)](https://github.com/AndersHsueh/Alice)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![Bun](https://img.shields.io/badge/bun-%3E%3D1.0.0-f9f1df.svg?logo=bun)](https://bun.sh)
 
 </div>
 
@@ -51,7 +52,7 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 - 🤖 **默认通道**：`defaultChannel: feishu` 时，daemon 启动即建立飞书长连接，`veronica start` 后提示连接状态
 - ⌨️ **敲键盘反馈**：收到消息后在用户消息上加「敲键盘」reaction，处理完成后移除
 - 🔁 **消息去重**：按 `message_id` 去重，避免飞书重复推送导致回复两次
-- 📄 网关设计详见 [Veronica 通道网关设计](docs/veronica通道网关设计.md)
+- 📄 网关设计详见 [Veronica 通道网关设计](raw/docs/veronica通道网关设计.md)
 
 **VERONICA 后台服务（veronica 命令）**
 - 常驻 daemon，负责会话、推理编排与通道网关（如飞书）
@@ -186,29 +187,29 @@ git clone https://github.com/AndersHsueh/Alice.git
 cd Alice
 
 # 安装依赖
-npm install
+bun install
 ```
 
 ### 开发模式
 
 ```bash
 # 启动开发服务（支持键盘输入）
-npm run dev
+bun run dev
 
 # 跳过启动动画
-npm run dev -- --no-banner
+bun run dev -- --no-banner
 ```
 
-> ⚠️ **注意**: 不要使用 `npm run dev:watch` 进行交互测试，该模式会拦截 stdin，导致无法接收键盘输入。
+> ⚠️ **注意**: 不要使用 `bun run dev:watch` 进行交互测试，该模式会拦截 stdin，导致无法接收键盘输入。
 
 ### 构建与运行
 
 ```bash
 # 编译 TypeScript
-npm run build
+bun run build
 
 # 运行生产版本
-npm start
+bun start
 ```
 
 ## 📚 使用指南
@@ -281,7 +282,7 @@ Alice: 你的项目名称是 alice-cli，版本 0.5.0，主要依赖包括...
 [🔧 执行命令] 执行中...
 [✅ 执行命令] 命令执行完成
 
-Alice: node_modules 已删除，你可以运行 npm install 重新安装依赖。
+Alice: node_modules 已删除，你可以运行 bun install 重新安装依赖。
 ```
 
 ### 配置危险命令确认
@@ -552,10 +553,10 @@ import { foo } from './utils';
 
 ```bash
 # 查看详细日志
-DEBUG=* npm run dev
+DEBUG=* bun run dev
 
 # 清理构建产物
-npm run clean
+bun run clean
 ```
 
 ### 代码规范
