@@ -10,16 +10,19 @@ import React from 'react';
 import { render } from 'ink';
 import { parseArgs } from './utils/cliArgs.js';
 import { DaemonClient } from './utils/daemonClient.js';
-import { configManager } from './utils/config.js';
 import { getErrorMessage } from './utils/error.js';
 import { getPackageJson } from './utils/package.js';
+import { prefetchAll, ensurePrefetchReady } from './bootstrap/prefetch.js';
 
 // ─── One-shot prompt mode (-p flag) ─────────────────────────────────────────
 
 async function executePromptMode(prompt: string, cliOptions: any): Promise<void> {
   const daemonClient = new DaemonClient();
   try {
-    await configManager.init(cliOptions.config);
+    // 同步 fire-and-forget,后台并行预取 config + 3 个 baseURL preconnect
+    prefetchAll({ configPath: cliOptions.config });
+    // 在实际用到 config 前确保预取已完成(失败也视为 done,降级现连)
+    await ensurePrefetchReady();
     const config = await daemonClient.getConfig();
 
     if (cliOptions.workspace) {
@@ -78,7 +81,10 @@ async function startTUI(cliOptions: any): Promise<void> {
   const { registerCleanup, runExitCleanup } = await import('./utils/cleanup.js');
   const { initializeI18n } = await import('./i18n/index.js');
 
-  await configManager.init(cliOptions.config);
+  // 同步 fire-and-forget 预取 — Ink render 首帧不会被阻塞
+  prefetchAll({ configPath: cliOptions.config });
+  // 等后台 settle 在实际用到 config 之前完成(或失败降级)
+  await ensurePrefetchReady();
   const aliceConfig = await new DaemonClient().getConfig().catch(() => ({ default_model: '', workspace: process.cwd() }));
 
   if (cliOptions.workspace) {

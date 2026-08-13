@@ -10,6 +10,7 @@ import { DaemonLogger } from './logger.js';
 import { DaemonRoutes } from './routes.js';
 import { DaemonServer } from './server.js';
 import { setLastHeartbeat } from './heartbeatState.js';
+import { prefetchAll, ensurePrefetchReady } from '../bootstrap/prefetch.js';
 import {
   setDaemonStartCwd,
   ensureTempWorkspace,
@@ -37,8 +38,14 @@ let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
  */
 async function startDaemon(): Promise<void> {
   try {
-    // 初始化配置
-    await daemonConfigManager.init();
+    // 同步 fire-and-forget:并行预取 daemon 配置 + LLM baseURL preconnects
+    prefetchAll({
+      deps: {
+        configInit: () => daemonConfigManager.init(),
+      },
+    });
+    // 在用到 config 前确保预取完成(失败降级)
+    await ensurePrefetchReady();
     const config = daemonConfigManager.get();
 
     // 初始化日志
