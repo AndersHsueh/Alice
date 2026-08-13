@@ -6,7 +6,7 @@
 
 🤖 **ALICE** - 基于大语言模型的智能办公助手
 
-[![Version](https://img.shields.io/badge/version-0.5.10-blue.svg)](https://github.com/AndersHsueh/Alice)
+[![Version](https://img.shields.io/badge/version-3.0.1-blue.svg)](https://github.com/AndersHsueh/Alice)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Bun](https://img.shields.io/badge/bun-%3E%3D1.0.0-f9f1df.svg?logo=bun)](https://bun.sh)
@@ -44,6 +44,33 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 - 🔌 **Shim 适配层**：通过 `src/shim/` 适配层将 qwen-code TUI 对接 Alice 的 daemon 后端，后端零修改
 - ⚡ **useAliceStream**：全新流式适配器，将 Alice daemon 的 `ChatStreamEvent` 无缝映射到 qwen-code TUI 的消息历史系统
 - 🎨 **功能丰富**：代码高亮、Markdown 渲染、工具调用可视化、会话管理、Vim 模式、多主题等全部开箱即用
+
+### 🚀 v3.0.1 亮点(结构强化 · 21 项行动)
+
+> 本 release 是 **结构强化 release**,优先级从「功能数量」转向「结构稳定性」。本次不实际打 TAG,等 P0 × 4 行动落地后正式发版。
+
+**📋 21 项 P0/P1/P2 行动清单**
+- 🎯 **P0 × 6**:#1 启动预取(冷启动 < 120ms)/ #2 服务层补足(memory + compact)/ #3 权限 5 mode(540 例决策)/ #4 Feature Flag DCE / **#5 ★ Workspace Backend 收敛(已完成)** / #19 builtin-skill-new
+- 📋 **P1 × 7**:#7 Coordinator / #8 TeamMemorySync / #9 Zod v4 / #10 ripgrep / #11 OpenTelemetry / #12 Token Budget TUI / #13 LSP / #20 / #21 builtin-skills
+- 🔮 **P2 × 4**:#14 Multi-Agent Team / #15(挂起)/ #16 Voice / #17 Plugin Marketplace / #18 analytics
+- ❌ **#6 IDE Bridge** 按产品原则划掉
+
+**🛠 3 个内置 Skills(跟随发布,对所有用户一致)**
+- `karpathy-wiki-new` — 一键建 Karpathy Wiki 知识库脚手架(3 目录 + 6 模板)
+- `karpathy-wiki-ingest` — 把 raw/ 编译为结构化 wiki 页面
+- `karpathy-wiki-lint` — 知识库健康检查(5 项:断链 / orphan / 摘要戳 / 日期戳 / 链接密度)
+- 设计:复用现有 `loadSkill` 工具,默认可信 + 详细日志,见 [`wiki/内置-Skills.md`](wiki/内置-Skills.md)
+
+**🧹 Obsolete 清理(commit a104d85)**
+- 删除 `QWEN.md` + `.github/copilot-instructions.md`(同构第一规则,统一入口到 `AGENTS.md`)
+- `CLAUDE.md` 删除航海日志相关 3 段,新增「资源使用 · 无限 Token 模式」段
+
+**🗺 路线图**
+- **v3.0.1**(本 release) = P0 × 6(2026 Q3)
+- **v3.1.0** = P1 × 9(2026 Q4)
+- **v4.0.0** = P2 × 4(2026 Q4 末 / 2027 Q1)
+
+详见 [`release_note.md`](release_note.md) + [`wiki/结构优化路线图.md`](wiki/结构优化路线图.md)
 
 ### 🚀 v0.5.0 亮点
 
