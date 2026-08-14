@@ -15,6 +15,7 @@ import {
   type BudgetUsage,
 } from '../runtime/agent/tokenBudget.js';
 import type { ModelRegistry } from '../daemon/modelRegistry.js';
+import { obtainTracer } from '../observability/spans.js';
 
 export class LLMClient {
   private provider: BaseProvider;
@@ -299,17 +300,45 @@ export class LLMClient {
         let accumulatedContent = '';
         let iterationOutputTokens = 0;
 
-        // 流式获取 LLM 响应
-        for await (const chunk of this.provider.chatStreamWithTools(conversationMessages, tools)) {
-          if (chunk.type === 'text' && chunk.content) {
-            accumulatedContent += chunk.content;
-            yield chunk.content;
-          } else if (chunk.type === 'tool_calls' && chunk.tool_calls) {
-            accumulatedToolCalls = chunk.tool_calls;
+        // IK8MWQ #11 可观测性:每轮 chat iteration 包一层 child span,
+        // 记录 tokenBudget.used/total/pct 与输出 token 数。
+        // SDK 未启时 obtainTracer 返回 null,所有写入被 skip(零开销)。
+        const _otelIterTracer = obtainTracer();
+        const _otelIterSpan = _otelIterTracer
+          ? _otelIterTracer.startSpan('chat.iteration.stream', {
+              attributes: {
+                'iteration.index': iteration,
+                'model.name': this.modelConfig.name,
+                'tokenBudget.used': budgetTracker.cumulativeOutputTokens,
+                'tokenBudget.total': budget ?? 0,
+                'tokenBudget.pct':
+                  budget && budget > 0
+                    ? Math.round((budgetTracker.cumulativeOutputTokens / budget) * 100)
+                    : 0,
+                'tokens.output': 0,
+              },
+            })
+          : null;
+
+        try {
+          // 流式获取 LLM 响应
+          for await (const chunk of this.provider.chatStreamWithTools(conversationMessages, tools)) {
+            if (chunk.type === 'text' && chunk.content) {
+              accumulatedContent += chunk.content;
+              yield chunk.content;
+            } else if (chunk.type === 'tool_calls' && chunk.tool_calls) {
+              accumulatedToolCalls = chunk.tool_calls;
+            }
+            // 从 provider 获取精确 usage；若无则按字符数估算
+            if (chunk.usage) {
+              iterationOutputTokens = chunk.usage.outputTokens;
+            }
           }
-          // 从 provider 获取精确 usage；若无则按字符数估算
-          if (chunk.usage) {
-            iterationOutputTokens = chunk.usage.outputTokens;
+        } finally {
+          // 把"输出 token"折回到 span attributes(在 iteration 闭合前写)
+          if (_otelIterSpan) {
+            _otelIterSpan.setAttribute('tokens.output', iterationOutputTokens);
+            _otelIterSpan.end();
           }
         }
 
