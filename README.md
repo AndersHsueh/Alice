@@ -6,7 +6,7 @@
 
 🤖 **ALICE** - 基于大语言模型的智能办公助手
 
-[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](https://github.com/AndersHsueh/Alice)
+[![Version](https://img.shields.io/badge/version-3.1.1-blue.svg)](https://github.com/AndersHsueh/Alice)
 [![License](https://img.shields.io/badge/license-MulanPSL2-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Bun](https://img.shields.io/badge/bun-%3E%3D1.0.0-f9f1df.svg?logo=bun)](https://bun.sh)
@@ -45,6 +45,26 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 - ⚡ **useAliceStream**：全新流式适配器，将 Alice daemon 的 `ChatStreamEvent` 无缝映射到 qwen-code TUI 的消息历史系统
 - 🎨 **功能丰富**：代码高亮、Markdown 渲染、工具调用可视化、会话管理、Vim 模式、多主题等全部开箱即用
 
+### 🚀 v3.1.1 亮点(P2 全集 · 4 个 issue 全部落地)
+
+> 本 release 把 v3.1.0 后续的 P2 全集(4 个 issue · 12 个 PR)全部实现为可用代码。1173 断言全绿(v3.1.0 基线 608 + P2 新增 565),`bun build.ts` 成功。
+
+**📋 P2 × 4 全部落地(12 个 PR)**
+
+| Issue | 标题 | PR 数 | PR 范围 |
+|-------|------|-------|--------|
+| #18 (IK8MWZ) | OTEL 数据聚合为本地 dashboard | 1 | !17 aggregator + renderer |
+| #14 (IK8MWV) | Multi-Agent Team | 5 | !18-!22 teamMessageBus / tool / executor+reviewer / concurrentAgentRunner / workspace |
+| #16 (IK8MWX) | Voice 语音输入 | 4 | !23-!26 interface / whisper.cpp / VoiceProcessor / EnergyWakeWord |
+| #17 (IK8MWY) | Plugin Marketplace | 3 | !27-!29 manifest+registry / Sandbox / Marketplace+签名+端到端 |
+
+**🔧 4 大新能力**
+
+- 🛰️ **OTEL 本地 dashboard**:`:stats` 命令渲染 7d × 24h 热力图 + 每日 token + per-tool 错误率;隐私边界在 aggregator 出口处强制,深度遍历断言不含 prompt/completion
+- 🤝 **多 worker 协作**:teamMessageBus 协议层(sequence 单调 + ack + 重投)+ teamMessage tool + executor/reviewer profile 实装 + concurrentAgentRunner 多 worker 共享总线 + workspace per-session 串行锁
+- 🎙️ **Voice 输入**:whisper.cpp 子进程 ASR 引擎 + VoiceProcessor 抽象层(读 voice_mode flag 选 Null/Real)+ EnergyWakeWordDetector(RMS 阈值 prototype);voice/text 统一路径
+- 🧩 **Plugin Marketplace**:manifest Zod schema + PluginRegistry + PluginSandbox(vm + require/env 拦截 + quota)+ Marketplace(HMAC 签名 + 端到端 sample-weather fixture)
+
 ### 🚀 v3.1.0 亮点(结构扩张 · P1 × 9 全部落地)
 
 > 本 release 是 **结构扩张 release**,把 v3.0.1 路线图中的 P1 × 9 全部实现为可用代码。9 个 PR 合并入 main,608 断言全绿(168 基线 + 440 新增),`bun build.ts` 成功。
@@ -76,10 +96,11 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 
 **🗺 路线图**
 - ✅ **v3.0.1** = P0 × 6(2026 Q3)
-- ✅ **v3.1.0**(本 release) = P1 × 9(2026 Q4)
+- ✅ **v3.1.1**(本 release) = P2 × 4 全部落地(2026 Q4 末)
+- ✅ **v3.1.0** = P1 × 9(2026 Q4)
 - 🔮 **v4.0.0** = P2 × 4 / Multi-Agent Team / Plugin Marketplace / Voice / analytics dashboard
 
-详见 [`release-notes/v3.1.0.md`](release-notes/v3.1.0.md) + [`wiki/v3.0.1-rollout.md`](wiki/v3.0.1-rollout.md)
+详见 [`release-notes/v3.1.1.md`](release-notes/v3.1.1.md) + [`release-notes/v3.1.0.md`](release-notes/v3.1.0.md) + [`wiki/v3.0.1-rollout.md`](wiki/v3.0.1-rollout.md)
 
 ### 🚀 v3.0.1 亮点(结构强化 · 21 项行动)
 
