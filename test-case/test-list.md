@@ -7,8 +7,8 @@
 ## 全量回归
 
 ```bash
-# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 + 45 = 653 断言)
-for t in 001 002 003 004 005 007 008 009 010 011 012 013 018 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
+# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 + 45 + 34 = 687 断言)
+for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 018 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
 ```
 
 ## 清单(按 issue 编号排序)
@@ -32,6 +32,7 @@ for t in 001 002 003 004 005 007 008 009 010 011 012 013 018 019 020 021; do bun
 | `test-issue-021.ts` | karpathy-wiki-lint bundled skill:5 项检查(BROKEN/ORPHAN/NOSUMMARY/NOSTAMP/LOWLINKS)命中与豁免、SUMMARY 计数、退出码恒 0、调用位置无关、MIN_LINKS 覆盖、SKILL.md 契约、dist 打包 | 内置 skills(skills/bundled) | issue #21(IK8MWU)/ PR !10 |
 | `test-issue-013.ts` | LSP 集成:tsls 探测/降级、JSON-RPC 四 method 往返、Location→{file,line,col,snippet}、SIGTERM 进程回收、tokenBudget.ts 端到端 symbols | 代码智能(services/lsp) | issue #13(IK8MWS)/ PR !16 |
 | `test-issue-018.ts` | OTEL 数据聚合 dashboard:7 天 fixture 聚合(每日 token + per-tool 错误率)、隐私断言(深度遍历检查敏感字段)、纯字符串 dashboard 渲染(7d × 24h 热力图 + 2 张表)、trace.jsonl 缺失/损坏行容错 | 可观测性(services/analytics) | issue #18(IK8MWZ)/ PR !17 |
+| `test-issue-014.ts` | teamMessageBus 协议层(第 1 部分):sequence 严格单调 + ack 语义(foreign ack / 重复 ack 防御) + 重投 1 次后失败丢弃 + warn-and-continue + 100 条 enqueue/ack 计数正确 | 多 Agent 编排(runtime/agent/coordinator/teamMessageBus) | issue #14(IK8MWV)/ PR !18 |
 | `test-model.ts` | 手动入口:模型连通性 + 速度检查(等价 `alice --test-model`);实现位于 `src/utils/testModel.ts` | 模型诊断(utils/testModel) | 历史 dev 脚本(无 PR);2026-08-15 修复为可运行薄壳 |
 | `test-tools.ts` | 手动入口:toolRegistry / builtinTools / ToolExecutor 冒烟 | 工具系统 | 历史 dev 脚本(无 PR) |
 | `test-function-calling.ts` | 手动入口:LLM function calling 端到端(需真实 API) | function calling | 历史 dev 脚本(无 PR) |
