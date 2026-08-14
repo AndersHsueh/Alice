@@ -268,8 +268,8 @@ async function main(): Promise<void> {
     }
   }
 
-  /* ─────── ⑩ voice 模块体积合理(< 20KB 源码)— 不破坏 #4 DCE 上限 ─────── */
-  section('⑩ voice 模块源码体积合理(< 20KB)');
+  /* ─────── ⑩ voice 模块体积合理(< 32KB 源码)— 不破坏 #4 DCE 上限 ─────── */
+  section('⑩ voice 模块源码体积合理(< 32KB)');
   {
     const voiceDir = path.join(process.cwd(), 'src', 'voice');
     let totalBytes = 0;
@@ -284,8 +284,8 @@ async function main(): Promise<void> {
       }
     };
     walk(voiceDir);
-    // DCE 后预期 ≤ 8MB(issue body 验收),但本 PR 只做接口层,源码应 < 20KB
-    assert(totalBytes < 20 * 1024, `voice 源码 ${totalBytes} 字节 < 20KB(DCE 友好)`);
+    // DCE 后预期 ≤ 8MB(issue body 验收);源码层应 < 32KB(含 types/nullEngine/voiceInput/whisperEngine/voiceProcessor/index 6 个文件)
+    assert(totalBytes < 32 * 1024, `voice 源码 ${totalBytes} 字节 < 32KB(DCE 友好,留余量给后续 PR)`);
   }
 
   /* ─────── summary ─────── */
