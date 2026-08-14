@@ -12,7 +12,7 @@ import { parseArgs } from './utils/cliArgs.js';
 import { DaemonClient } from './utils/daemonClient.js';
 import { getErrorMessage } from './utils/error.js';
 import { getPackageJson } from './utils/package.js';
-import { prefetchAll, ensurePrefetchReady } from './bootstrap/prefetch.js';
+import { prefetchAll, ensurePrefetchReady, ensureConfigReady } from './bootstrap/prefetch.js';
 
 // ─── One-shot prompt mode (-p flag) ─────────────────────────────────────────
 
@@ -21,8 +21,8 @@ async function executePromptMode(prompt: string, cliOptions: any): Promise<void>
   try {
     // 同步 fire-and-forget,后台并行预取 config + 3 个 baseURL preconnect
     prefetchAll({ configPath: cliOptions.config });
-    // 在实际用到 config 前确保预取已完成(失败也视为 done,降级现连)
-    await ensurePrefetchReady();
+    // 只等 config;preconnect 留后台。预取失败不影响启动,降级为首请求现连
+    await ensureConfigReady().catch(() => {});
     const config = await daemonClient.getConfig();
 
     if (cliOptions.workspace) {
@@ -68,6 +68,9 @@ async function executePromptMode(prompt: string, cliOptions: any): Promise<void>
 // ─── Interactive TUI mode ─────────────────────────────────────────────────────
 
 async function startTUI(cliOptions: any): Promise<void> {
+  // 同步 fire-and-forget 预取 — 与下方 dynamic import / Ink render 并行
+  prefetchAll({ configPath: cliOptions.config });
+
   // Dynamic imports to avoid loading UI modules in prompt mode
   // @ts-ignore
   const { Config } = await import('./shim/qwen-code-core.js');
@@ -81,10 +84,6 @@ async function startTUI(cliOptions: any): Promise<void> {
   const { registerCleanup, runExitCleanup } = await import('./utils/cleanup.js');
   const { initializeI18n } = await import('./i18n/index.js');
 
-  // 同步 fire-and-forget 预取 — Ink render 首帧不会被阻塞
-  prefetchAll({ configPath: cliOptions.config });
-  // 等后台 settle 在实际用到 config 之前完成(或失败降级)
-  await ensurePrefetchReady();
   const aliceConfig = await new DaemonClient().getConfig().catch(() => ({ default_model: '', workspace: process.cwd() }));
 
   if (cliOptions.workspace) {
@@ -154,6 +153,9 @@ async function startTUI(cliOptions: any): Promise<void> {
   );
 
   registerCleanup(() => instance.unmount());
+
+  // 后台等预取 settle;失败降级为首请求现连,不影响已渲染的 TUI
+  void ensurePrefetchReady().catch(() => {});
 
   // 进程级 SIGINT 兜底：即使 TUI 内部 handleExit 链路异常，也能保证 Ctrl+C 退出
   process.once('SIGINT', async () => {

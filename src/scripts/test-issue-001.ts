@@ -7,15 +7,17 @@
  *
  * 测试方法(issue 原文):
  *  ① mock configManager.init,断言 prefetchAll() 同步返回且三个 preconnect 已 fire
- *  ② ensurePrefetchReady() 幂等,重复调用只触发一次
- *  ③ 冷启动 benchmark(bench-startup.ts 单独)
+ *  ② 断言 Ink render 首帧不被阻塞(render 在 prefetch resolve 之前发生)
+ *  ③ ensurePrefetchReady() 幂等,重复调用只触发一次
+ *  ④ 冷启动 benchmark(bench-startup.ts 单独,20 次采样取 p50)
  *
- * 本脚本覆盖 ①② + 一组 invariant。
+ * 本脚本覆盖 ①②③ + 一组 invariant(失败容错 / 错误传播 / 去重 / ensureConfigReady)。
  */
 
 import {
   prefetchAll,
   ensurePrefetchReady,
+  ensureConfigReady,
   _getFiredURLs,
   _getSettledURLs,
   _resetPrefetchState,
@@ -285,6 +287,95 @@ async function testDedup(): Promise<void> {
   assertEq(mock.preconnectCallCount.n, 3, 'unique 4 个,扣 MAX 后只 fire 3 个');
 }
 
+// ---------- 用例 ⑨(issue ②): Ink render 首帧不被 prefetch 阻塞 ----------
+
+async function testFirstFrameNotBlocked(): Promise<void> {
+  section('⑨ Ink render 首帧不被阻塞(render 在 prefetch resolve 之前发生)');
+  _resetPrefetchState();
+
+  // 手动 deferred — 分辨率由测试控制,等价于 fake timer
+  let resolveConfig!: (v: unknown) => void;
+  const configGate = new Promise((r) => { resolveConfig = r; });
+  let resolvePreconnect!: () => void;
+  const preconnectGate = new Promise<void>((r) => { resolvePreconnect = r; });
+
+  let configResolved = false;
+  let preconnectResolved = false;
+  void configGate.then(() => { configResolved = true; });
+  void preconnectGate.then(() => { preconnectResolved = true; });
+
+  const deps: Partial<PrefetchDeps> = {
+    configInit: () => configGate,
+    resolveBaseURLs: () => [],
+    preconnect: () => preconnectGate,
+  };
+
+  prefetchAll({ baseURLs: ['http://a', 'http://b', 'http://c'], deps });
+
+  // 模拟 startTUI:prefetchAll 后同步 render 首帧(无 await ensurePrefetchReady)
+  let rendered = false;
+  const mockRender = (): void => { rendered = true; };
+  mockRender();
+
+  await wait(0); // drain microtasks — 若实现里有人 await,这里会暴露
+  assert(rendered, 'render 同步发生,未被 prefetch 阻塞');
+  assert(!configResolved, 'render 时 config 尚未 resolve(预取仍在后台)');
+  assert(!preconnectResolved, 'render 时 preconnect 尚未 resolve(预热仍在后台)');
+
+  // 放行后台任务,确认最终正常 settle
+  resolveConfig({ models: [] });
+  resolvePreconnect();
+  await ensurePrefetchReady();
+  assertEq(_getSettledURLs().length, 3, '放行后 3 个 preconnect 全部 settle');
+}
+
+// ---------- 用例 ⑩: ensureConfigReady 只等 config,不等 preconnect ----------
+
+async function testEnsureConfigReady(): Promise<void> {
+  section('⑩ ensureConfigReady 只等 config,preconnect 不阻塞');
+  _resetPrefetchState();
+
+  // 无 prefetchAll → throw
+  let thrown: unknown = null;
+  try {
+    await ensureConfigReady();
+  } catch (err) {
+    thrown = err;
+  }
+  assert(thrown instanceof Error, `无 prefetchAll 时 throw (实际 ${thrown})`);
+
+  // config 快速 resolve,preconnect 挂起 → ensureConfigReady 仍返回
+  _resetPrefetchState();
+  let resolvePreconnect!: () => void;
+  const preconnectGate = new Promise<void>((r) => { resolvePreconnect = r; });
+  const deps: Partial<PrefetchDeps> = {
+    configInit: async () => ({ models: [] }),
+    resolveBaseURLs: () => [],
+    preconnect: () => preconnectGate,
+  };
+  prefetchAll({ baseURLs: ['http://a'], deps });
+
+  const startedAt = Date.now();
+  await ensureConfigReady();
+  const waitedMs = Date.now() - startedAt;
+  assert(waitedMs < 100, `config ready 即返回,不等挂起的 preconnect (实际 ${waitedMs}ms)`);
+
+  resolvePreconnect();
+  await ensurePrefetchReady();
+
+  // config 失败 → ensureConfigReady 原样抛出
+  _resetPrefetchState();
+  const mock = makeMockDeps({ configShouldFail: true });
+  prefetchAll({ deps: mock.deps });
+  thrown = null;
+  try {
+    await ensureConfigReady();
+  } catch (err) {
+    thrown = err;
+  }
+  assert(thrown instanceof Error, `config 失败经 ensureConfigReady 抛出 (实际 ${thrown})`);
+}
+
 // ---------- 主入口 ----------
 
 async function main(): Promise<void> {
@@ -299,6 +390,8 @@ async function main(): Promise<void> {
     await testEnsureRequiresPrefetchFirst();
     await testNoBaseURLsNoImmediate();
     await testDedup();
+    await testFirstFrameNotBlocked();
+    await testEnsureConfigReady();
   } catch (err) {
     console.error('uncaught:', err);
     failures.push('uncaught: ' + (err instanceof Error ? err.message : String(err)));
