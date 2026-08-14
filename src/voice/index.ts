@@ -26,6 +26,7 @@ export type {
 export { AudioCaptureError, AsrError } from './types.js';
 export { NullAudioCapture, NullAsrEngine, NullWakeWordDetector } from './nullEngine.js';
 export { WhisperCppEngine, type WhisperCppEngineOptions, type WhisperLogger } from './whisperEngine.js';
+export { EnergyWakeWordDetector, createWakeWordDetector, type EnergyWakeWordOptions, type DetectionStats } from './wakeWordEngine.js';
 export {
   VoiceProcessor,
   NullVoiceProcessor,

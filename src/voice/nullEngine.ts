@@ -51,7 +51,7 @@ export class NullAsrEngine implements AsrEngine {
 
 /** NullWakeWordDetector — 永远不命中 */
 export class NullWakeWordDetector implements WakeWordDetector {
-  async detect(_timeoutMs: number): Promise<WakeWordEvent> {
+  detect(_audio: AudioBuffer): WakeWordEvent {
     return { phrase: '', detectedAt: Date.now() };
   }
   cancel(): void {

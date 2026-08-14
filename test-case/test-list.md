@@ -7,8 +7,8 @@
 ## 全量回归
 
 ```bash
-# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 + 45 + 34 + 58 + 47 + 29 + 24 + 38 + 21 + 37 = 941 断言)
-for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profiles 014-concurrent 014-workspace 016 016-whisper 016-processor 018 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
+# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 + 45 + 34 + 58 + 47 + 29 + 24 + 38 + 21 + 37 + 28 = 969 断言)
+for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profiles 014-concurrent 014-workspace 016 016-whisper 016-processor 016-wakeword 018 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
 ```
 
 ## 清单(按 issue 编号排序)
@@ -40,6 +40,7 @@ for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profil
 | `test-issue-016.ts` | Voice 接口层(第 1 部分):AudioCapture/AsrEngine/WakeWordDetector 契约 + NullAudioCapture/NullAsrEngine 默认实现 + processUserInput voice/text 统一路径 + ASR 不可用/抛错 graceful 降级 + 源码层 DCE 友好(< 20KB) | Voice(src/voice) | issue #16(IK8MWX)/ PR !23 |
 | `test-issue-016-whisper.ts` | whisper.cpp 子进程 ASR 引擎(第 2 部分):binary 缺失/存在检测 + transcribe 走子进程 + stdout trim 转 text + 非 0 退出码抛 AsrError + 超时抛 AsrError + tmp file 写入/清理 + extraArgs 透传 | Voice(src/voice/whisperEngine) | issue #16(IK8MWX)/ PR !24 |
 | `test-issue-016-processor.ts` | VoiceProcessor 抽象层(第 3 部分):VoiceProcessor 基类 + NullVoiceProcessor + RealVoiceProcessor 依赖注入 + getVoiceProcessor factory(读 voice_mode flag)+ shutdown/cancel 转发到子系统 + 抽象类多态 | Voice(src/voice/voiceProcessor) | issue #16(IK8MWX)/ PR !25 |
+| `test-issue-016-wakeword.ts` | EnergyWakeWordDetector(第 4 部分):RMS 能量阈值检测 + 静默/低能量/高能量 fixture + 阈值可调 + getStats(calls/hits/lastPeakRms) + cancel noop + DCE 友好(< 40KB) | Voice(src/voice/wakeWordEngine) | issue #16(IK8MWX)/ PR !26 |
 | `test-model.ts` | 手动入口:模型连通性 + 速度检查(等价 `alice --test-model`);实现位于 `src/utils/testModel.ts` | 模型诊断(utils/testModel) | 历史 dev 脚本(无 PR);2026-08-15 修复为可运行薄壳 |
 | `test-tools.ts` | 手动入口:toolRegistry / builtinTools / ToolExecutor 冒烟 | 工具系统 | 历史 dev 脚本(无 PR) |
 | `test-function-calling.ts` | 手动入口:LLM function calling 端到端(需真实 API) | function calling | 历史 dev 脚本(无 PR) |

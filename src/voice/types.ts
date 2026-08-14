@@ -109,8 +109,13 @@ export interface WakeWordEvent {
 
 /** wake word 检测器接口 */
 export interface WakeWordDetector {
-  /** 检测 wake word,返回时 audio 流停止 */
-  detect(timeoutMs: number): Promise<WakeWordEvent>;
+  /**
+   * 同步检测 wake word(输入一段 audio buffer,扫整个 buffer 找命中)
+   * - 命中:返 { phrase: 'hey alice', trailingAudio }
+   * - 不命中:返 { phrase: '', detectedAt: now }
+   * - 不抛错 — 上层拿到空事件就当未命中
+   */
+  detect(audio: AudioBuffer): WakeWordEvent;
   /** 取消当前检测 */
   cancel(): void;
 }
