@@ -7,7 +7,7 @@
 🤖 **ALICE** - 基于大语言模型的智能办公助手
 
 [![Version](https://img.shields.io/badge/version-3.0.1-blue.svg)](https://github.com/AndersHsueh/Alice)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MulanPSL2-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Bun](https://img.shields.io/badge/bun-%3E%3D1.0.0-f9f1df.svg?logo=bun)](https://bun.sh)
 
@@ -641,7 +641,7 @@ bun run clean
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件
+本项目采用木兰宽松许可证第2版(MulanPSL2) - 详见 [LICENSE](LICENSE) 文件
 
 ## 🙏 致谢
 
