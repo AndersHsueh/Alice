@@ -37,4 +37,14 @@ export type ChatStreamEvent =
       degraded: boolean;
       /** 当前路由到的能力层 */
       tier: import('./index.js').ModelCapabilityTier;
+    }
+  | {
+      /** Token 预算用量更新(IK8MWR #12):每轮工具循环后由 daemon 推送 */
+      type: 'budget_update';
+      used: number;
+      total: number;
+      pct: number;
+      remaining: number;
+      nearCompletion: boolean;
+      nearDiminishing: boolean;
     };

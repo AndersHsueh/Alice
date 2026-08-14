@@ -655,6 +655,7 @@ export const AppContainer = (props: AppContainerProps) => {
     loopDetectionConfirmationRequest,
     modelDegraded,
     activeModelName,
+    tokenBudget,
   } = useGeminiStream(
     config.getGeminiClient(),
     historyManager.history,
@@ -1409,6 +1410,7 @@ export const AppContainer = (props: AppContainerProps) => {
       currentModel,
       currentModelDegraded: modelDegraded,
       activeModelName,
+      tokenBudget,
       contextFileNames,
       availableTerminalHeight,
       mainAreaWidth,
@@ -1523,6 +1525,7 @@ export const AppContainer = (props: AppContainerProps) => {
       currentModel,
       modelDegraded,
       activeModelName,
+      tokenBudget,
       extensionsUpdateState,
       activePtyId,
       historyManager,

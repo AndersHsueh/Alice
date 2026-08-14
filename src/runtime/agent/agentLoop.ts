@@ -268,6 +268,10 @@ export async function* runAgentLoop(
   let accumulatedContent = '';
   let lastYieldedNormalLength = 0;
 
+  // IK8MWR #12:预算用量回调不能直接在迭代器内部 yield(JS 协程限制),
+  // 改为排队,每个 chunk 到达后先 flush 队列再处理 chunk
+  let pendingBudgetUsage: import('../agent/tokenBudget.js').BudgetUsage | null = null;
+
   try {
     for await (const chunk of client.chatStreamWithTools(
       messagesForLLM,
@@ -276,7 +280,17 @@ export async function* runAgentLoop(
       },
       session.workspace,
       tokenBudget,
+      // IK8MWR #12:把每轮预算用量上抛为 budget_update 事件,供 TUI 状态栏消费
+      (usage) => {
+        pendingBudgetUsage = usage;
+      },
     )) {
+      // 先把已排队的预算事件 flush 出去,保证事件顺序:预算 → 当前 chunk
+      if (pendingBudgetUsage) {
+        yield { type: 'budget_update', usage: pendingBudgetUsage };
+        pendingBudgetUsage = null;
+      }
+
       if (toolState.hasPending()) {
         const records = flushToolState(toolState, finalMessages, accumulatedContent);
         for (const record of records) {
@@ -306,6 +320,12 @@ export async function* runAgentLoop(
         lastYieldedNormalLength = normalContent.length;
         yield { type: 'text_delta', content: slice };
       }
+    }
+
+    // 循环结束:drain 剩余的预算事件(防止最后一次回调被吞)
+    if (pendingBudgetUsage) {
+      yield { type: 'budget_update', usage: pendingBudgetUsage };
+      pendingBudgetUsage = null;
     }
 
     if (toolState.hasPending()) {

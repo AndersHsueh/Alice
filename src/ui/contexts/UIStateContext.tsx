@@ -29,6 +29,7 @@ import type { DOMElement } from 'ink';
 import type { SessionStatsState } from '../contexts/SessionContext.js';
 import type { ExtensionUpdateState } from '../state/extensions.js';
 import type { UpdateObject } from '../utils/updateCheck.js';
+import type { BudgetUsage } from '../../runtime/agent/tokenBudget.js';
 
 import { type UseHistoryManagerReturn } from '../hooks/useHistoryManager.js';
 import { type RestartReason } from '../hooks/useIdeTrustListener.js';
@@ -100,6 +101,8 @@ export interface UIState {
   currentModelDegraded?: boolean;
   /** 当前实际使用的模型名称（由 model_selected 事件驱动，与 currentModel 可能不同） */
   activeModelName?: string;
+  /** IK8MWR #12:token 预算用量快照,由 budget_update 事件驱动;null 表示未启用预算 */
+  tokenBudget?: BudgetUsage | null;
   contextFileNames: string[];
   availableTerminalHeight: number | undefined;
   mainAreaWidth: number;

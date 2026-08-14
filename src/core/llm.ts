@@ -11,6 +11,8 @@ import {
   createBudgetTracker,
   checkTokenBudget,
   estimateTokens,
+  getUsage,
+  type BudgetUsage,
 } from '../runtime/agent/tokenBudget.js';
 import type { ModelRegistry } from '../daemon/modelRegistry.js';
 
@@ -264,12 +266,15 @@ export class LLMClient {
    * @param tokenBudget - 可选，本次任务允许的最大输出 token 数。
    *                      超过 80% 时发送 nudge，收益递减时主动停止。
    *                      为 null 或 0 时禁用 budget 管理。
+   * @param onBudgetUpdate - 可选，每轮 checkTokenBudget 后回调(IK8MWR #12)，
+   *                         供上层把预算用量推给 TUI 状态栏。
    */
   async *chatStreamWithTools(
     messages: Message[],
     onToolUpdate?: (record: ToolCallRecord) => void,
     workspace?: string,
     tokenBudget?: number | null,
+    onBudgetUpdate?: (usage: BudgetUsage) => void,
   ): AsyncGenerator<string> {
     if (!this.toolExecutor) {
       throw new Error('工具系统未启用');
@@ -337,6 +342,10 @@ export class LLMClient {
 
         // Token budget 检查（有工具调用时才有意义检查，因为还要继续循环）
         const budgetDecision = checkTokenBudget(budgetTracker, iterationOutputTokens, budget);
+        // 上报预算用量给上层(IK8MWR #12:供 TUI 状态栏消费)
+        if (onBudgetUpdate) {
+          onBudgetUpdate(getUsage(budgetTracker, budget));
+        }
 
         // 有工具调用，添加到对话历史
         const assistantMessage: Message = {

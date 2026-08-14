@@ -8,6 +8,7 @@ import type React from 'react';
 import { Box, Text } from 'ink';
 import { theme } from '../semantic-colors.js';
 import { ContextUsageDisplay } from './ContextUsageDisplay.js';
+import { TokenBudgetBar } from './TokenBudgetBar.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { AutoAcceptIndicator } from './AutoAcceptIndicator.js';
 import { ShellModeIndicator } from './ShellModeIndicator.js';
@@ -24,9 +25,10 @@ export const Footer: React.FC = () => {
   const config = useConfig();
   const { vimEnabled, vimMode } = useVimMode();
 
-  const { promptTokenCount, showAutoAcceptIndicator } = {
+  const { promptTokenCount, showAutoAcceptIndicator, tokenBudget } = {
     promptTokenCount: uiState.sessionStats.lastPromptTokenCount,
     showAutoAcceptIndicator: uiState.showAutoAcceptIndicator,
+    tokenBudget: uiState.tokenBudget,
   };
 
   const { columns: terminalWidth } = useTerminalSize();
@@ -91,6 +93,13 @@ export const Footer: React.FC = () => {
           />
         </Text>
       ),
+    });
+  }
+  // IK8MWR #12:token 预算用量,优先于 context 显示(更精确)
+  if (tokenBudget && tokenBudget.total > 0) {
+    rightItems.push({
+      key: 'token-budget',
+      node: <TokenBudgetBar usage={tokenBudget} />,
     });
   }
   return (
