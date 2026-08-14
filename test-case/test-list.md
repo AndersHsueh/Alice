@@ -7,8 +7,8 @@
 ## 全量回归
 
 ```bash
-# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 + 45 + 34 + 58 + 47 + 29 + 24 = 845 断言)
-for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profiles 014-concurrent 014-workspace 018 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
+# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 + 45 + 34 + 58 + 47 + 29 + 24 + 38 = 883 断言)
+for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profiles 014-concurrent 014-workspace 016 018 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
 ```
 
 ## 清单(按 issue 编号排序)
@@ -37,6 +37,7 @@ for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profil
 | `test-issue-014-profiles.ts` | executor / reviewer profile 实装(第 3 部分):spawnable=true 后可 spawn + runExecutor 生成 3-6 step + runReviewer 生成 1-5 finding + 剩余 3 个未实装 profile 仍抛错 + 原 coder 重命名为 executor | 多 Agent 编排(runtime/agent/coordinator) | issue #14(IK8MWV)/ PR !20 |
 | `test-issue-014-concurrent.ts` | concurrentAgentRunner 多 worker 共享总线(第 4 部分):spec done 后拉本 worker 消息 + yield team_message_batch + 3 worker 并发 + bus 跨 worker 通信 + limit 截断 + 隔离(其他 worker 消息不被混) + 自动 ack | 多 Agent 编排(runtime/agent/concurrentAgentRunner) | issue #14(IK8MWV)/ PR !21 |
 | `test-issue-014-workspace.ts` | workspace 并发协调 + 端到端 single-task 拆分(第 5 部分):per-workspace 串行 FIFO 锁 + 跨 workspace 并发 + 错误自动释放 + 超时抛错 + 端到端 3 worker 并发 + ≥ 2 worker 完成度 ≥ 80% | 多 Agent 编排(runtime/agent/coordinator/workspaceCoordinator) | issue #14(IK8MWV)/ PR !22 |
+| `test-issue-016.ts` | Voice 接口层(第 1 部分):AudioCapture/AsrEngine/WakeWordDetector 契约 + NullAudioCapture/NullAsrEngine 默认实现 + processUserInput voice/text 统一路径 + ASR 不可用/抛错 graceful 降级 + 源码层 DCE 友好(< 20KB) | Voice(src/voice) | issue #16(IK8MWX)/ PR !23 |
 | `test-model.ts` | 手动入口:模型连通性 + 速度检查(等价 `alice --test-model`);实现位于 `src/utils/testModel.ts` | 模型诊断(utils/testModel) | 历史 dev 脚本(无 PR);2026-08-15 修复为可运行薄壳 |
 | `test-tools.ts` | 手动入口:toolRegistry / builtinTools / ToolExecutor 冒烟 | 工具系统 | 历史 dev 脚本(无 PR) |
 | `test-function-calling.ts` | 手动入口:LLM function calling 端到端(需真实 API) | function calling | 历史 dev 脚本(无 PR) |
