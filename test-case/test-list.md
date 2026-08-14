@@ -7,8 +7,8 @@
 ## 全量回归
 
 ```bash
-# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 + 45 + 34 + 58 + 47 = 792 断言)
-for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profiles 018 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
+# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 + 45 + 34 + 58 + 47 + 29 = 821 断言)
+for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profiles 014-concurrent 018 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
 ```
 
 ## 清单(按 issue 编号排序)
@@ -35,6 +35,7 @@ for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profil
 | `test-issue-014.ts` | teamMessageBus 协议层(第 1 部分):sequence 严格单调 + ack 语义(foreign ack / 重复 ack 防御) + 重投 1 次后失败丢弃 + warn-and-continue + 100 条 enqueue/ack 计数正确 | 多 Agent 编排(runtime/agent/coordinator/teamMessageBus) | issue #14(IK8MWV)/ PR !18 |
 | `test-issue-014-tool.ts` | teamMessage builtin tool(第 2 部分):send/recv/ack 三 action 行为 + 主对话直接调用失败 + 端到端跨 worker 通信 + 参数校验 + 不在 builtinTools 注册 | 多 Agent 编排(tools/builtin/teamMessage) | issue #14(IK8MWV)/ PR !19 |
 | `test-issue-014-profiles.ts` | executor / reviewer profile 实装(第 3 部分):spawnable=true 后可 spawn + runExecutor 生成 3-6 step + runReviewer 生成 1-5 finding + 剩余 3 个未实装 profile 仍抛错 + 原 coder 重命名为 executor | 多 Agent 编排(runtime/agent/coordinator) | issue #14(IK8MWV)/ PR !20 |
+| `test-issue-014-concurrent.ts` | concurrentAgentRunner 多 worker 共享总线(第 4 部分):spec done 后拉本 worker 消息 + yield team_message_batch + 3 worker 并发 + bus 跨 worker 通信 + limit 截断 + 隔离(其他 worker 消息不被混) + 自动 ack | 多 Agent 编排(runtime/agent/concurrentAgentRunner) | issue #14(IK8MWV)/ PR !21 |
 | `test-model.ts` | 手动入口:模型连通性 + 速度检查(等价 `alice --test-model`);实现位于 `src/utils/testModel.ts` | 模型诊断(utils/testModel) | 历史 dev 脚本(无 PR);2026-08-15 修复为可运行薄壳 |
 | `test-tools.ts` | 手动入口:toolRegistry / builtinTools / ToolExecutor 冒烟 | 工具系统 | 历史 dev 脚本(无 PR) |
 | `test-function-calling.ts` | 手动入口:LLM function calling 端到端(需真实 API) | function calling | 历史 dev 脚本(无 PR) |
