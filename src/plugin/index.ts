@@ -14,6 +14,29 @@ export {
   installFromJson,
 } from './registry.js';
 export {
+  PluginSandbox,
+  SandboxViolationError,
+  QuotaExceededError,
+  runInSandbox,
+  type SandboxOptions,
+  type SandboxStats,
+} from './sandbox.js';
+export {
+  Marketplace,
+  SignatureVerifyError,
+  signManifest,
+  verifySignature,
+  type MarketplaceOptions,
+  type MarketplaceStats,
+} from './marketplace.js';
+export {
+  PluginLoader,
+  loadPluginSampleWeather,
+  type PluginToolEntry,
+  type ToolImpl,
+  type LoaderStats,
+} from './loader.js';
+export {
   PluginManifestError,
   type PluginManifest,
   type PluginInfo,
