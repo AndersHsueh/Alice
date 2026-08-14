@@ -9,6 +9,7 @@ import { splitThinkContent } from '../../utils/thinkParser.js';
 import { getErrorMessage } from '../../utils/error.js';
 import type { DaemonLogger } from '../../daemon/logger.js';
 import { modelRegistry } from '../../daemon/services.js';
+import { compactConversation } from '../../services/compact/compact.js';
 
 const THINK_CLOSE_TAG = '</think>';
 
@@ -25,6 +26,8 @@ export interface AgentLoopDependencies {
   getSystemPrompt(): Promise<string>;
   getLLMClient(modelConfig: ModelConfig, systemPrompt: string): any;
   getSessionManager(): RuntimeSessionManagerLike;
+  /** 可选:召回与 prompt 相关的跨 session 历史记忆(IK8MWH #2) */
+  getRelevantMemories?(prompt: string): Promise<string[]>;
 }
 
 /**
@@ -190,8 +193,7 @@ export async function* runAgentLoop(
 
   const baseSystemPrompt = await deps.getSystemPrompt();
   const workspaceNote = `\n\n## 当前工作目录\nworkspace: ${session.workspace}\n所有相对路径均相对于此目录。文件操作时请使用绝对路径或基于此目录的完整路径。`;
-  const systemPrompt = baseSystemPrompt + workspaceNote;
-  const client = deps.getLLMClient(modelConfig, systemPrompt);
+  let systemPrompt = baseSystemPrompt + workspaceNote;
 
   // Token budget：从 request 或 config 获取（0 / undefined 表示不限制）
   const tokenBudget: number | null = (req as any).tokenBudget ?? null;
@@ -209,6 +211,43 @@ export async function* runAgentLoop(
     userMsg,
   ];
 
+  // 记忆召回(IK8MWH #2):同主题 session 命中历史记忆,注入 system prompt
+  if (deps.getRelevantMemories) {
+    try {
+      const memories = await deps.getRelevantMemories(req.message);
+      if (memories.length > 0) {
+        systemPrompt += '\n\n## 相关历史记忆\n' + memories.map((m) => `- ${m}`).join('\n');
+      }
+    } catch (err: unknown) {
+      deps.logger.warn('记忆召回失败(已忽略)', getErrorMessage(err));
+    }
+  }
+
+  // summarize 用基础 prompt 的 client;compact 后 system prompt 变了再重建
+  let client = deps.getLLMClient(modelConfig, systemPrompt);
+
+  // 上下文压缩(IK8MWH #2):轮数超阈值或 token 占用 ≥ 0.8 预算时,
+  // 早期轮次压成摘要注入 system prompt,最后 5 轮原样保留
+  let messagesForLLM = conversationMessages;
+  try {
+    const compacted = await compactConversation(conversationMessages, systemPrompt, {
+      summarize: (transcript) =>
+        client.chat([{ role: 'user', content: transcript, timestamp: new Date() }]),
+    });
+    if (compacted.compacted) {
+      messagesForLLM = compacted.messages;
+      systemPrompt = compacted.systemPrompt;
+      client = deps.getLLMClient(modelConfig, systemPrompt);
+      deps.logger.info('上下文已压缩', {
+        sessionId: session.id,
+        keptMessages: messagesForLLM.length,
+        compressedMessages: conversationMessages.length - messagesForLLM.length,
+      });
+    }
+  } catch (err: unknown) {
+    deps.logger.warn('上下文压缩失败(已忽略,使用原始上下文)', getErrorMessage(err));
+  }
+
   const includeThink = req.includeThink === true;
   const finalMessages: Message[] = [...conversationMessages];
   const toolState = new ToolCallState();
@@ -218,7 +257,7 @@ export async function* runAgentLoop(
 
   try {
     for await (const chunk of client.chatStreamWithTools(
-      conversationMessages,
+      messagesForLLM,
       (record: ToolCallRecord) => {
         toolState.upsert(record);
       },

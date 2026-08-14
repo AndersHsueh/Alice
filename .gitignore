@@ -42,7 +42,7 @@ desktop.ini
 
 # Claude Code settings + memory (local-only, may carry session/permission state)
 .claude/
-memory/
+/memory/
 
 # Raw / internal knowledge bases (not part of public distribution)
 raw/
