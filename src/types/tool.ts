@@ -56,6 +56,8 @@ export interface ToolResult {
   status?: string;    // 状态描述
   /** 供 UI 展示的专用结构，如 todo_list；daemon 透传至 CLI 供前端识别渲染 */
   display?: ToolResultDisplay;
+  /** 权限模型拒绝标记(IK8MWI #3):true 时 error 为权限原因而非执行失败 */
+  permissionDenied?: boolean;
 }
 
 /**

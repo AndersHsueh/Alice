@@ -108,6 +108,10 @@ export interface Config {
   ui: UIConfig;
   workspace: string;
   dangerous_cmd: boolean;  // 危险命令确认开关
+  /** 权限模式(IK8MWI #3):default / acceptEdits / plan / strict / bypassPermissions,缺省 default */
+  permission_mode?: string;
+  /** tool 级权限规则:工具名 → allow / ask / deny(优先级 user < workspace < org) */
+  permission_rules?: Record<string, string>;
   keybindings?: Record<string, string | string[]>;  // 键绑定配置
   maxIterations?: number;  // 工具调用最大迭代次数（5-20，默认10）
 
