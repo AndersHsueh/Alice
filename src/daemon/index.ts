@@ -10,7 +10,7 @@ import { DaemonLogger } from './logger.js';
 import { DaemonRoutes } from './routes.js';
 import { DaemonServer } from './server.js';
 import { setLastHeartbeat } from './heartbeatState.js';
-import { prefetchAll, ensurePrefetchReady } from '../bootstrap/prefetch.js';
+import { prefetchAll, ensureConfigReady } from '../bootstrap/prefetch.js';
 import {
   setDaemonStartCwd,
   ensureTempWorkspace,
@@ -44,8 +44,9 @@ async function startDaemon(): Promise<void> {
         configInit: () => daemonConfigManager.init(),
       },
     });
-    // 在用到 config 前确保预取完成(失败降级)
-    await ensurePrefetchReady();
+    // 只等 config(daemon 启动硬依赖,失败照常报错);
+    // preconnect 是纯优化,留在后台继续,不阻塞启动
+    await ensureConfigReady();
     const config = daemonConfigManager.get();
 
     // 初始化日志

@@ -237,6 +237,20 @@ export async function ensurePrefetchReady(): Promise<void> {
   await state.allDone;
 }
 
+/**
+ * 只等待 config settle,不等 preconnect。
+ *
+ * 给"没有 config 就无法继续"的调用方(daemon)用:
+ * preconnect 是纯优化,不该阻塞启动流程。
+ * config 失败原样 rethrow。必须先调 prefetchAll()。
+ */
+export async function ensureConfigReady(): Promise<unknown> {
+  if (!state) {
+    throw new Error('ensureConfigReady() called before prefetchAll()');
+  }
+  return state.configPromise;
+}
+
 // ---------- 诊断 / 测试钩子 ----------
 
 /** 已 fire (请求已发出,可能尚未 settled) 的 URL */
