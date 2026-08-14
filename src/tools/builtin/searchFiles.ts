@@ -11,8 +11,19 @@ import { glob } from 'glob';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
 import { runRipgrepFiles } from '../../utils/ripgrepRunner.js';
+import { z } from 'zod/v4';
+import { requiredNonEmptyString } from '../zodPrimitives.js';
 
 const DEFAULT_IGNORE = ['**/node_modules/**', '**/.git/**', '**/dist/**'];
+
+/**
+ * zod v4 schema(IK8MWO #9):`pattern` 必填字符串,`ignore` 数组元素必须为字符串。
+ */
+const searchFilesSchema = z.object({
+  pattern: requiredNonEmptyString('pattern'),
+  directory: z.string().optional(),
+  ignore: z.array(z.string({ error: 'ignore 数组元素必须为字符串' })).optional(),
+});
 
 export const searchFilesTool: AliceTool = {
   name: 'searchFiles',
@@ -39,6 +50,7 @@ export const searchFilesTool: AliceTool = {
     },
     required: ['pattern']
   },
+  zodSchema: searchFilesSchema,
 
   async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
     const {

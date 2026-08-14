@@ -1,22 +1,33 @@
 /**
- * 文件系统工具：写入文件
+ * 文件系统工具:写入文件
  */
 
 import { writeFile as fsWriteFile, mkdir } from 'fs/promises';
 import path from 'path';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
+import { z } from 'zod/v4';
+import { requiredNonEmptyString, encodingEnum } from '../zodPrimitives.js';
+
+/**
+ * zod v4 schema(IK8MWO #9):`path`/`content` 必填,`encoding` 可选枚举。
+ */
+const writeFileSchema = z.object({
+  path: requiredNonEmptyString('path'),
+  content: requiredNonEmptyString('content'),
+  encoding: encodingEnum.optional(),
+});
 
 export const writeFileTool: AliceTool = {
   name: 'writeFile',
   label: '写入文件',
-  description: '将内容写入指定路径的文件。若目录不存在会自动创建。路径可为相对路径（相对于当前工作目录）或绝对路径。',
+  description: '将内容写入指定路径的文件。若目录不存在会自动创建。路径可为相对路径(相对于当前工作目录)或绝对路径。',
   parameters: {
     type: 'object',
     properties: {
       path: {
         type: 'string',
-        description: '文件路径（相对或绝对路径）'
+        description: '文件路径(相对或绝对路径)'
       },
       content: {
         type: 'string',
@@ -30,6 +41,7 @@ export const writeFileTool: AliceTool = {
     },
     required: ['path', 'content']
   },
+  zodSchema: writeFileSchema,
 
   async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
     const { path: filePath, content, encoding = 'utf-8' } = params;

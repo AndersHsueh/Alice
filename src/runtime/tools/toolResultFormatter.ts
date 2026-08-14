@@ -1,5 +1,6 @@
 import type { Message } from '../../types/index.js';
 import type { ToolCallRecord } from '../../types/tool.js';
+import type { ValidationIssue } from '../../tools/zodAdapter.js';
 
 export function formatToolResult(record: ToolCallRecord): string | undefined {
   const result = record.result;
@@ -40,6 +41,39 @@ export function formatToolResult(record: ToolCallRecord): string | undefined {
   return parts.join('\n\n');
 }
 
+/**
+ * formatError(IK8MWO #9):把 zod/ajv 校验错误渲染为 LLM 友好的字段路径列表。
+ *
+ * 输出:多行人类可读文本,每行一条 issue:
+ *   `[path] code: message` (无 path 时用 [root])
+ *   多 issue 用换行分隔。最末追加 `请重新生成 tool_call 参数(仅返回合法参数)`
+ */
+export interface FormatErrorInput {
+  engine?: 'zod' | 'ajv';
+  issues?: ValidationIssue[];
+  error?: string;
+}
+
+export function formatError(input: FormatErrorInput): string {
+  const lines: string[] = [];
+  if (input.issues && input.issues.length > 0) {
+    const engineLabel = input.engine === 'ajv' ? 'JSONSchema' : 'zod';
+    lines.push(`参数校验失败(${engineLabel} 引擎,${input.issues.length} 处问题):`);
+    for (const issue of input.issues) {
+      const path = issue.path ? `[${issue.path}]` : '[root]';
+      const code = issue.code ? ` ${issue.code}` : '';
+      const msg = issue.message ?? issue.received ?? 'invalid';
+      lines.push(`  - ${path}${code}: ${msg}`);
+    }
+  } else if (input.error) {
+    lines.push(`参数校验失败: ${input.error}`);
+  } else {
+    lines.push('参数校验失败');
+  }
+  lines.push('请重新生成 tool_call 参数(仅返回合法参数,字段路径以上述错误为准)');
+  return lines.join('\n');
+}
+
 export function buildAssistantToolCallMessage(
   records: ToolCallRecord[],
   content: string,
@@ -65,3 +99,5 @@ export function buildToolResultMessages(records: ToolCallRecord[]): Message[] {
     timestamp: new Date(),
   }));
 }
+
+

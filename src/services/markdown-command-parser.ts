@@ -20,10 +20,8 @@ export const MarkdownCommandDefSchema = z.object({
       description: z.string().optional(),
     })
     .optional(),
-  prompt: z.string({
-    required_error: 'The prompt content is required.',
-    invalid_type_error: 'The prompt content must be a string.',
-  }),
+  // zod v4: required_error / invalid_type_error 已合并为 error
+  prompt: z.string({ error: 'The prompt content is required and must be a string.' }),
 });
 
 export type MarkdownCommandDef = z.infer<typeof MarkdownCommandDefSchema>;

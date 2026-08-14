@@ -1,12 +1,48 @@
 /**
- * 文件系统工具：按行号编辑文件（替换、插入、删除），支持批量操作
- * 适用于大文件少量修改，可减少 token 与多次调用。
+ * 文件系统工具:按行号编辑文件(替换、插入、删除),支持批量操作
+ * 适用于大文件少量修改,可减少 token 与多次调用。
  */
 
 import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
+import { z } from 'zod/v4';
+import { requiredNonEmptyString, intOneBased, intNonNegative, editFileEncodingEnum } from '../zodPrimitives.js';
+
+/**
+ * zod v4 schema(IK8MWO #9):discriminated union 三种 action,
+ * LLM 错误的字段路径(如 `edits.0.start`)能被精准回灌。
+ */
+const replaceLinesEdit = z.object({
+  action: z.literal('replace-lines'),
+  start: intOneBased,
+  end: intOneBased,
+  content: requiredNonEmptyString('content'),
+});
+const insertAfterEdit = z.object({
+  action: z.literal('insert-after'),
+  line: intNonNegative,
+  content: requiredNonEmptyString('content'),
+});
+const deleteLinesEdit = z.object({
+  action: z.literal('delete-lines'),
+  start: intOneBased,
+  end: intOneBased,
+});
+
+const editFileSchema = z.object({
+  path: requiredNonEmptyString('path'),
+  edits: z.array(
+    z.discriminatedUnion('action', [
+      replaceLinesEdit,
+      insertAfterEdit,
+      deleteLinesEdit,
+    ]),
+    { error: 'edits 必填且必须是数组' },
+  ).min(1, 'edits 不能为空数组'),
+  encoding: editFileEncodingEnum.optional(),
+});
 
 type EditAction = 'replace-lines' | 'insert-after' | 'delete-lines';
 
@@ -135,6 +171,7 @@ export const editFileTool: AliceTool = {
     },
     required: ['path', 'edits']
   },
+  zodSchema: editFileSchema,
 
   async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
     const { path: filePath, edits, encoding = 'utf-8' } = params;

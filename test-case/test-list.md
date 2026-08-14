@@ -7,8 +7,8 @@
 ## 全量回归
 
 ```bash
-# issue 回归套件(当前基线 168 + 51 + 45 = 264 断言)
-for t in 001 002 003 004 005 012 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
+# issue 回归套件(当前基线 168 + 51 + 45 + 96 = 360 断言)
+for t in 001 002 003 004 005 009 010 012 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
 ```
 
 ## 清单(按 issue 编号排序)
@@ -22,6 +22,7 @@ for t in 001 002 003 004 005 012 019 020 021; do bun run test-case/test-issue-$t
 | `test-issue-004.ts` | Feature Flag + 构建期 DCE:flag 开关、GrowthBookLocal、acp-integration 剥离字节 0 | 构建/runtime feature(build.ts、runtime/feature) | issue #4(IK8MWJ)/ PR !5 |
 | `test-issue-005.ts` | Workspace Backend 收敛守卫:daemon 不得直接 import *Backend 实现(grep + tsc 两层) | workspace 解耦(daemon、runtime/workspace) | issue #5(IK8MWK)/ PR !6 |
 | `test-issue-010.ts` | ripgrep 子进程替换 glob:`rg --json` NDJSON 解析、空 PATH 自动降级、ignore 列表对齐、CI 基准 | 工具性能(utils/ripgrepRunner、tools/builtin/searchFiles) | issue #10(IK8MWP)/ PR !11 |
+| `test-issue-009.ts` | Zod v4 运行时校验:5 个高频工具 schema 覆盖 + 字段路径错误回灌 + 自修重试上限 2 + 低风险工具走 ajv + zod v4/v3 双入口兼容 | 工具系统(tools/zodAdapter、tools/schemaFromZod、runtime/tools/toolResultFormatter、core/llm) | issue #9(IK8MWO)/ PR !12 |
 | `test-issue-019.ts` | karpathy-wiki-new bundled skill:SKILL.md 契约、scaffold 执行器、listBundledSkills、dist 打包 | 内置 skills(skills/bundled) | issue #19(IK8MWL)/ PR !7 |
 | `test-issue-012.ts` | token 预算接通 TUI:getUsage 边界、ChatStreamEvent.budget_update 类型联合、TokenBudgetBar 字符串、联调事件序列 | runtime/agent/tokenBudget → types/chatStream → UI/Footer | issue #12(IK8MWR)/ PR !8 |
 | `test-issue-020.ts` | karpathy-wiki-ingest bundled skill:scanRaw(pending/ingested/orphans)+appendLog(type 白名单、append-only)+SKILL.md 契约 + dist 打包 | 内置 skills(skills/bundled) | issue #20(IK8MWT)/ PR !9 |
