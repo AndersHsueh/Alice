@@ -21,6 +21,7 @@ for t in 001 002 003 004 005 019; do bun run test-case/test-issue-$t.ts || exit 
 | `test-issue-003.ts` | 权限模型:5 mode × 13 工具 × 3 源 × 3 结果 = 585 例决策矩阵 + ToolExecutor gate 接线 | 权限系统(core/permission) | issue #3(IK8MWI)/ PR !4 |
 | `test-issue-004.ts` | Feature Flag + 构建期 DCE:flag 开关、GrowthBookLocal、acp-integration 剥离字节 0 | 构建/runtime feature(build.ts、runtime/feature) | issue #4(IK8MWJ)/ PR !5 |
 | `test-issue-005.ts` | Workspace Backend 收敛守卫:daemon 不得直接 import *Backend 实现(grep + tsc 两层) | workspace 解耦(daemon、runtime/workspace) | issue #5(IK8MWK)/ PR !6 |
+| `test-issue-010.ts` | ripgrep 子进程替换 glob:`rg --json` NDJSON 解析、空 PATH 自动降级、ignore 列表对齐、CI 基准 | 工具性能(utils/ripgrepRunner、tools/builtin/searchFiles) | issue #10(IK8MWP)/ PR 待回填 |
 | `test-issue-019.ts` | karpathy-wiki-new bundled skill:SKILL.md 契约、scaffold 执行器、listBundledSkills、dist 打包 | 内置 skills(skills/bundled) | issue #19(IK8MWL)/ PR !7 |
 | `test-model.ts` | 手动入口:模型连通性 + 速度检查(等价 `alice --test-model`);实现位于 `src/utils/testModel.ts` | 模型诊断(utils/testModel) | 历史 dev 脚本(无 PR);2026-08-15 修复为可运行薄壳 |
 | `test-tools.ts` | 手动入口:toolRegistry / builtinTools / ToolExecutor 冒烟 | 工具系统 | 历史 dev 脚本(无 PR) |
