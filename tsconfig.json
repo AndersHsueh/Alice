@@ -29,8 +29,7 @@
   "exclude": [
     "node_modules",
     "dist",
-    "src/acp-integration/**/*",
-    "src/nonInteractive/**/*",
+    "src/scripts/test-issue-*.ts",
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
     "src/ui/hooks/useGeminiStream.test.tsx",
