@@ -11,7 +11,7 @@
     "dev": "bun run src/index.tsx",
     "dev:watch": "bun --watch run src/index.tsx",
     "build": "tsc",
-    "postbuild": "node -e \"if (process.platform !== 'win32') { require('child_process').execSync('chmod +x dist/index.js dist/daemon/cli.js'); }\"",
+    "postbuild": "node scripts/postbuild.mjs",
     "start": "bun run dist/index.js",
     "clean": "bun rm -rf dist",
     "script:test-model": "bun run src/scripts/test-model.ts",
