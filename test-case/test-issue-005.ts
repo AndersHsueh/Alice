@@ -1,9 +1,9 @@
 /**
- * src/scripts/test-issue-005.ts
+ * test-case/test-issue-005.ts
  *
  * 对应 issue IK8MWK #5 Workspace Backend 收敛 · 守卫防回退(回归守卫)
  *
- * 运行: bun run src/scripts/test-issue-005.ts
+ * 运行: bun run test-case/test-issue-005.ts
  *
  * 测试方法(issue 原文):
  *  断言 src/daemon/ 下不再直接 import *Backend 实现(只允许经
@@ -20,7 +20,7 @@ import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '../..');
+const REPO_ROOT = path.resolve(__dirname, '..');
 const DAEMON_DIR = path.join(REPO_ROOT, 'src', 'daemon');
 const WORKSPACE_DIR = path.join(REPO_ROOT, 'src', 'runtime', 'workspace');
 

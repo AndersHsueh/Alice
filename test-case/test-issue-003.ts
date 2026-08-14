@@ -1,9 +1,9 @@
 /**
- * src/scripts/test-issue-003.ts
+ * test-case/test-issue-003.ts
  *
  * 对应 issue IK8MWI #3 权限模型升级:5 mode + tool-level rule + policyLimits 三维决策
  *
- * 运行: bun run src/scripts/test-issue-003.ts
+ * 运行: bun run test-case/test-issue-003.ts
  *
  * 测试方法(issue 原文):
  *  ① 表驱动决策矩阵快照测试(issue 按 12 tool 估算为 540 例;
@@ -22,20 +22,20 @@ import {
   TOOL_RISK,
   getToolRisk,
   type PermissionMode,
-} from '../core/permission/permissionMode.js';
+} from '../src/core/permission/permissionMode.js';
 import {
   mergePolicies,
   sanitizePolicy,
   type RuleAction,
-} from '../core/permission/permissionPolicy.js';
-import { PolicyLimitsManager, type PolicyLimits } from '../core/permission/policyLimits.js';
-import { decide, type PermissionRequest } from '../core/permission/permissionDecision.js';
-import { ToolExecutor } from '../tools/executor.js';
-import { toolRegistry } from '../tools/registry.js';
-import { builtinTools, isDangerousCommand } from '../tools/index.js';
-import { eventBus } from '../core/events.js';
-import type { Config } from '../types/index.js';
-import type { RuntimeEvent } from '../runtime/kernel/runtimeEvents.js';
+} from '../src/core/permission/permissionPolicy.js';
+import { PolicyLimitsManager, type PolicyLimits } from '../src/core/permission/policyLimits.js';
+import { decide, type PermissionRequest } from '../src/core/permission/permissionDecision.js';
+import { ToolExecutor } from '../src/tools/executor.js';
+import { toolRegistry } from '../src/tools/registry.js';
+import { builtinTools, isDangerousCommand } from '../src/tools/index.js';
+import { eventBus } from '../src/core/events.js';
+import type { Config } from '../src/types/index.js';
+import type { RuntimeEvent } from '../src/runtime/kernel/runtimeEvents.js';
 
 // ---------- 极简测试 harness ----------
 
@@ -263,7 +263,7 @@ async function testHotReload(): Promise<void> {
 async function testPermissionDeniedEvent(): Promise<void> {
   section('④ deny 路径断言 runtimeEvents 吐 permission_denied');
 
-  const { runAgentLoop } = await import('../runtime/agent/agentLoop.js');
+  const { runAgentLoop } = await import('../src/runtime/agent/agentLoop.js');
 
   // fake LLM client:先上报一条 permissionDenied 的工具记录,再吐一个文本 chunk
   const fakeClient = {

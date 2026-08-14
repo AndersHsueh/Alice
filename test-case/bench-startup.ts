@@ -1,11 +1,11 @@
 /**
- * src/scripts/bench-startup.ts
+ * test-case/bench-startup.ts
  *
  * 冷启动 benchmark — 20 次采样取 p50
  * 对应 issue IK8MWG #1 验收标准:"alice 回车到首字符可输入 p50 < 120ms"
  *
  * 运行:
- *   bun run src/scripts/bench-startup.ts
+ *   bun run test-case/bench-startup.ts
  *
  * 模拟:
  *   1. node 进程冷启 import 整个 bundle 的时间(用 --import 跳过)
@@ -21,7 +21,7 @@ import {
   ensurePrefetchReady,
   _resetPrefetchState,
   type PrefetchDeps,
-} from '../bootstrap/prefetch.js';
+} from '../src/bootstrap/prefetch.js';
 
 const N = 20;
 

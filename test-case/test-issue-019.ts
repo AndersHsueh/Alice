@@ -1,9 +1,9 @@
 /**
- * src/scripts/test-issue-019.ts
+ * test-case/test-issue-019.ts
  *
  * 对应 issue IK8MWL #19 karpathy-wiki-new · 知识库脚手架(builtin skill)
  *
- * 运行: bun run src/scripts/test-issue-019.ts
+ * 运行: bun run test-case/test-issue-019.ts
  *
  * 测试方法(issue 原文):
  *  ① BundledSkillLoader 能把该 skill 注册为 /karpathy-wiki-new 且 description 非空
@@ -18,16 +18,16 @@ import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { BundledSkillLoader } from '../services/BundledSkillLoader.js';
-import { skillManager } from '../core/skillManager.js';
+import { BundledSkillLoader } from '../src/services/BundledSkillLoader.js';
+import { skillManager } from '../src/core/skillManager.js';
 import {
   scaffoldWiki,
   TEMPLATE_MAP,
   SCAFFOLD_DIRS,
-} from '../skills/bundled/karpathy-wiki-new/scaffold.js';
+} from '../src/skills/bundled/karpathy-wiki-new/scaffold.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '../..');
+const REPO_ROOT = path.resolve(__dirname, '..');
 
 // ---------- 极简测试 harness ----------
 

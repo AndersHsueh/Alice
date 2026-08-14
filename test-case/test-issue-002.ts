@@ -1,9 +1,9 @@
 /**
- * src/scripts/test-issue-002.ts
+ * test-case/test-issue-002.ts
  *
  * 对应 issue IK8MWH #2 服务层深度补足:extractMemories + SessionMemory + compact
  *
- * 运行: bun run src/scripts/test-issue-002.ts
+ * 运行: bun run test-case/test-issue-002.ts
  *
  * 测试方法(issue 原文):
  *  ① mock LLM 返回,断言 extractMemories 产出 3-8 条 bullets 并落盘
@@ -19,20 +19,20 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import type { Message } from '../types/index.js';
+import type { Message } from '../src/types/index.js';
 import {
   extractMemories,
   parseBullets,
   buildTranscript,
-} from '../services/memory/extractMemories.js';
-import { SessionMemory } from '../services/memory/SessionMemory.js';
-import { fireAndForgetExtractMemories } from '../services/memory/index.js';
+} from '../src/services/memory/extractMemories.js';
+import { SessionMemory } from '../src/services/memory/SessionMemory.js';
+import { fireAndForgetExtractMemories } from '../src/services/memory/index.js';
 import {
   compactConversation,
   shouldCompact,
   countRounds,
-} from '../services/compact/compact.js';
-import { estimateTokens } from '../runtime/agent/tokenBudget.js';
+} from '../src/services/compact/compact.js';
+import { estimateTokens } from '../src/runtime/agent/tokenBudget.js';
 
 // ---------- 极简测试 harness ----------
 
@@ -81,7 +81,7 @@ async function testExtractMemories(): Promise<void> {
   ];
 
   const mockLLM = async (): Promise<string> =>
-    '- alice-cli 使用 bun 运行、ESM 模块\n- 构建命令是 tsc\n- 提交信息用中文\n- 提交前必须先跑测试\n- 仓库托管在 Gitee\n- 测试脚本在 src/scripts/';
+    '- alice-cli 使用 bun 运行、ESM 模块\n- 构建命令是 tsc\n- 提交信息用中文\n- 提交前必须先跑测试\n- 仓库托管在 Gitee\n- 测试脚本在 test-case/';
 
   const result = await extractMemories('session-abc', fixture, {
     memoryDir: dir,

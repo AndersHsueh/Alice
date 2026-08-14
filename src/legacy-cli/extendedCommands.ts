@@ -8,7 +8,7 @@
  */
 
 import type { AliceCommand, ModelPickItem } from './commandRegistry.js';
-import { testAllModels } from '../scripts/test-model.js';
+import { testAllModels } from '../utils/testModel.js';
 import { configManager } from '../utils/config.js';
 
 // ─── /models ──────────────────────────────────────────────────────

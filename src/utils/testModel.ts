@@ -1,9 +1,9 @@
 import chalk from 'chalk';
-import { configManager } from '../utils/config.js';
+import { configManager } from './config.js';
 import { ProviderFactory } from '../core/providers/index.js';
 import { ModelRegistry } from '../daemon/modelRegistry.js';
 import type { ModelConfig } from '../types/index.js';
-import { getErrorMessage } from '../utils/error.js';
+import { getErrorMessage } from './error.js';
 
 interface TestResult {
   model: ModelConfig;

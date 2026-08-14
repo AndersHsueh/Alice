@@ -1,9 +1,9 @@
 /**
- * src/scripts/test-issue-001.ts
+ * test-case/test-issue-001.ts
  *
  * 对应 issue IK8MWG #1 启动期并行预取 prefetchAll()
  *
- * 运行: bun run src/scripts/test-issue-001.ts
+ * 运行: bun run test-case/test-issue-001.ts
  *
  * 测试方法(issue 原文):
  *  ① mock configManager.init,断言 prefetchAll() 同步返回且三个 preconnect 已 fire
@@ -22,7 +22,7 @@ import {
   _getSettledURLs,
   _resetPrefetchState,
   type PrefetchDeps,
-} from '../bootstrap/prefetch.js';
+} from '../src/bootstrap/prefetch.js';
 
 // ---------- 极简测试 harness ----------
 

@@ -1,9 +1,9 @@
 /**
- * src/scripts/test-issue-004.ts
+ * test-case/test-issue-004.ts
  *
  * 对应 issue IK8MWJ #4 Feature Flag + 构建期 DCE
  *
- * 运行: bun run src/scripts/test-issue-004.ts
+ * 运行: bun run test-case/test-issue-004.ts
  *
  * 测试方法(issue 原文):
  *  ① feature(name, default) 在缺失 ~/.alice/feature_flags.jsonc 时返回 default,存在时按文件
@@ -17,12 +17,12 @@ import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { feature, isFeatureActive, _resetFeatureStore } from '../runtime/feature/feature.js';
-import { GrowthBookLocal, envNameForFlag } from '../runtime/feature/growthBookLocal.js';
-import { buildTimeDCE } from '../runtime/feature/buildTimeDCE.js';
+import { feature, isFeatureActive, _resetFeatureStore } from '../src/runtime/feature/feature.js';
+import { GrowthBookLocal, envNameForFlag } from '../src/runtime/feature/growthBookLocal.js';
+import { buildTimeDCE } from '../src/runtime/feature/buildTimeDCE.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, '../..');
+const REPO_ROOT = path.resolve(__dirname, '..');
 
 // ---------- 极简测试 harness ----------
 

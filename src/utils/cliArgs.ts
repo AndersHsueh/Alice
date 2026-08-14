@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { testAllModels } from '../scripts/test-model.js';
+import { testAllModels } from './testModel.js';
 import packageJson from '../../package.json' with { type: 'json' };
 
 export interface CLIOptions {

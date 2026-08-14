@@ -3,14 +3,14 @@
  * 测试 LLM 与工具系统的完整集成
  *
  * 注意：需要 LM Studio 运行并支持 Function Calling
- * 运行: npx tsx src/scripts/test-function-calling.ts
+ * 运行: npx tsx test-case/test-function-calling.ts
  */
 
-import { LLMClient } from '../core/llm.js';
-import { configManager } from '../utils/config.js';
-import { toolRegistry, builtinTools } from '../tools/index.js';
-import type { Message } from '../types/index.js';
-import { getErrorMessage } from '../utils/error.js';
+import { LLMClient } from '../src/core/llm.js';
+import { configManager } from '../src/utils/config.js';
+import { toolRegistry, builtinTools } from '../src/tools/index.js';
+import type { Message } from '../src/types/index.js';
+import { getErrorMessage } from '../src/utils/error.js';
 
 async function testFunctionCalling() {
   console.log('🧪 Function Calling 集成测试\n');

@@ -1,11 +1,11 @@
 /**
  * 工具系统测试示例
- * 运行: npx tsx src/scripts/test-tools.ts 或 npm run build && node dist/scripts/test-tools.js
+ * 运行: npx tsx test-case/test-tools.ts 或 npm run build && node dist/scripts/test-tools.js
  */
 
-import { toolRegistry, builtinTools, ToolExecutor } from '../tools/index.js';
-import { configManager } from '../utils/config.js';
-import type { ToolCall } from '../types/tool.js';
+import { toolRegistry, builtinTools, ToolExecutor } from '../src/tools/index.js';
+import { configManager } from '../src/utils/config.js';
+import type { ToolCall } from '../src/types/tool.js';
 
 async function testTools() {
   console.log('🧪 工具系统测试\n');

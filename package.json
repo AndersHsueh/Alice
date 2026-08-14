@@ -14,9 +14,9 @@
     "postbuild": "bun scripts/postbuild.mjs",
     "start": "bun run dist/index.js",
     "clean": "bun rm -rf dist",
-    "script:test-model": "bun run src/scripts/test-model.ts",
-    "script:test-tools": "bun run src/scripts/test-tools.ts",
-    "script:test-function-calling": "bun run src/scripts/test-function-calling.ts",
+    "script:test-model": "bun run test-case/test-model.ts",
+    "script:test-tools": "bun run test-case/test-tools.ts",
+    "script:test-function-calling": "bun run test-case/test-function-calling.ts",
     "test:xai": "bun run test/xai-connection.ts"
   },
   "keywords": [
