@@ -6,7 +6,7 @@
 
 🤖 **ALICE** - 基于大语言模型的智能办公助手
 
-[![Version](https://img.shields.io/badge/version-3.0.1-blue.svg)](https://github.com/AndersHsueh/Alice)
+[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](https://github.com/AndersHsueh/Alice)
 [![License](https://img.shields.io/badge/license-MulanPSL2-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Bun](https://img.shields.io/badge/bun-%3E%3D1.0.0-f9f1df.svg?logo=bun)](https://bun.sh)
@@ -45,30 +45,61 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 - ⚡ **useAliceStream**：全新流式适配器，将 Alice daemon 的 `ChatStreamEvent` 无缝映射到 qwen-code TUI 的消息历史系统
 - 🎨 **功能丰富**：代码高亮、Markdown 渲染、工具调用可视化、会话管理、Vim 模式、多主题等全部开箱即用
 
+### 🚀 v3.1.0 亮点(结构扩张 · P1 × 9 全部落地)
+
+> 本 release 是 **结构扩张 release**,把 v3.0.1 路线图中的 P1 × 9 全部实现为可用代码。9 个 PR 合并入 main,608 断言全绿(168 基线 + 440 新增),`bun build.ts` 成功。
+
+**📋 P1 × 9 全部落地**
+
+| Issue | 标题 | PR | commit |
+|-------|------|-----|--------|
+| #9 | Zod v4 运行时 Schema 校验 | [PR !12](https://gitee.com/andershsueh/alice-cli/pulls/12) | `21092fa` |
+| #7 | Coordinator 多 Agent 编排(7 角色先行 2 个) | [PR !14](https://gitee.com/andershsueh/alice-cli/pulls/14) | `46b6b60` |
+| #8 | TeamMemorySync 跨端记忆同步(协议 + 本地 mock) | [PR !15](https://gitee.com/andershsueh/alice-cli/pulls/15) | `a1f2e72` |
+| #11 | OpenTelemetry 三件套 + 可选 OTLP 出口 | [PR !13](https://gitee.com/andershsueh/alice-cli/pulls/13) | `192fea1` |
+| #12 | Token Budget 接通 TUI 状态栏 | [PR #8](https://gitee.com/andershsueh/alice-cli/pulls/8) | (v3.0.1 后) |
+| #13 | LSP 集成 · TypeScript Language Server 接入 | [PR !16](https://gitee.com/andershsueh/alice-cli/pulls/16) | `4927c63` |
+| #10 | ripgrep 子进程替换 glob 性能 | [PR !11](https://gitee.com/andershsueh/alice-cli/pulls/11) | (v3.0.1 后) |
+| #20 | karpathy-wiki-ingest bundled skill | [PR !9](https://gitee.com/andershsueh/alice-cli/pulls/9) | (v3.0.1 后) |
+| #21 | karpathy-wiki-lint bundled skill | [PR !10](https://gitee.com/andershsueh/alice-cli/pulls/10) | `997903b` |
+
+**🔧 重大架构变更**
+
+- ⚡ **Zod v4 升级**:`^3.23.8` → `^4`(实际 `zod@4.4.3`)。7 处既有 `import { z } from 'zod'` 保持 v3 兼容入口,新代码走 `zod/v4`。5 个高频 builtin 工具切到 zod schema,`toolResultFormatter` 新增 `formatError()` 输出字段路径错误,自修重试上限 2。低风险工具(`getCurrentDateTime` 等)继续走 ajv JSONSchema。
+- 📊 **OpenTelemetry 三件套**:`src/observability/{otelSDK, otlpConfig, spans}.ts`。**零 OTEL 全家桶依赖** —— 只硬引 `@opentelemetry/api ^1.9.1`(平台无关),SDK 与 OTLP exporter 全自研。配置门控:enabled=false 零开销;启用后 < 1% overhead。trace 落 `~/.alice/otel/trace.jsonl`(隐私过滤,不含 prompt 文本),OTLP HTTP 出口直接对接 Honeycomb / Datadog。
+- 🤖 **Coordinator 多 Agent 编排**:`src/runtime/agent/coordinator/{agentProfile, profileRegistry, spawn, consultantRunner, researcherRunner}.ts` + `concurrentAgentRunner.ts` + `slashHandler.ts`。7 profile 框架(consultant/researcher/coder/writer/reviewer/security/tester),2 个可 spawn —— `/consult` 输出 5-8 条议题,`/research` 命中 `~/.alice/memories/*.md`;permissionGate 按 profile 收敛。
+- 🧠 **TeamMemorySync 协议 v1**:`src/services/sync/{syncProtocol, localMock, teamMemorySync}.ts`。`teamId + memory payload + version` envelope,本地 mock 落 `~/.alice/team-sync/staging/<teamId>.jsonl`,24h 滚动 TTL。远程 endpoint(`POST /v1/teams/{teamId}/memories:push` + `GET :pull`)为 v4.0.0 预留。失败 warn-and-continue,不阻塞本地对话。
+- 🌐 **LSP 集成**:`src/services/lsp/{stdioRunner, serverProcess, client, locationFormat, index}.ts` + 3 个 builtin 工具(lspGotoDefinition / lspFindReferences / lspDocumentSymbol)。JSON-RPC 协议跨 Bun/Node runtime,Content-Length 帧协议,SIGTERM 优雅回收。ts ls 缺失时给安装提示而非崩溃。stub server 在 `test-case/fixtures/lsp-stub-server.mjs`(测试用)。
+- 🦊 **Token Budget 接通 TUI**:`BudgetUsage` 类型 + `getUsage()` + `budget_update` 事件流。第 8-10 轮起 Footer 显示 `[ctx 78%]`,`nearCompletion` 触发"auto-compact 即将触发"提示。
+- 🚀 **ripgrep 替换 glob**:`src/utils/ripgrepRunner.ts`,searchFiles 优先走 `rg --files --glob`,20k 文件级目录 ~800ms → ~50ms。无 rg 自动降级 glob。
+- 🛠 **3 个 builtin skill 全员到齐**:`/karpathy-wiki-new`(v3.0.1)、`/karpathy-wiki-ingest`、`/karpathy-wiki-lint`。lint 5 项检查(BROKEN/ORPHAN/NOSUMMARY/NOSTAMP/LOWLINKS)输出 SUMMARY 行机器可读。
+
+**🗺 路线图**
+- ✅ **v3.0.1** = P0 × 6(2026 Q3)
+- ✅ **v3.1.0**(本 release) = P1 × 9(2026 Q4)
+- 🔮 **v4.0.0** = P2 × 4 / Multi-Agent Team / Plugin Marketplace / Voice / analytics dashboard
+
+详见 [`release-notes/v3.1.0.md`](release-notes/v3.1.0.md) + [`wiki/v3.0.1-rollout.md`](wiki/v3.0.1-rollout.md)
+
 ### 🚀 v3.0.1 亮点(结构强化 · 21 项行动)
 
-> 本 release 是 **结构强化 release**,优先级从「功能数量」转向「结构稳定性」。截至 2026-08-14,P0 × 6 已全部落地,4 条验收底线实测达成,`v3.0.1` TAG 随本次发布补打。
+> 上一 release。结构稳定性建立,P0 × 6 全部落地,4 条验收底线实测达成,`v3.0.1` TAG 2026-08-14 补打。
 
 **📋 21 项 P0/P1/P2 行动清单**
 - 🎯 **P0 × 6(全部已合并)**:#1 启动预取(冷启动 < 120ms,PR !2)/ #2 服务层补足(memory + compact,PR !3)/ #3 权限 5 mode(585 例决策,PR !4)/ #4 Feature Flag DCE(PR !5)/ **#5 ★ Workspace Backend 收敛(已完成,PR !6 守卫)** / #19 builtin-skill-new(PR !7)
-- 📋 **P1 × 9**:#7 Coordinator / #8 TeamMemorySync / #9 Zod v4 / #10 ripgrep / #11 OpenTelemetry / #12 Token Budget TUI / #13 LSP / #20 / #21 builtin-skills
+- ✅ **P1 × 9**:见上方 v3.1.0 章节
 - 🔮 **P2 × 4**:#14 Multi-Agent Team / #15(挂起)/ #16 Voice / #17 Plugin Marketplace / #18 analytics
 - ❌ **#6 IDE Bridge** 按产品原则划掉
 
-**🛠 内置 Skills**
-- `karpathy-wiki-new` — 一键建 Karpathy Wiki 知识库脚手架(3 目录 + 6 模板)✅ 已随 v3.0.1 发布(PR !7)
-- `karpathy-wiki-ingest` — 把 raw/ 编译为结构化 wiki 页面(#20,📋 v3.1.0 待落地)
-- `karpathy-wiki-lint` — 知识库健康检查(5 项:断链 / orphan / 摘要戳 / 日期戳 / 链接密度)(#21,📋 v3.1.0 待落地)
+**🛠 内置 Skills**(本 release 全员到齐)
+- `karpathy-wiki-new` — 一键建 Karpathy Wiki 知识库脚手架(3 目录 + 6 模板)
+- `karpathy-wiki-ingest` — 把 raw/ 编译为结构化 wiki 页面(#20 ✅)
+- `karpathy-wiki-lint` — 知识库健康检查(5 项检查,#21 ✅)
 - 设计:复用现有 `loadSkill` 工具,默认可信 + 详细日志,见 [`wiki/内置-Skills.md`](wiki/内置-Skills.md)
 
 **🧹 Obsolete 清理(commit a104d85)**
 - 删除 `QWEN.md` + `.github/copilot-instructions.md`(同构第一规则,统一入口到 `AGENTS.md`)
 - `CLAUDE.md` 删除航海日志相关 3 段,新增「资源使用 · 无限 Token 模式」段
-
-**🗺 路线图**
-- **v3.0.1**(本 release) = P0 × 6(2026 Q3)
-- **v3.1.0** = P1 × 9(2026 Q4)
-- **v4.0.0** = P2 × 4(2026 Q4 末 / 2027 Q1)
 
 详见 [`release_note.md`](release_note.md) + [`wiki/结构优化路线图.md`](wiki/结构优化路线图.md)
 
