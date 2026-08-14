@@ -10,6 +10,7 @@ import { getErrorMessage } from '../../utils/error.js';
 import type { DaemonLogger } from '../../daemon/logger.js';
 import { modelRegistry } from '../../daemon/services.js';
 import { compactConversation } from '../../services/compact/compact.js';
+import { obtainTracer } from '../../observability/spans.js';
 
 const THINK_CLOSE_TAG = '</think>';
 
@@ -272,6 +273,21 @@ export async function* runAgentLoop(
   // 改为排队,每个 chunk 到达后先 flush 队列再处理 chunk
   let pendingBudgetUsage: import('../agent/tokenBudget.js').BudgetUsage | null = null;
 
+  // IK8MWQ #11 可观测性:根 span 包住整轮 agent loop。
+  // SDK 未启时 tracer 为 null,所有写入被 skip(零开销)。
+  const _otelTracer = obtainTracer();
+  const _otelRootSpan = _otelTracer
+    ? _otelTracer.startSpan('agent_loop', {
+        attributes: {
+          'session.id': session.id,
+          'model.name': modelConfig.name,
+          'model.id': modelConfig.model,
+          'provider.name': modelConfig.provider,
+          'agent.capability_tier': capability,
+        },
+      })
+    : null;
+
   try {
     for await (const chunk of client.chatStreamWithTools(
       messagesForLLM,
@@ -394,6 +410,15 @@ export async function* runAgentLoop(
         deps.logger.error('堆栈', error.stack, commonMeta);
       }
     }
+    // IK8MWQ #11:异常路径上 root span 记录 exception
+    if (_otelRootSpan) {
+      try { _otelRootSpan.recordException(error); } catch { /* ignore */ }
+    }
     throw error;
+  } finally {
+    // IK8MWQ #11:无论成功/失败,根 span 都要 end;finally 保障不会泄漏
+    if (_otelRootSpan) {
+      try { _otelRootSpan.end(); } catch { /* ignore */ }
+    }
   }
 }
