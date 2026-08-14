@@ -11,14 +11,37 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { execFile } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import { getErrorMessage } from '../utils/error.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const SKILLS_DIR = path.join(os.homedir(), '.agents', 'skills');
+
+/**
+ * bundled 技能目录(随发行包内置,IK8MWL #19)。
+ * dev: src/core → ../skills/bundled;prod: dist/core → ../skills/bundled
+ * (postbuild 负责把 src/skills 资源拷进 dist/skills)
+ */
+const BUNDLED_SKILLS_DIR = path.resolve(__dirname, '..', 'skills', 'bundled');
 
 export interface SkillMeta {
   name: string;
   description: string;
   dirName: string;  // 目录名（用于 loadSkill 查找）
+}
+
+/** bundled 技能(随发行包内置,含 SKILL.md 全文) */
+export interface BundledSkill {
+  name: string;
+  description: string;
+  /** SKILL.md 全文(供 slash command 作为 prompt 提交) */
+  body: string;
+  dirName: string;
+  /** skill 目录绝对路径(供 SKILL.md 内的 scaffold/资源引用) */
+  dir: string;
 }
 
 interface DefaultSkill {
@@ -216,6 +239,54 @@ export class SkillManager {
    */
   getSkills(): SkillMeta[] {
     return Array.from(this.skills.values());
+  }
+
+  /**
+   * Discovery:bundled 技能(随发行包内置,IK8MWL #19)。
+   * 扫描 <pkg>/skills/bundled/*\/SKILL.md,读取全文。
+   */
+  async listBundledSkills(): Promise<BundledSkill[]> {
+    let entries: string[];
+    try {
+      entries = await fs.readdir(BUNDLED_SKILLS_DIR);
+    } catch {
+      return [];
+    }
+
+    const out: BundledSkill[] = [];
+    for (const dirName of entries) {
+      if (dirName.startsWith('.')) continue;
+      const dir = path.join(BUNDLED_SKILLS_DIR, dirName);
+      try {
+        const content = await fs.readFile(path.join(dir, 'SKILL.md'), 'utf-8');
+        const fm = parseFrontmatter(content);
+        out.push({
+          name: fm.name || dirName,
+          description: fm.description || '',
+          body: content,
+          dirName,
+          dir,
+        });
+      } catch {
+        // 跳过无效目录
+      }
+    }
+    return out;
+  }
+
+  /**
+   * 统一列举入口(BundledSkillLoader 用)。
+   * level='bundled' → 内置技能;缺省 → 用户级(~/.agents/skills)已发现列表。
+   */
+  async listSkills(options: { level?: 'bundled' } = {}): Promise<Array<{ name: string; description: string; body: string }>> {
+    if (options.level === 'bundled') {
+      return (await this.listBundledSkills()).map(({ name, description, body }) => ({
+        name,
+        description,
+        body,
+      }));
+    }
+    return this.getSkills().map((s) => ({ name: s.name, description: s.description, body: '' }));
   }
 
   getSkillsDir(): string {
