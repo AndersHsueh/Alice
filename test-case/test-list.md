@@ -7,8 +7,8 @@
 ## 全量回归
 
 ```bash
-# issue 回归套件(当前基线 168 断言)
-for t in 001 002 003 004 005 012 019; do bun run test-case/test-issue-$t.ts || exit 1; done
+# issue 回归套件(当前基线 215 断言:001/002/003/004/005/010/012/013/019)
+for t in 001 002 003 004 005 010 012 013 019; do bun run test-case/test-issue-$t.ts || exit 1; done
 ```
 
 ## 清单(按 issue 编号排序)
@@ -24,6 +24,7 @@ for t in 001 002 003 004 005 012 019; do bun run test-case/test-issue-$t.ts || e
 | `test-issue-010.ts` | ripgrep 子进程替换 glob:`rg --json` NDJSON 解析、空 PATH 自动降级、ignore 列表对齐、CI 基准 | 工具性能(utils/ripgrepRunner、tools/builtin/searchFiles) | issue #10(IK8MWP)/ PR !11 |
 | `test-issue-019.ts` | karpathy-wiki-new bundled skill:SKILL.md 契约、scaffold 执行器、listBundledSkills、dist 打包 | 内置 skills(skills/bundled) | issue #19(IK8MWL)/ PR !7 |
 | `test-issue-012.ts` | token 预算接通 TUI:getUsage 边界、ChatStreamEvent.budget_update 类型联合、TokenBudgetBar 字符串、联调事件序列 | runtime/agent/tokenBudget → types/chatStream → UI/Footer | issue #12(IK8MWR)/ PR !8 |
+| `test-issue-013.ts` | LSP 集成:tsls 探测/降级、JSON-RPC 四 method 往返、Location→{file,line,col,snippet}、SIGTERM 进程回收、tokenBudget.ts 端到端 symbols | 代码智能(services/lsp) | issue #13(IK8MWS)/ PR !16 |
 | `test-model.ts` | 手动入口:模型连通性 + 速度检查(等价 `alice --test-model`);实现位于 `src/utils/testModel.ts` | 模型诊断(utils/testModel) | 历史 dev 脚本(无 PR);2026-08-15 修复为可运行薄壳 |
 | `test-tools.ts` | 手动入口:toolRegistry / builtinTools / ToolExecutor 冒烟 | 工具系统 | 历史 dev 脚本(无 PR) |
 | `test-function-calling.ts` | 手动入口:LLM function calling 端到端(需真实 API) | function calling | 历史 dev 脚本(无 PR) |
