@@ -9,6 +9,7 @@ import { getConfig, getSystemPrompt, getLLMClient, getSessionManager } from './s
 import type { DaemonLogger } from './logger.js';
 import { createRuntime } from '../runtime/kernel/createRuntime.js';
 import { fireAndForgetExtractMemories, getSessionMemory } from '../services/memory/index.js';
+import { spawnCoordinator } from '../runtime/agent/coordinator/spawn.js';
 
 export type { ChatStreamRequest, ChatStreamEvent };
 
@@ -23,7 +24,9 @@ export async function* runChatStream(
   req: ChatStreamRequest,
   logger: DaemonLogger
 ): AsyncGenerator<ChatStreamEvent> {
-  const runtime = createRuntime({
+  // 一次构造 AgentLoopDependencies,createRuntime 和 spawnCoordinator 共用同一份
+  // (复用 review #1/#7:之前 chatHandler 把 6/7 个字段重复写了两次)
+  const baseDeps = {
     logger,
     getConfig,
     getDefaultModel: () => configManager.getDefaultModel(),
@@ -32,6 +35,12 @@ export async function* runChatStream(
     getSessionManager,
     // 跨 session 记忆召回(IK8MWH #2)
     getRelevantMemories: (prompt) => getSessionMemory().getRelevantMemories(prompt, 5),
+  };
+  const runtime = createRuntime({
+    ...baseDeps,
+    // 多 Agent coordinator(IK8MWM #7):/consult /research 命中时由 agentLoop 内部触发 spawn
+    spawnCoordinator: (profileName, req) =>
+      spawnCoordinator(profileName, req, baseDeps, { warn: (msg, ...args) => logger.warn(msg, ...args) }),
   });
 
   // session close(done / error / 客户端断连)时 fire-and-forget 提炼记忆,

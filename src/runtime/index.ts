@@ -12,3 +12,11 @@ export * from './workspace/cronWorkspaceBackend.js';
 export * from './workspace/cronWorkspacePaths.js';
 export * from './workspace/workspaceResolver.js';
 export * from './scenarios/scenarioPack.js';
+// IK8MWM #7:多 Agent coordinator
+export * from './agent/concurrentAgentRunner.js';
+export * from './agent/coordinator/agentProfile.js';
+export * from './agent/coordinator/profileRegistry.js';
+export * from './agent/coordinator/consultantRunner.js';
+export * from './agent/coordinator/researcherRunner.js';
+export * from './agent/coordinator/spawn.js';
+export * from './agent/slashHandler.js';
