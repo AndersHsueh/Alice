@@ -63,6 +63,8 @@ export async function* runChatStream(
         };
       } else if (event.type === 'warning') {
         logger.warn('Runtime warning', event.warning.message);
+      } else if (event.type === 'permission_denied') {
+        logger.warn('工具调用被权限模型拒绝', event.toolName, event.reason);
       }
     }
   } finally {

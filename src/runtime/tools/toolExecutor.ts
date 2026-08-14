@@ -22,6 +22,10 @@ export class RuntimeToolExecutor {
     this.executor.setConfirmHandler(handler);
   }
 
+  setPermissionGate(gate: import('../../tools/executor.js').PermissionGate): void {
+    this.executor.setPermissionGate(gate);
+  }
+
   toOpenAIFunctions() {
     return this.registry.toOpenAIFunctions();
   }
