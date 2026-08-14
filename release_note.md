@@ -14,7 +14,7 @@ v3.0.1 是 ALICE / VERONICA 的**结构强化 release**。从 v3.0.0(VERONICA da
 4. **对齐版本叙事**:从之前的 0.x / 0.5.x 切到 3.x 系列(`package.json` 已 bump 到 `3.0.1`,本 release 是结构强化 patch)
 
 > **路线图**:
-> - v3.0.1(本 release)= P0 × 6 + 3 builtin skills(2026 Q3)
+> - v3.0.1(本 release)= P0 × 6 + 1 builtin skill(karpathy-wiki-new;ingest / lint 在 v3.1.0)(2026 Q3)
 > - v3.1.0 = P1 × 9(2026 Q4)
 > - v4.0.0 = P2 × 4(2026 Q4 末 / 2027 Q1)
 
