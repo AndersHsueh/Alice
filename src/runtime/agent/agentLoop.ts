@@ -11,6 +11,8 @@ import type { DaemonLogger } from '../../daemon/logger.js';
 import { modelRegistry } from '../../daemon/services.js';
 import { compactConversation } from '../../services/compact/compact.js';
 import { obtainTracer } from '../../observability/spans.js';
+import { createSlashHandler, type SlashHandler } from './slashHandler.js';
+import type { SpawnEvent } from './coordinator/profileRegistry.js';
 
 const THINK_CLOSE_TAG = '</think>';
 
@@ -27,8 +29,12 @@ export interface AgentLoopDependencies {
   getSystemPrompt(): Promise<string>;
   getLLMClient(modelConfig: ModelConfig, systemPrompt: string): any;
   getSessionManager(): RuntimeSessionManagerLike;
-  /** 可选:召回与 prompt 相关的跨 session 历史记忆(IK8MWH #2) */
-  getRelevantMemories?(prompt: string): Promise<string[]>;
+  /** 可选:召回与 prompt 相关的跨 session 历史记忆(IK8MWH #2);runner 可传 topK 透传给 SessionMemory */
+  getRelevantMemories?(prompt: string, topK?: number): Promise<string[]>;
+  /** 可选:多 Agent coordinator spawn 入口(IK8MWM #7)。默认 noop,接 spawnCoordinator 后 /consult /research 即生效 */
+  spawnCoordinator?(profileName: string, request: { prompt: string; workspace?: string }): AsyncGenerator<SpawnEvent>;
+  /** 可选:覆盖默认 slash handler,测试可注入 noop */
+  slashHandler?: SlashHandler;
 }
 
 /**
@@ -55,6 +61,38 @@ function serializeMessage(m: Message): Message {
   return {
     ...m,
     timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(String(m.timestamp)),
+  };
+}
+
+/** 把 slash 结果(save + yield text_delta + yield done)抽出,扁平 agentLoop 主流程 */
+async function* yieldSlashResult(
+  slash: { profileName: string; renderedText: string },
+  session: any,
+  conversationMessages: Message[],
+  sessionManager: RuntimeSessionManagerLike,
+  logger: DaemonLogger,
+): AsyncGenerator<RuntimeEvent> {
+  logger.info('Slash 命中', {
+    sessionId: session.id,
+    profile: slash.profileName,
+  });
+  const finalMessages: Message[] = [
+    ...conversationMessages,
+    { role: 'assistant', content: slash.renderedText, timestamp: new Date() },
+  ];
+  await sessionManager.saveSession({
+    ...session,
+    messages: finalMessages,
+    caption: session.caption,
+    updatedAt: new Date(),
+  });
+  yield { type: 'text_delta', content: slash.renderedText };
+  const serialized = finalMessages.map((m) => serializeMessage(m));
+  yield {
+    type: 'done',
+    sessionId: session.id,
+    messages: serialized,
+    summary: { sessionId: session.id, messages: serialized },
   };
 }
 
@@ -198,13 +236,6 @@ export async function* runAgentLoop(
     : config.default_model;
   const isDegraded = modelConfig.name !== preferredName;
 
-  yield {
-    type: 'model_selected',
-    modelName: modelConfig.name,
-    degraded: isDegraded,
-    tier: capability,
-  };
-
   const baseSystemPrompt = await deps.getSystemPrompt();
   const workspaceNote = `\n\n## 当前工作目录\nworkspace: ${session.workspace}\n所有相对路径均相对于此目录。文件操作时请使用绝对路径或基于此目录的完整路径。`;
   let systemPrompt = baseSystemPrompt + workspaceNote;
@@ -224,6 +255,32 @@ export async function* runAgentLoop(
     })),
     userMsg,
   ];
+
+  // Slash 分流(IK8MWM #7):/consult /research 命中 → 跑 coordinator spawn,
+  // 渲染后跳过主流 LLM 调用(节省 token,失败仅记 warn)。
+  // 必须在 model_selected 之前短路,否则 UI 上看得到「模型选了 → 又被 slash 接管」的多余切换。
+  const slashHandler =
+    deps.slashHandler ??
+    (deps.spawnCoordinator ? createSlashHandler((name, req2) => deps.spawnCoordinator!(name, req2)) : null);
+  if (slashHandler) {
+    try {
+      const slash = await slashHandler.handle(req.message, deps);
+      if (slash !== null) {
+        yield* yieldSlashResult(slash, session, conversationMessages, sessionManager, deps.logger);
+        return;
+      }
+    } catch (err: unknown) {
+      // 失败绝不阻塞主对话
+      deps.logger.warn('Slash 分流失败(已忽略,继续主流)', getErrorMessage(err));
+    }
+  }
+
+  yield {
+    type: 'model_selected',
+    modelName: modelConfig.name,
+    degraded: isDegraded,
+    tier: capability,
+  };
 
   // 记忆召回(IK8MWH #2):同主题 session 命中历史记忆,注入 system prompt
   if (deps.getRelevantMemories) {
