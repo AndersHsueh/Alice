@@ -1,12 +1,12 @@
 /**
  * src/runtime/agent/coordinator/profileRegistry.ts
  *
- * IK8MWM #7 — 7 个 profile 的静态注册表 + spawn 入口。
+ * IK8MWM #7 + IK8MWV #14 — 7 个 profile 的静态注册表 + spawn 入口。
  *
  * 设计:
- *  - 7 个 profile 同时注册,2 个 spawnable(consultant / researcher),
- *    5 个明确标 spawnable=false(若用户 spawn → 抛 ProfileNotImplementedError)。
- *  - spawn 调用 profile 专属 runner(consultantRunner / researcherRunner),
+ *  - 7 个 profile 同时注册,**4 个 spawnable**(consultant / researcher / executor / reviewer),
+ *    3 个明确标 spawnable=false(coder / writer / security / tester — 规划中)
+ *  - spawn 调用 profile 专属 runner(consultantRunner / researcherRunner / executorRunner / reviewerRunner),
  *    由 runner 自行通过 deps.baseDeps 复用 SessionMemory / LLM client 等。
  *  - profile 失败(LLM 不可用 / memory 缺失)绝不阻塞主对话,
  *    仅 runner → spawn 返回 error / empty,主循环吞掉 warn。
@@ -14,6 +14,8 @@
 
 import { runConsultant } from './consultantRunner.js';
 import { runResearcher } from './researcherRunner.js';
+import { runExecutor } from './executorRunner.js';
+import { runReviewer } from './reviewerRunner.js';
 import type { AgentProfile } from './agentProfile.js';
 import type { RuleAction } from '../../../core/permission/permissionPolicy.js';
 
@@ -23,7 +25,11 @@ export type SpawnEvent =
   | { type: 'memory_hit'; text: string; score: number }
   | { type: 'text'; content: string }
   | { type: 'done'; topics: string[]; memories: string[] }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  // IK8MWV #14:executor 步骤事件
+  | { type: 'step'; step: { index: number; title: string; detail: string; tools: string[] } }
+  // IK8MWV #14:reviewer 评审事件
+  | { type: 'review'; finding: { index: number; severity: 'info' | 'minor' | 'major' | 'critical'; category: string; description: string }; total: number };
 
 export interface SpawnRequest {
   /** 主对话原始 prompt(consultant 提炼议题 / researcher 检索都用) */
@@ -102,15 +108,19 @@ const PROFILES: readonly AgentProfile[] = [
     },
     spawnable: true,
   },
-  // ─── 5 个仅占位、显式未实装的 profile ───
+  // ─── 5 个未实装 profile(本 PR 实装 executor + reviewer;剩余 3 个仍占位) ───
   {
-    name: 'coder',
-    role: '代码生成',
-    description: '代码生成(规划中,未实装)',
+    name: 'executor',
+    role: '任务执行',
+    description: '拆解任务为可执行步骤并实施(写文件 / 跑命令,IK8MWV #14)',
     capability: 'code',
     mode: 'acceptEdits',
+    /**
+     * executor 允许写文件 / 跑命令(由 baseDeps 接线生效),仅 deny 风险高的工具
+     * (网络访问类暂不在 allow 列表,profile 仍可显式 allow)
+     */
     toolPolicy: {},
-    spawnable: false,
+    spawnable: true,
   },
   {
     name: 'writer',
@@ -124,11 +134,18 @@ const PROFILES: readonly AgentProfile[] = [
   {
     name: 'reviewer',
     role: '文档评审',
-    description: '文档 / 代码评审(规划中,未实装)',
+    description: '文档 / 代码评审(LLM 拆解评审发现,只读)',
     capability: 'reasoning',
     mode: 'default',
-    toolPolicy: {},
-    spawnable: false,
+    /**
+     * reviewer 只读 — 写文件 / 执行命令 deny,只读工具隐式 allow
+     */
+    toolPolicy: {
+      writeFile: 'deny',
+      editFile: 'deny',
+      executeCommand: 'deny',
+    },
+    spawnable: true,
   },
   {
     name: 'security',
@@ -154,6 +171,8 @@ const PROFILES: readonly AgentProfile[] = [
 const RUNNERS: Record<string, (req: SpawnRequest, deps: SpawnDeps) => AsyncGenerator<SpawnEvent>> = {
   consultant: runConsultant,
   researcher: runResearcher,
+  executor: runExecutor,
+  reviewer: runReviewer,
 };
 
 // ───────────────────────── 公开 API ─────────────────────────
