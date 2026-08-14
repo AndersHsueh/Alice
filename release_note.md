@@ -64,7 +64,7 @@ v3.0.1 必须同时满足以下 4 条硬指标。**截至 2026-08-14,4 条全部
   - P2 × 4:#14/#16/#17/#18(#15 挂起)
   - 已划掉 × 1:#6 IDE Bridge(按产品原则)
   - 详见 https://gitee.com/andershsueh/alice-cli/issues
-- 截至 2026-08-14,#1~#5 / #19 的实现已合并(PR !2~!7),21 个 issue 本体仍 open,待批量关闭。
+- 截至 2026-08-14,#1~#5 / #19 的实现已合并(PR !2~!7);**6 个 issue 已于同日核实合并后批量关闭**(每个 issue 下均有「已在 PR !N 修复」的回复)。
 
 ### 四、清理 obsolete 文档(commit a104d85)
 
@@ -81,7 +81,7 @@ v3.0.1 必须同时满足以下 4 条硬指标。**截至 2026-08-14,4 条全部
 
 ## 📋 已知问题与限制
 
-- **Gitee 远端 21 个 issue 仍全部 open**;其中 #1/#2/#3/#4/#5/#19 对应实现已 merged(PR !2~!7),issue 关闭操作待后续批量处理。#20/#21(karpathy-wiki-ingest / lint)代码尚未落地。
+- **Gitee 远端 15 个 issue 仍 open**:#1~#5 / #19 已实现、合并(PR !2~!7)并批量关闭;#20/#21(karpathy-wiki-ingest / lint)代码尚未落地。
 - **simplify 工具**:PR 流程的 simplify 步骤是 Claude Code harness 内置 skill(`/simplify`),不是 Alice 内置工具。后续 issue 实现时,每个 PR 合并前应跑 `/simplify` slash command。
 
 ## 🔗 索引
@@ -90,11 +90,11 @@ v3.0.1 必须同时满足以下 4 条硬指标。**截至 2026-08-14,4 条全部
 
 | Issue | 编号 | 标题 | 优先级 | 状态 |
 |-------|------|------|--------|------|
-| #IK8MWG | #1 | 启动期并行预取 prefetchAll() | P0 | ✅ 已合并(PR !2) |
-| #IK8MWH | #2 | 服务层深度补足:extractMemories + SessionMemory + compact | P0 | ✅ 已合并(PR !3) |
-| #IK8MWI | #3 | 权限模型升级:5 mode + tool-level rule + policyLimits | P0 | ✅ 已合并(PR !4) |
-| #IK8MWJ | #4 | Feature Flag + 构建期 DCE | P0 | ✅ 已合并(PR !5) |
-| #IK8MWK | #5 | Workspace Backend 收敛 | P0 | ✅ 已合并(PR !6 守卫) |
+| #IK8MWG | #1 | 启动期并行预取 prefetchAll() | P0 | ✅ 已合并(PR !2)+ 已关闭 |
+| #IK8MWH | #2 | 服务层深度补足:extractMemories + SessionMemory + compact | P0 | ✅ 已合并(PR !3)+ 已关闭 |
+| #IK8MWI | #3 | 权限模型升级:5 mode + tool-level rule + policyLimits | P0 | ✅ 已合并(PR !4)+ 已关闭 |
+| #IK8MWJ | #4 | Feature Flag + 构建期 DCE | P0 | ✅ 已合并(PR !5)+ 已关闭 |
+| #IK8MWK | #5 | Workspace Backend 收敛 | P0 | ✅ 已合并(PR !6 守卫)+ 已关闭 |
 | #IK8MX0 | #6 | IDE Bridge | — | ✕ 按原则删除 |
 | #IK8MWM | #7 | Coordinator 多 Agent 编排 | P1 | 📋 待落地 |
 | #IK8MWN | #8 | TeamMemorySync | P1 | 📋 待落地 |
@@ -108,7 +108,7 @@ v3.0.1 必须同时满足以下 4 条硬指标。**截至 2026-08-14,4 条全部
 | #IK8MWX | #16 | Voice 语音输入 | P2 | 📋 待落地 |
 | #IK8MWY | #17 | Plugin Marketplace | P2 | 📋 待落地 |
 | #IK8MWZ | #18 | analytics dashboard | P2 | 📋 待落地 |
-| #IK8MWL | #19 | karpathy-wiki-new builtin skill | P0 | ✅ 已合并(PR !7) |
+| #IK8MWL | #19 | karpathy-wiki-new builtin skill | P0 | ✅ 已合并(PR !7)+ 已关闭 |
 | #IK8MWT | #20 | karpathy-wiki-ingest builtin skill | P1 | 📋 待落地 |
 | #IK8MWU | #21 | karpathy-wiki-lint builtin skill | P1 | 📋 待落地 |
 
