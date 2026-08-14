@@ -25,3 +25,4 @@ export type {
 } from './types.js';
 export { AudioCaptureError, AsrError } from './types.js';
 export { NullAudioCapture, NullAsrEngine, NullWakeWordDetector } from './nullEngine.js';
+export { WhisperCppEngine, type WhisperCppEngineOptions, type WhisperLogger } from './whisperEngine.js';
