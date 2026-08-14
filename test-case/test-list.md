@@ -7,8 +7,8 @@
 ## 全量回归
 
 ```bash
-# issue 回归套件(当前基线 219 断言:168 旧 + 51 新)
-for t in 001 002 003 004 005 012 019 020; do bun run test-case/test-issue-$t.ts || exit 1; done
+# issue 回归套件(当前基线 168 + 51 + 45 = 264 断言)
+for t in 001 002 003 004 005 012 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
 ```
 
 ## 清单(按 issue 编号排序)
@@ -25,6 +25,7 @@ for t in 001 002 003 004 005 012 019 020; do bun run test-case/test-issue-$t.ts 
 | `test-issue-019.ts` | karpathy-wiki-new bundled skill:SKILL.md 契约、scaffold 执行器、listBundledSkills、dist 打包 | 内置 skills(skills/bundled) | issue #19(IK8MWL)/ PR !7 |
 | `test-issue-012.ts` | token 预算接通 TUI:getUsage 边界、ChatStreamEvent.budget_update 类型联合、TokenBudgetBar 字符串、联调事件序列 | runtime/agent/tokenBudget → types/chatStream → UI/Footer | issue #12(IK8MWR)/ PR !8 |
 | `test-issue-020.ts` | karpathy-wiki-ingest bundled skill:scanRaw(pending/ingested/orphans)+appendLog(type 白名单、append-only)+SKILL.md 契约 + dist 打包 | 内置 skills(skills/bundled) | issue #20(IK8MWT)/ PR !9 |
+| `test-issue-021.ts` | karpathy-wiki-lint bundled skill:5 项检查(BROKEN/ORPHAN/NOSUMMARY/NOSTAMP/LOWLINKS)命中与豁免、SUMMARY 计数、退出码恒 0、调用位置无关、MIN_LINKS 覆盖、SKILL.md 契约、dist 打包 | 内置 skills(skills/bundled) | issue #21(IK8MWU)/ PR !10 |
 | `test-model.ts` | 手动入口:模型连通性 + 速度检查(等价 `alice --test-model`);实现位于 `src/utils/testModel.ts` | 模型诊断(utils/testModel) | 历史 dev 脚本(无 PR);2026-08-15 修复为可运行薄壳 |
 | `test-tools.ts` | 手动入口:toolRegistry / builtinTools / ToolExecutor 冒烟 | 工具系统 | 历史 dev 脚本(无 PR) |
 | `test-function-calling.ts` | 手动入口:LLM function calling 端到端(需真实 API) | function calling | 历史 dev 脚本(无 PR) |
