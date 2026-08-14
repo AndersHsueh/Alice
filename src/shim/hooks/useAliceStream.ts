@@ -25,6 +25,7 @@ import type { ChatStreamEvent } from '../../types/chatStream.js';
 import type { ToolCallRecord } from '../../types/tool.js';
 import type { SlashCommandProcessorResult } from '../../ui/types.js';
 import { formatToolResult } from '../../runtime/tools/toolResultFormatter.js';
+import type { BudgetUsage } from '../../runtime/agent/tokenBudget.js';
 
 // ─── Tool call tracking ───────────────────────────────────────────────────────
 
@@ -80,6 +81,8 @@ export const useAliceStream = (
   const [modelDegraded, setModelDegraded] = useState(false);
   /** 当前实际使用的模型名称（由 model_selected 事件更新） */
   const [activeModelName, setActiveModelName] = useState<string | undefined>(undefined);
+  /** IK8MWR #12:token 预算用量快照,由 budget_update 事件更新 */
+  const [tokenBudget, setTokenBudget] = useState<BudgetUsage | null>(null);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -135,6 +138,7 @@ export const useAliceStream = (
     toolGroupIdRef.current = null;
     setToolCalls([]);
     setThought(null);
+    setTokenBudget(null);
 
     setStreamingState(StreamingState.Responding);
 
@@ -195,6 +199,16 @@ export const useAliceStream = (
     } else if (event.type === 'model_selected') {
       setModelDegraded(event.degraded);
       setActiveModelName(event.modelName);
+    } else if (event.type === 'budget_update') {
+      // IK8MWR #12:把 daemon 上报的预算用量写入 hook 状态,供 AppContainer 注入 UIState
+      setTokenBudget({
+        used: event.used,
+        total: event.total,
+        pct: event.pct,
+        remaining: event.remaining,
+        nearCompletion: event.nearCompletion,
+        nearDiminishing: event.nearDiminishing,
+      });
     }
   }, []);
 
@@ -292,5 +306,6 @@ export const useAliceStream = (
     loopDetectionConfirmationRequest: null,
     modelDegraded,
     activeModelName,
+    tokenBudget,
   };
 };

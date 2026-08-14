@@ -61,6 +61,18 @@ export async function* runChatStream(
           degraded: event.degraded,
           tier: event.tier,
         };
+      } else if (event.type === 'budget_update') {
+        // IK8MWR #12:把 runtime 的 BudgetUsage 摊平到 ChatStreamEvent 字段,
+        // 客户端无需再 import runtime 层类型
+        yield {
+          type: 'budget_update',
+          used: event.usage.used,
+          total: event.usage.total,
+          pct: event.usage.pct,
+          remaining: event.usage.remaining,
+          nearCompletion: event.usage.nearCompletion,
+          nearDiminishing: event.usage.nearDiminishing,
+        };
       } else if (event.type === 'warning') {
         logger.warn('Runtime warning', event.warning.message);
       } else if (event.type === 'permission_denied') {

@@ -16,6 +16,22 @@ const COMPLETION_THRESHOLD = 0.8
  */
 const DIMINISHING_THRESHOLD = 200
 
+/**
+ * Token Budget 用量快照(供 TUI 状态栏消费)
+ *
+ * 设计:纯函数从 BudgetTracker 派生,不修改状态。
+ * nearCompletion = 已用占比 ≥ 80%,提示"接近预算耗尽"
+ * nearDiminishing = 剩余 token < 200,提示"空间已不足,即将停止"
+ */
+export type BudgetUsage = {
+  used: number;
+  total: number;
+  pct: number;
+  remaining: number;
+  nearCompletion: boolean;
+  nearDiminishing: boolean;
+}
+
 /** 至少经历这么多轮才做收益递减判断 */
 const DIMINISHING_MIN_ITERATIONS = 2
 
@@ -102,4 +118,39 @@ export function checkTokenBudget(
 /** 估算字符串的 token 数（粗略：4 字符 ≈ 1 token） */
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4)
+}
+
+/**
+ * 从 BudgetTracker 派生当前用量快照(纯函数,不改 tracker)
+ *
+ * 用于把 token 预算进度暴露到 TUI 状态栏:
+ *  - total 为 null/0/负:未启用 budget,返回 zero state
+ *  - nearCompletion:pct ≥ 80%(提示用户即将耗尽)
+ *  - nearDiminishing:remaining < 200(提示用户空间已不足)
+ */
+export function getUsage(
+  tracker: BudgetTracker,
+  budget: number | null,
+): BudgetUsage {
+  if (budget === null || budget <= 0) {
+    return {
+      used: tracker.cumulativeOutputTokens,
+      total: 0,
+      pct: 0,
+      remaining: 0,
+      nearCompletion: false,
+      nearDiminishing: false,
+    }
+  }
+  const used = tracker.cumulativeOutputTokens
+  const remaining = Math.max(0, budget - used)
+  const pct = used / budget
+  return {
+    used,
+    total: budget,
+    pct,
+    remaining,
+    nearCompletion: pct >= COMPLETION_THRESHOLD,
+    nearDiminishing: remaining < DIMINISHING_THRESHOLD,
+  }
 }
