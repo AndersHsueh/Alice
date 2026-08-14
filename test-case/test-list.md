@@ -7,8 +7,8 @@
 ## 全量回归
 
 ```bash
-# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 = 531 断言)
-for t in 001 002 003 004 005 007 009 010 011 012 013 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
+# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 = 608 断言)
+for t in 001 002 003 004 005 007 008 009 010 011 012 013 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
 ```
 
 ## 清单(按 issue 编号排序)
@@ -25,6 +25,7 @@ for t in 001 002 003 004 005 007 009 010 011 012 013 019 020 021; do bun run tes
 | `test-issue-009.ts` | Zod v4 运行时校验:5 个高频工具 schema 覆盖 + 字段路径错误回灌 + 自修重试上限 2 + 低风险工具走 ajv + zod v4/v3 双入口兼容 | 工具系统(tools/zodAdapter、tools/schemaFromZod、runtime/tools/toolResultFormatter、core/llm) | issue #9(IK8MWO)/ PR !12 |
 | `test-issue-011.ts` | OpenTelemetry 三件套:span 数 4-9、attributes 快照(tokenBudget/model)、console 隐私断言(不含 prompt)、OTEL on/off overhead < 5% | 可观测性(observability/otelSDK、spans、otlpConfig) | issue #11(IK8MWQ)/ PR !13 |
 | `test-issue-007.ts` | Coordinator 多 Agent 编排:7 profile 注册 + 2 可 spawn(consultant/researcher) + /consult /research slash 分流 + permissionGate 按 profile 收敛 + researcher 失败不阻塞 | 多 Agent 编排(runtime/agent/coordinator) | issue #7(IK8MWM)/ PR !14 |
+| `test-issue-008.ts` | TeamMemorySync 协议 + 本地 mock:A→B 24h 召回命中、push/pull envelope 校验、warn-and-continue 失败隔离 | 跨端记忆同步(services/sync、core/sessionSync) | issue #8(IK8MWN)/ PR !15 |
 | `test-issue-019.ts` | karpathy-wiki-new bundled skill:SKILL.md 契约、scaffold 执行器、listBundledSkills、dist 打包 | 内置 skills(skills/bundled) | issue #19(IK8MWL)/ PR !7 |
 | `test-issue-012.ts` | token 预算接通 TUI:getUsage 边界、ChatStreamEvent.budget_update 类型联合、TokenBudgetBar 字符串、联调事件序列 | runtime/agent/tokenBudget → types/chatStream → UI/Footer | issue #12(IK8MWR)/ PR !8 |
 | `test-issue-020.ts` | karpathy-wiki-ingest bundled skill:scanRaw(pending/ingested/orphans)+appendLog(type 白名单、append-only)+SKILL.md 契约 + dist 打包 | 内置 skills(skills/bundled) | issue #20(IK8MWT)/ PR !9 |
