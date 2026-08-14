@@ -7,8 +7,8 @@
 ## 全量回归
 
 ```bash
-# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 + 45 + 34 + 58 + 47 + 29 + 24 + 38 + 21 + 37 + 28 + 49 = 1018 断言)
-for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profiles 014-concurrent 014-workspace 016 016-whisper 016-processor 016-wakeword 017 018 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
+# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 + 45 + 34 + 58 + 47 + 29 + 24 + 38 + 21 + 37 + 28 + 49 + 48 = 1066 断言)
+for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profiles 014-concurrent 014-workspace 016 016-whisper 016-processor 016-wakeword 017 017-sandbox 018 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
 ```
 
 ## 清单(按 issue 编号排序)
@@ -42,6 +42,7 @@ for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profil
 | `test-issue-016-processor.ts` | VoiceProcessor 抽象层(第 3 部分):VoiceProcessor 基类 + NullVoiceProcessor + RealVoiceProcessor 依赖注入 + getVoiceProcessor factory(读 voice_mode flag)+ shutdown/cancel 转发到子系统 + 抽象类多态 | Voice(src/voice/voiceProcessor) | issue #16(IK8MWX)/ PR !25 |
 | `test-issue-016-wakeword.ts` | EnergyWakeWordDetector(第 4 部分):RMS 能量阈值检测 + 静默/低能量/高能量 fixture + 阈值可调 + getStats(calls/hits/lastPeakRms) + cancel noop + DCE 友好(< 40KB) | Voice(src/voice/wakeWordEngine) | issue #16(IK8MWX)/ PR !26 |
 | `test-issue-017.ts` | Plugin manifest 验证 + registry(第 1 部分):Zod schema 拒绝 8+ 畸形 manifest + 字段级 issues + PluginRegistry CRUD + scanPluginDir 扫目录 + broken stub entry | 扩展生态(src/plugin) | issue #17(IK8MWY)/ PR !27 |
+| `test-issue-017-sandbox.ts` | Plugin Sandbox(第 2 部分):vm.runInNewContext + require 白名单拦截 + process.env 白名单拦截(get/has 双路径)+ tool quota(per-plugin + per-session)+ 失败隔离 + resetStats | 扩展生态(src/plugin/sandbox) | issue #17(IK8MWY)/ PR !28 |
 | `test-model.ts` | 手动入口:模型连通性 + 速度检查(等价 `alice --test-model`);实现位于 `src/utils/testModel.ts` | 模型诊断(utils/testModel) | 历史 dev 脚本(无 PR);2026-08-15 修复为可运行薄壳 |
 | `test-tools.ts` | 手动入口:toolRegistry / builtinTools / ToolExecutor 冒烟 | 工具系统 | 历史 dev 脚本(无 PR) |
 | `test-function-calling.ts` | 手动入口:LLM function calling 端到端(需真实 API) | function calling | 历史 dev 脚本(无 PR) |
