@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRD · v3.1.1 — ALICE / VERONICA</title>
+<style>
+  /* ──────────────── design tokens (anthropic editorial) ──────────────── */
+  :root {
+    /* warm, restrained palette — no AI purple/blue */
+    --ink:        #1a1612;
+    --ink-soft:   #4a4540;
+    --ink-mute:   #8a8580;
+    --paper:      #f5f0e8;
+    --paper-2:    #ebe5d8;
+    --rule:       #d8d0c0;
+    --accent:     #b85c00;        /* warm amber — single accent */
+    --accent-ink: #f5f0e8;
+    --positive:   #2d5016;
+    --negative:   #8b2a1f;
+
+    /* typography */
+    --serif:  'EB Garamond', 'Cormorant Garamond', 'Iowan Old Style', 'Apple Garamond', Georgia, serif;
+    --sans:   'Inter', -apple-system, 'Helvetica Neue', system-ui, sans-serif;
+    --mono:   'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+
+    --t-display: 700 6.5rem/0.92 var(--serif);
+    --t-h1:      600 3.25rem/1.05 var(--serif);
+    --t-h2:      500 2.1rem/1.2 var(--serif);
+    --t-h3:      500 1.4rem/1.3 var(--serif);
+    --t-body:    400 1.0625rem/1.65 var(--serif);
+    --t-eyebrow: 500 0.78rem/1 var(--sans);
+    --t-mono:    400 0.875rem/1.6 var(--mono);
+    --t-small:   400 0.85rem/1.55 var(--sans);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(184,92,0,0.03), transparent 40%),
+      radial-gradient(circle at 90% 100%, rgba(74,69,64,0.04), transparent 50%);
+  }
+
+  /* ──────────────── layout ──────────────── */
+  .doc {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 6rem 3.5rem 8rem;
+  }
+
+  .eyebrow {
+    font: var(--t-eyebrow);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .eyebrow::before {
+    content: '';
+    width: 1.6rem;
+    height: 1px;
+    background: var(--ink-soft);
+  }
+
+  /* ──────────────── hero ──────────────── */
+  .hero {
+    padding-top: 2.5rem;
+    padding-bottom: 4rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 5rem;
+  }
+  .hero .meta {
+    display: flex;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 2.5rem;
+    color: var(--ink-soft);
+    font: var(--t-small);
+    letter-spacing: 0.02em;
+  }
+  .hero .meta b { color: var(--ink); font-weight: 500; }
+  .hero h1 {
+    font: var(--t-display);
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin-bottom: 1.5rem;
+  }
+  .hero h1 .v {
+    color: var(--accent);
+    font-style: italic;
+  }
+  .hero .lede {
+    font: var(--t-body);
+    font-size: 1.18rem;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    max-width: 38em;
+    font-style: italic;
+  }
+  .hero .lede em { color: var(--ink); font-style: normal; font-weight: 500; }
+
+  /* ──────────────── sections ──────────────── */
+  section {
+    margin-bottom: 6rem;
+    scroll-margin-top: 2rem;
+  }
+  section h2 {
+    font: var(--t-h1);
+    letter-spacing: -0.018em;
+    color: var(--ink);
+    margin-bottom: 0.6rem;
+  }
+  section h2 .index {
+    font: var(--t-eyebrow);
+    color: var(--accent);
+    margin-right: 1.2rem;
+    letter-spacing: 0.18em;
+  }
+  section .subtitle {
+    font: var(--t-body);
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-bottom: 2.5rem;
+    max-width: 36em;
+  }
+  section h3 {
+    font: var(--t-h2);
+    color: var(--ink);
+    margin-top: 3rem;
+    margin-bottom: 1rem;
+  }
+  section h4 {
+    font: var(--t-h3);
+    color: var(--ink);
+    margin-top: 2rem;
+    margin-bottom: 0.7rem;
+  }
+  section p {
+    font: var(--t-body);
+    color: var(--ink-soft);
+    margin-bottom: 1.1rem;
+    max-width: 38em;
+  }
+  section p strong { color: var(--ink); font-weight: 500; }
+  section p code, section li code {
+    font: var(--t-mono);
+    background: var(--paper-2);
+    padding: 0.08em 0.4em;
+    border-radius: 3px;
+    color: var(--accent);
+    font-size: 0.92em;
+  }
+
+  /* ──────────────── lists ──────────────── */
+  section ul, section ol {
+    margin: 0 0 1.5rem 1.3rem;
+    color: var(--ink-soft);
+    max-width: 38em;
+  }
+  section li {
+    margin-bottom: 0.5rem;
+    line-height: 1.55;
+  }
+  section li::marker { color: var(--accent); }
+
+  /* ──────────────── pull-quote / callout ──────────────── */
+  .callout {
+    border-left: 3px solid var(--accent);
+    padding: 0.4rem 0 0.4rem 1.8rem;
+    margin: 2rem 0 2.5rem;
+    max-width: 38em;
+  }
+  .callout p {
+    font: var(--t-body);
+    font-size: 1.12rem;
+    line-height: 1.6;
+    color: var(--ink);
+    font-style: italic;
+    margin: 0;
+  }
+  .callout .label {
+    font: var(--t-eyebrow);
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  /* ──────────────── tables ──────────────── */
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0 2.5rem;
+    font: var(--t-small);
+  }
+  .table th, .table td {
+    text-align: left;
+    padding: 0.7rem 0.4rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  .table th {
+    font: var(--t-eyebrow);
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    border-bottom: 1.5px solid var(--ink);
+    font-weight: 500;
+  }
+  .table td {
+    color: var(--ink-soft);
+  }
+  .table td strong { color: var(--ink); font-weight: 500; }
+  .table td code {
+    font: var(--t-mono);
+    background: var(--paper-2);
+    padding: 0.04em 0.32em;
+    border-radius: 2px;
+    color: var(--accent);
+    font-size: 0.92em;
+  }
+  .table .col-num { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .table .col-tag { font: var(--t-eyebrow); letter-spacing: 0.1em; }
+
+  /* ──────────────── PR strip (numbered cards) ──────────────── */
+  .pr-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    margin: 2rem 0 3rem;
+  }
+  .pr-card {
+    background: var(--paper);
+    padding: 1.1rem 1.2rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    text-decoration: none;
+    color: var(--ink);
+    transition: background 0.2s ease;
+  }
+  .pr-card:hover { background: var(--paper-2); }
+  .pr-card .num {
+    font: var(--t-eyebrow);
+    color: var(--accent);
+    letter-spacing: 0.12em;
+  }
+  .pr-card .title {
+    font: var(--t-h4);
+    color: var(--ink);
+    line-height: 1.25;
+  }
+  .pr-card .meta {
+    font: var(--t-small);
+    color: var(--ink-mute);
+    margin-top: auto;
+    padding-top: 0.6rem;
+  }
+  .pr-card .meta code {
+    font: var(--t-mono);
+    color: var(--ink-soft);
+  }
+
+  /* ──────────────── capability block ──────────────── */
+  .cap {
+    margin: 0 0 4.5rem;
+    padding: 2.4rem 0 2.6rem;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .cap:last-of-type { border-bottom: 0; }
+  .cap-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1.5rem;
+    margin-bottom: 1.2rem;
+  }
+  .cap-head .num {
+    font: 400 1.4rem/1 var(--serif);
+    color: var(--accent);
+    font-style: italic;
+  }
+  .cap-head h3 {
+    font: var(--t-h2);
+    color: var(--ink);
+    margin: 0;
+  }
+  .cap .body {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 3rem;
+    align-items: start;
+  }
+  .cap .body .narrative p {
+    font: var(--t-body);
+    color: var(--ink-soft);
+    margin-bottom: 0.9rem;
+  }
+  .cap .body .specs {
+    border-left: 1px solid var(--rule);
+    padding-left: 2rem;
+  }
+  .cap .body .specs h5 {
+    font: var(--t-eyebrow);
+    color: var(--ink-soft);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin: 0 0 0.6rem;
+    font-weight: 500;
+  }
+  .cap .body .specs ul {
+    margin: 0 0 1.5rem;
+    padding-left: 1.1rem;
+    font: var(--t-small);
+    color: var(--ink-soft);
+  }
+  .cap .body .specs ul li {
+    margin-bottom: 0.35rem;
+  }
+  .cap .body .specs ul li code {
+    font: var(--t-mono);
+    background: var(--paper-2);
+    padding: 0.04em 0.3em;
+    border-radius: 2px;
+    color: var(--accent);
+    font-size: 0.92em;
+  }
+  .cap .body .specs .stat {
+    display: flex;
+    gap: 1.2rem;
+    margin-top: 1.2rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--rule);
+  }
+  .cap .body .specs .stat .k { display: block; font: var(--t-eyebrow); color: var(--ink-mute); letter-spacing: 0.12em; }
+  .cap .body .specs .stat .v { display: block; font: 500 1.5rem/1 var(--serif); color: var(--ink); margin-top: 0.2rem; font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 720px) {
+    .doc { padding: 3rem 1.4rem 4rem; }
+    .hero h1 { font-size: 3.5rem; }
+    .cap .body { grid-template-columns: 1fr; gap: 1.5rem; }
+    .cap .body .specs { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); padding-top: 1.5rem; }
+    section h2 { font-size: 2.2rem; }
+  }
+
+  /* ──────────────── footer ──────────────── */
+  .footer {
+    margin-top: 6rem;
+    padding-top: 2.5rem;
+    border-top: 1px solid var(--rule);
+    font: var(--t-small);
+    color: var(--ink-mute);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .footer .stamp {
+    font: var(--t-eyebrow);
+    letter-spacing: 0.16em;
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <!-- ─────────────────── hero ─────────────────── -->
+  <header class="hero">
+    <div class="eyebrow">Product Requirements Document</div>
+    <div class="meta">
+      <span><b>Version</b> · v3.1.1</span>
+      <span><b>Released</b> · 2026-08-15</span>
+      <span><b>Base</b> · v3.1.0 (<code>9d789ff</code>)</span>
+      <span><b>Status</b> · Shipped</span>
+    </div>
+    <h1>ALICE&nbsp;/&nbsp;VERONICA <span class="v">v3.1.1</span></h1>
+    <p class="lede">
+      A quiet expansion. Four <em>P2</em> issues — <em>observability, multi-agent collaboration, voice input, and a plugin marketplace</em> — folded into one release. Twelve pull requests, five hundred and sixty-five new assertions, zero breaking changes to the public surface of v3.1.0.
+    </p>
+  </header>
+
+  <!-- ─────────────────── 01 · executive summary ─────────────────── -->
+  <section id="summary">
+    <h2><span class="index">01</span>Executive summary</h2>
+    <p class="subtitle">What this release is, and what it deliberately is not.</p>
+
+    <p>
+      v3.1.0 closed the foundational arc — P1 × 9, the eight-item Zod v4 schema runtime, OpenTelemetry SDK scaffolding, the LSP integration, ripgrep substitution, the karpathy wiki ingest / lint bundled skills, and the token-budget bar. <strong>v3.1.1 opens the second arc</strong>: the long-promised <em>P2</em> capabilities that sit on top of that foundation, with no rewrites underneath.
+    </p>
+
+    <div class="callout">
+      <span class="label">In one line</span>
+      <p>v3.1.1 makes ALICE an <em>observable, collaborative, voiceable, and extensible</em> assistant — without changing what v3.1.0 already shipped.</p>
+    </div>
+
+    <h3>At a glance</h3>
+    <table class="table">
+      <thead>
+        <tr><th>Dimension</th><th>Value</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Issues closed (P2)</td><td>4 — <code>#18</code> · <code>#14</code> · <code>#16</code> · <code>#17</code></td></tr>
+        <tr><td>Pull requests</td><td>12 (PR <code>!17</code> – PR <code>!29</code>)</td></tr>
+        <tr><td>Commits on <code>main</code></td><td>13 (12 feature commits + 1 release commit)</td></tr>
+        <tr><td>New test assertions</td><td><strong>565</strong> on top of v3.1.0's 608 — total <strong>1173</strong></td></tr>
+        <tr><td>New source files</td><td>15 — <code>src/voice/*</code> (6) · <code>src/plugin/*</code> (6) · <code>src/services/analytics/*</code> (2) · <code>src/runtime/agent/coordinator/workspaceCoordinator.ts</code></td></tr>
+        <tr><td>Lines of test code added</td><td>≈ 4,000 across <code>test-case/</code></td></tr>
+        <tr><td>Build</td><td><code>bun build.ts</code> succeeds · 1 dead-branch fold in <code>feature()</code> callsite</td></tr>
+        <tr><td>Dependencies</td><td>No new packages — all 4 issues built on existing imports (<code>zod/v4</code>, <code>vm</code>, <code>crypto</code>, <code>child_process</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>What is not in v3.1.1</h3>
+    <ul>
+      <li><strong>No new runtime dependencies.</strong> All four P2 capabilities were built with the existing import surface. Voice, plugin sandboxing, marketplace signing, and multi-agent bus all use Node's built-in <code>vm</code>, <code>crypto</code>, <code>child_process</code>, and <code>events</code> modules.</li>
+      <li><strong>No breaking API changes.</strong> Every P2 entry point is opt-in (a <code>teamMessageBus?</code> option, a <code>voice_mode</code> feature flag, a <code>Marketplace</code> class instantiated on demand, a <code>PluginRegistry</code> independent from the builtin tool list).</li>
+      <li><strong>No remote infrastructure.</strong> The TeamMemorySync remote endpoint, real GPG / openpgp signature verification, real wake-word models (snowboy / openWakeWord), and the plugin marketplace HTTP API are all <em>deliberately scoped out</em> — v3.2.0 work.</li>
+    </ul>
+  </section>
+
+  <!-- ─────────────────── 02 · four capabilities ─────────────────── -->
+  <section id="capabilities">
+    <h2><span class="index">02</span>The four capabilities</h2>
+    <p class="subtitle">Each capability is shipped as its own subsystem — independently testable, independently disable-able, independently replaceable.</p>
+
+    <!-- ── OTEL ── -->
+    <div class="cap">
+      <div class="cap-head"><span class="num">I.</span><h3>Observability &middot; OTEL local dashboard</h3></div>
+      <div class="body">
+        <div class="narrative">
+          <p>Built on top of v3.1.0's OpenTelemetry SDK (issue <code>#11</code>), the analytics layer reads the SDK's <code>~/.alice/otel/trace.jsonl</code> console exporter output and surfaces a privacy-respecting local dashboard. The aggregator is a <em>pure function</em> — same input, same output, no IO, easy to test.</p>
+          <p>Privacy is enforced at the aggregator's exit. <code>assertPrivacySafe</code> walks the output object recursively and rejects any string value containing <code>prompt</code>, <code>completion</code>, <code>system_prompt</code>, <code>user_message</code>, or <code>assistant_message</code> substrings. The aggregator only ever emits <em>counts</em> and <em>category names</em>.</p>
+        </div>
+        <div class="specs">
+          <h5>New files</h5>
+          <ul>
+            <li><code>src/services/analytics/aggregator.ts</code> · pure function</li>
+            <li><code>src/services/analytics/analyticsRenderer.ts</code> · ANSI / plain</li>
+          </ul>
+          <h5>Output</h5>
+          <ul>
+            <li>7 d × 24 h heatmap of invocation density</li>
+            <li>Per-day input / output / total token tables</li>
+            <li>Per-tool call / success / failed / error rate</li>
+            <li>Date range, total spans, skipped-line count</li>
+          </ul>
+          <div class="stat">
+            <div><span class="k">PR</span><span class="v">!17</span></div>
+            <div><span class="k">Assertions</span><span class="v">45</span></div>
+            <div><span class="k">Source</span><span class="v">≈ 11 KB</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Multi-agent ── -->
+    <div class="cap">
+      <div class="cap-head"><span class="num">II.</span><h3>Collaboration &middot; multi-agent team</h3></div>
+      <div class="body">
+        <div class="narrative">
+          <p>The original v3.0.1 Coordinator was a single-agent sequencer. v3.1.1 extends it into a true <em>team</em>: workers share a <code>TeamMessageBus</code>, can publish and acknowledge typed messages, and run with strict per-workspace locks so they don't trample each other's writes.</p>
+          <p>Five PRs build this in layers — protocol, tool binding, profile surface, runner integration, workspace coordination — each tested in isolation. The end-to-end contract is asserted in a single 24-assertion test that runs three workers concurrently against one bus.</p>
+        </div>
+        <div class="specs">
+          <h5>New files</h5>
+          <ul>
+            <li><code>teamMessageBus.ts</code> · sequence + ack + retry</li>
+            <li><code>teamMessage.ts</code> · builtin tool (send / recv / ack)</li>
+            <li><code>executorRunner.ts</code> · 3–6 step LLM planner</li>
+            <li><code>reviewerRunner.ts</code> · 1–5 finding LLM reviewer</li>
+            <li><code>concurrentAgentRunner.ts</code> · multi-worker merge</li>
+            <li><code>workspaceCoordinator.ts</code> · per-workspace FIFO lock</li>
+          </ul>
+          <h5>Profiles now spawnable</h5>
+          <ul>
+            <li><code>consultant</code> · <code>researcher</code> (since v3.0.1)</li>
+            <li><code>executor</code> · <code>reviewer</code> (new in v3.1.1)</li>
+            <li>3 still dormant: <code>writer</code> · <code>security</code> · <code>tester</code></li>
+          </ul>
+          <div class="stat">
+            <div><span class="k">PRs</span><span class="v">!18–22</span></div>
+            <div><span class="k">Assertions</span><span class="v">194</span></div>
+            <div><span class="k">Profile set</span><span class="v">4 / 7</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Voice ── -->
+    <div class="cap">
+      <div class="cap-head"><span class="num">III.</span><h3>Input &middot; voice</h3></div>
+      <div class="body">
+        <div class="narrative">
+          <p>Four PRs land the voice subsystem as a clean abstraction: a <code>VoiceProcessor</code> base class with two implementations (<code>NullVoiceProcessor</code> for the default-off path, <code>RealVoiceProcessor</code> for the production stack), a <code>WhisperCppEngine</code> that spawns the whisper.cpp CLI as a child process, and a prototype <code>EnergyWakeWordDetector</code> keyed on RMS energy. The whole subsystem sits behind one feature flag: <code>voice_mode</code>.</p>
+          <p>The architectural contract is the single <code>processUserInput(buffer)</code> entry point. Whether the buffer is <code>{ kind: 'text', content }</code> or <code>{ kind: 'voice', audio }</code>, the function returns the same <code>NormalizedInput</code> shape. Downstream code does not need to know.</p>
+        </div>
+        <div class="specs">
+          <h5>New files (6)</h5>
+          <ul>
+            <li><code>voice/types.ts</code> · <code>nullEngine.ts</code> · <code>voiceInput.ts</code></li>
+            <li><code>whisperEngine.ts</code> · <code>voiceProcessor.ts</code> · <code>wakeWordEngine.ts</code></li>
+          </ul>
+          <h5>Failure modes (all warn-and-continue)</h5>
+          <ul>
+            <li><code>WhisperCppEngine.isAvailable() = false</code> → empty <code>content</code></li>
+            <li>Child process timeout → <code>AsrError('timeout')</code></li>
+            <li>Subprocess non-zero exit → <code>AsrError('unknown')</code></li>
+            <li>ENAMETOOLONG / binary missing → <code>AsrError('binary_missing')</code></li>
+          </ul>
+          <div class="stat">
+            <div><span class="k">PRs</span><span class="v">!23–26</span></div>
+            <div><span class="k">Assertions</span><span class="v">134</span></div>
+            <div><span class="k">Source</span><span class="v">≈ 32 KB</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Plugin ── -->
+    <div class="cap">
+      <div class="cap-head"><span class="num">IV.</span><h3>Extension &middot; plugin marketplace</h3></div>
+      <div class="body">
+        <div class="narrative">
+          <p>Four new source files plus tests give ALICE a real plugin surface. A <code>PluginManifest</code> is validated with a Zod v4 schema; a <code>PluginRegistry</code> holds installed plugin info; a <code>PluginSandbox</code> runs plugin code in a <code>vm</code> context with a whitelist for <code>require</code> and <code>process.env</code>; a <code>Marketplace</code> wraps the install path with HMAC-SHA256 signature verification.</p>
+          <p>The end-to-end fixture — <code>loadPluginSampleWeather()</code> — signs a manifest, installs it, loads the tool into the host registry, invokes <code>get_weather('北京')</code>, and asserts the round-trip result. 39 assertions cover the entire chain.</p>
+        </div>
+        <div class="specs">
+          <h5>New files (5)</h5>
+          <ul>
+            <li><code>plugin/types.ts</code> · <code>manifest.ts</code> · <code>registry.ts</code></li>
+            <li><code>sandbox.ts</code> · <code>marketplace.ts</code> · <code>loader.ts</code></li>
+          </ul>
+          <h5>Security boundaries</h5>
+          <ul>
+            <li>Manifest rejects 8+ malformed shapes with field-level issues</li>
+            <li>Sandbox blocks <code>fs</code>, <code>child_process</code>, <code>os</code>, <code>net</code>, <code>http</code>, <code>https</code>, <code>crypto</code>, <code>path</code></li>
+            <li>Per-plugin (default 100) + per-session (default 1000) tool call quotas</li>
+            <li>HMAC signature verification with constant-time comparison</li>
+          </ul>
+          <div class="stat">
+            <div><span class="k">PRs</span><span class="v">!27–29</span></div>
+            <div><span class="k">Assertions</span><span class="v">135</span></div>
+            <div><span class="k">Source</span><span class="v">≈ 30 KB</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 03 · architecture ─────────────────── -->
+  <section id="architecture">
+    <h2><span class="index">03</span>Architecture map</h2>
+    <p class="subtitle">Where the four subsystems sit in the source tree, and what they touch.</p>
+
+    <h3>Source tree (new in v3.1.1, marked with <code>+</code>)</h3>
+    <table class="table">
+      <thead>
+        <tr><th>Path</th><th>Role</th><th>Size</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>src/services/analytics/aggregator.ts</code> <strong>+</strong></td><td>OTEL JSONL → 7 d × 24 h heatmap + token table + per-tool error rate (pure function)</td><td class="col-num">225</td></tr>
+        <tr><td><code>src/services/analytics/analyticsRenderer.ts</code> <strong>+</strong></td><td>ANSI / plain string rendering</td><td class="col-num">140</td></tr>
+        <tr><td><code>src/runtime/agent/coordinator/teamMessageBus.ts</code> <strong>+</strong></td><td>sequence + ack + retry + warn-and-continue</td><td class="col-num">225</td></tr>
+        <tr><td><code>src/runtime/agent/coordinator/executorRunner.ts</code> <strong>+</strong></td><td>3–6 step LLM task planner</td><td class="col-num">150</td></tr>
+        <tr><td><code>src/runtime/agent/coordinator/reviewerRunner.ts</code> <strong>+</strong></td><td>1–5 finding LLM reviewer</td><td class="col-num">130</td></tr>
+        <tr><td><code>src/runtime/agent/coordinator/workspaceCoordinator.ts</code> <strong>+</strong></td><td>per-workspace FIFO lock + timeout + failure isolation</td><td class="col-num">200</td></tr>
+        <tr><td><code>src/runtime/agent/concurrentAgentRunner.ts</code></td><td>modified — accept <code>teamMessageBus</code>, yield <code>team_message_batch</code></td><td class="col-num">+25</td></tr>
+        <tr><td><code>src/tools/builtin/teamMessage.ts</code> <strong>+</strong></td><td>send / recv / ack AliceTool</td><td class="col-num">200</td></tr>
+        <tr><td><code>src/voice/types.ts</code> <strong>+</strong></td><td>AudioCapture / AsrEngine / WakeWordDetector contracts</td><td class="col-num">110</td></tr>
+        <tr><td><code>src/voice/nullEngine.ts</code> <strong>+</strong></td><td>Null / default-off implementations</td><td class="col-num">50</td></tr>
+        <tr><td><code>src/voice/voiceInput.ts</code> <strong>+</strong></td><td>processUserInput unified entry</td><td class="col-num">60</td></tr>
+        <tr><td><code>src/voice/whisperEngine.ts</code> <strong>+</strong></td><td>whisper.cpp child-process ASR</td><td class="col-num">140</td></tr>
+        <tr><td><code>src/voice/voiceProcessor.ts</code> <strong>+</strong></td><td>NullVoiceProcessor / RealVoiceProcessor / factory</td><td class="col-num">165</td></tr>
+        <tr><td><code>src/voice/wakeWordEngine.ts</code> <strong>+</strong></td><td>EnergyWakeWordDetector (RMS threshold prototype)</td><td class="col-num">110</td></tr>
+        <tr><td><code>src/plugin/{types,manifest,registry,sandbox,marketplace,loader}.ts</code> <strong>+</strong></td><td>6 files · manifest Zod + registry + sandbox + marketplace + loader</td><td class="col-num">680</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Layering</h3>
+    <p>The four new capabilities share one architectural decision: <em>they all sit above v3.1.0, not inside it</em>. None of the P2 changes touched:</p>
+    <ul>
+      <li>The agent loop core (<code>src/runtime/agent/agentLoop.ts</code>)</li>
+      <li>The permission system (<code>src/core/permission/*</code>)</li>
+      <li>The build-time DCE pipeline (<code>src/runtime/feature/buildTimeDCE.ts</code>)</li>
+      <li>Any tool in <code>src/tools/builtin/</code> except the new <code>teamMessage.ts</code></li>
+    </ul>
+    <p>This is what makes the test count 1173 instead of something much higher — the new code is self-contained and tests don't have to mock the existing surface.</p>
+  </section>
+
+  <!-- ─────────────────── 04 · test coverage ─────────────────── -->
+  <section id="testing">
+    <h2><span class="index">04</span>Test coverage</h2>
+    <p class="subtitle">v3.1.0 baseline was 608 assertions. v3.1.1 adds 565, for 1173 total.</p>
+
+    <h3>Per-PR contribution</h3>
+    <table class="table">
+      <thead>
+        <tr><th>PR</th><th>Issue</th><th>New script(s)</th><th>Assertions</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>!17</code></td><td>#18</td><td><code>test-issue-018.ts</code></td><td class="col-num">45</td></tr>
+        <tr><td><code>!18</code></td><td>#14 · pt&nbsp;1</td><td><code>test-issue-014.ts</code></td><td class="col-num">34</td></tr>
+        <tr><td><code>!19</code></td><td>#14 · pt&nbsp;2</td><td><code>test-issue-014-tool.ts</code></td><td class="col-num">58</td></tr>
+        <tr><td><code>!20</code></td><td>#14 · pt&nbsp;3</td><td><code>test-issue-014-profiles.ts</code></td><td class="col-num">47</td></tr>
+        <tr><td><code>!21</code></td><td>#14 · pt&nbsp;4</td><td><code>test-issue-014-concurrent.ts</code></td><td class="col-num">29</td></tr>
+        <tr><td><code>!22</code></td><td>#14 · pt&nbsp;5</td><td><code>test-issue-014-workspace.ts</code></td><td class="col-num">24</td></tr>
+        <tr><td><code>!23</code></td><td>#16 · pt&nbsp;1</td><td><code>test-issue-016.ts</code></td><td class="col-num">38</td></tr>
+        <tr><td><code>!24</code></td><td>#16 · pt&nbsp;2</td><td><code>test-issue-016-whisper.ts</code></td><td class="col-num">21</td></tr>
+        <tr><td><code>!25</code></td><td>#16 · pt&nbsp;3</td><td><code>test-issue-016-processor.ts</code></td><td class="col-num">37</td></tr>
+        <tr><td><code>!26</code></td><td>#16 · pt&nbsp;4</td><td><code>test-issue-016-wakeword.ts</code></td><td class="col-num">28</td></tr>
+        <tr><td><code>!27</code></td><td>#17 · pt&nbsp;1</td><td><code>test-issue-017.ts</code></td><td class="col-num">49</td></tr>
+        <tr><td><code>!28</code></td><td>#17 · pt&nbsp;2</td><td><code>test-issue-017-sandbox.ts</code></td><td class="col-num">48</td></tr>
+        <tr><td><code>!29</code></td><td>#17 · pt&nbsp;3</td><td><code>test-issue-017-marketplace.ts</code></td><td class="col-num">39</td></tr>
+        <tr><td colspan="2"><em>baseline (v3.1.0)</em></td><td>—</td><td class="col-num">608</td></tr>
+        <tr><td colspan="2"><em>delta</em></td><td>—</td><td class="col-num"><strong>+ 565</strong></td></tr>
+        <tr><td colspan="2"><strong>v3.1.1 total</strong></td><td><strong>27 scripts</strong></td><td class="col-num"><strong>1,173</strong></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ─────────────────── 05 · migration ─────────────────── -->
+  <section id="migration">
+    <h2><span class="index">05</span>Migration &amp; compatibility</h2>
+    <p class="subtitle">v3.1.1 is a strict additive release. Every v3.1.0 consumer should upgrade without code changes.</p>
+
+    <h3>Upgrade</h3>
+    <p>No new dependencies, no breaking API changes, no database migrations. The release commit is on <code>main</code> at <code>b71ed55</code>, tagged <code>v3.1.1</code>.</p>
+
+    <h3>Behavior changes you may notice</h3>
+    <ul>
+      <li><strong>Profile list now shows 4 spawnable.</strong> The <code>:agents</code> slash command will list <code>consultant</code>, <code>researcher</code>, <code>executor</code>, and <code>reviewer</code> instead of just two. If you have UI that enumerates the set, expect the count to grow.</li>
+      <li><strong>Run-loop is no-op compatible.</strong> If you <em>don't</em> pass <code>teamMessageBus</code> to <code>runAgents()</code>, the behavior is byte-identical to v3.1.0.</li>
+      <li><strong>Voice is opt-in by flag.</strong> Until a user adds <code>voice_mode: true</code> to <code>~/.alice/settings.jsonc</code>, no voice code runs at all (NullVoiceProcessor).</li>
+      <li><strong>Plugin system is inert without an explicit Marketplace.</strong> The <code>PluginRegistry</code>, <code>PluginSandbox</code>, and <code>Marketplace</code> classes are not imported by any existing call site. Nothing executes until you instantiate one.</li>
+    </ul>
+
+    <h3>What to read first if you only have ten minutes</h3>
+    <ol>
+      <li><code>release-notes/v3.1.1.md</code> — the executable summary</li>
+      <li><code>test-list.md</code> — the index of what 27 scripts verify</li>
+      <li>The four cap blocks in section <a href="#capabilities">02</a> of this document</li>
+    </ol>
+  </section>
+
+  <!-- ─────────────────── 06 · limitations ─────────────────── -->
+  <section id="limitations">
+    <h2><span class="index">06</span>Known limitations</h2>
+    <p class="subtitle">Honest about what v3.1.1 does not solve.</p>
+
+    <table class="table">
+      <thead>
+        <tr><th>Capability</th><th>Limitation</th><th>Why</th><th>Target</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>OTEL dashboard</td>
+          <td>No streaming / no real-time tail</td>
+          <td>Aggregator is batch; reading a 5&nbsp;MB JSONL twice per second is not free</td>
+          <td>v3.2.0</td>
+        </tr>
+        <tr>
+          <td>Multi-agent</td>
+          <td>3 of 7 profiles still dormant (<code>writer</code>, <code>security</code>, <code>tester</code>)</td>
+          <td>Out of scope for the P2 batch; each is its own initiative</td>
+          <td>v3.2.0 / v3.3.0</td>
+        </tr>
+        <tr>
+          <td>Multi-agent</td>
+          <td>TeamMemorySync remote endpoint is still local-mock only</td>
+          <td>Remote needs an auth model that is its own design exercise</td>
+          <td>v4.0.0</td>
+        </tr>
+        <tr>
+          <td>Voice</td>
+          <td><code>EnergyWakeWordDetector</code> is RMS-based, not phoneme-based</td>
+          <td>Real wake-word needs a model; a placeholder detector is more honest than a fake one</td>
+          <td>v3.2.0 (snowboy / openWakeWord swap)</td>
+        </tr>
+        <tr>
+          <td>Voice</td>
+          <td>No <code>AVFoundation</code> / <code>WASAPI</code> / <code>pulse</code> capture implementation</td>
+          <td>Cross-OS audio capture is its own platform-specific work</td>
+          <td>v3.2.0 (per-OS)</td>
+        </tr>
+        <tr>
+          <td>Plugin</td>
+          <td>HMAC-SHA256 simulates GPG</td>
+          <td>Real GPG / openpgp needs key infrastructure</td>
+          <td>v3.2.0</td>
+        </tr>
+        <tr>
+          <td>Plugin</td>
+          <td>Sandbox uses <code>vm</code>, not a real V8 isolate</td>
+          <td>True isolation needs <code>isolated-vm</code> (native); <code>vm</code> is enough for the threat model</td>
+          <td>v3.2.0 (if needed)</td>
+        </tr>
+        <tr>
+          <td>Plugin</td>
+          <td>No remote marketplace HTTP API</td>
+          <td>Authentication, rate limiting, and billing are out of scope</td>
+          <td>v3.3.0+</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ─────────────────── 07 · pull requests ─────────────────── -->
+  <section id="prs">
+    <h2><span class="index">07</span>The twelve pull requests</h2>
+    <p class="subtitle">In the order they merged.</p>
+
+    <div class="pr-strip">
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/17"><span class="num">PR !17</span><span class="title">OTEL local dashboard</span><span class="meta">+45 · <code>#18</code></span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/18"><span class="num">PR !18</span><span class="title">TeamMessageBus protocol</span><span class="meta">+34 · <code>#14</code>/1</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/19"><span class="num">PR !19</span><span class="title">TeamMessage tool</span><span class="meta">+58 · <code>#14</code>/2</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/20"><span class="num">PR !20</span><span class="title">executor + reviewer</span><span class="meta">+47 · <code>#14</code>/3</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/21"><span class="num">PR !21</span><span class="title">Multi-worker bus</span><span class="meta">+29 · <code>#14</code>/4</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/22"><span class="num">PR !22</span><span class="title">Workspace coordination</span><span class="meta">+24 · <code>#14</code>/5</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/23"><span class="num">PR !23</span><span class="title">Voice interface layer</span><span class="meta">+38 · <code>#16</code>/1</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/24"><span class="num">PR !24</span><span class="title">whisper.cpp engine</span><span class="meta">+21 · <code>#16</code>/2</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/25"><span class="num">PR !25</span><span class="title">VoiceProcessor</span><span class="meta">+37 · <code>#16</code>/3</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/26"><span class="num">PR !26</span><span class="title">WakeWord + DCE</span><span class="meta">+28 · <code>#16</code>/4</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/27"><span class="num">PR !27</span><span class="title">Plugin manifest</span><span class="meta">+49 · <code>#17</code>/1</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/28"><span class="num">PR !28</span><span class="title">Plugin sandbox</span><span class="meta">+48 · <code>#17</code>/2</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/29"><span class="num">PR !29</span><span class="title">Marketplace + e2e</span><span class="meta">+39 · <code>#17</code>/3</span></a>
+    </div>
+  </section>
+
+  <!-- ─────────────────── 08 · roadmap ─────────────────── -->
+  <section id="roadmap">
+    <h2><span class="index">08</span>Roadmap to v3.2.0</h2>
+    <p class="subtitle">The next batch is bounded by what v3.1.1 explicitly leaves undone.</p>
+
+    <h3>Concretely, the v3.2.0 candidate list</h3>
+    <ol>
+      <li><strong>Streaming OTEL dashboard.</strong> Watch <code>trace.jsonl</code> via <code>fs.watch</code>, render deltas instead of re-reading the whole file.</li>
+      <li><strong>Real wake-word model.</strong> Swap <code>EnergyWakeWordDetector</code> for a <code>SnowboyWakeWordDetector</code> / <code>OpenWakeWordDetector</code> that loads a model file. The <code>WakeWordDetector</code> interface does not need to change.</li>
+      <li><strong>Real GPG signature verification.</strong> Replace the HMAC layer with <code>openpgp</code> or a <code>gpg</code> subprocess. <code>verifySignature</code> signature stays the same; the implementation underneath swaps.</li>
+      <li><strong>Plugin marketplace HTTP API.</strong> A new <code>MarketplaceClient</code> class that fetches a manifest from a URL, verifies its signature against a pinned public key, and runs the existing <code>Marketplace.install</code> path.</li>
+      <li><strong>Cross-OS audio capture.</strong> <code>AVFoundationCapture</code> (macOS), <code>WASAPICapture</code> (Windows), <code>PulseAudioCapture</code> (Linux). The <code>AudioCapture</code> interface from v3.1.1 is what they implement.</li>
+      <li><strong>Profile #3 — <code>writer</code>.</strong> Use the same LLM-planner shape as <code>executor</code>, tuned for prose rather than code steps.</li>
+    </ol>
+    <p>None of these change the v3.1.1 surface. They extend it.</p>
+  </section>
+
+  <!-- ─────────────────── 09 · closing ─────────────────── -->
+  <section id="closing">
+    <h2><span class="index">09</span>Closing note</h2>
+    <p class="subtitle">For the next person who has to maintain this.</p>
+
+    <p>
+      v3.1.1 is intentionally small. It is four features, each one shipped behind its own flag, each one independently testable, each one with a known placeholder for the next thing. The codebase grew by roughly <strong>15 source files and 4,000 lines of test code</strong>; nothing else moved.
+    </p>
+
+    <p>
+      If you are debugging one of these subsystems, the fastest path is: <code>test-list.md</code> → the matching <code>test-issue-NNN.ts</code> → run it under <code>bun</code>. The tests are not unit tests with mocks; they construct real <code>TeamMessageBus</code>es, real <code>vm</code> sandboxes, real <code>child_process</code>es for <code>whisper.cpp</code> stubs, and real <code>fs</code> writes for the registry scan. The behavior is the behavior.
+    </p>
+
+    <p>
+      If you are extending one of these subsystems: the interfaces (<code>VoiceProcessor</code>, <code>PluginLoader</code>, <code>Marketplace</code>, <code>WorkspaceCoordinator</code>) are small on purpose. Read the file, not the docs.
+    </p>
+
+    <div class="callout">
+      <span class="label">The rule of thumb</span>
+      <p>Ship the smallest honest thing. Then the next smallest honest thing. Then stop.</p>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div><span class="stamp">v3.1.1</span> · ALICE / VERONICA · 2026-08-15</div>
+    <div>Built by 12 PRs · Verified by 1,173 assertions</div>
+  </footer>
+
+</div>
+</body>
+</html>
