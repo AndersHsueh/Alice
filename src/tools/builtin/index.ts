@@ -15,6 +15,9 @@ export { askUserTool, setQuestionDialogCallback } from './askUser.js';
 export { loadSkillTool } from './loadSkill.js';
 export { todoWriteTool, todoReadTool, resetTodos } from './todo.js';
 export { sequentialThinkingTool } from './sequentialThinking.js';
+export { lspGotoDefinitionTool } from './lspGotoDefinition.js';
+export { lspFindReferencesTool } from './lspFindReferences.js';
+export { lspDocumentSymbolTool } from './lspDocumentSymbol.js';
 
 import { readFileTool } from './readFile.js';
 import { writeFileTool } from './writeFile.js';
@@ -29,6 +32,9 @@ import { askUserTool } from './askUser.js';
 import { loadSkillTool } from './loadSkill.js';
 import { todoWriteTool, todoReadTool } from './todo.js';
 import { sequentialThinkingTool } from './sequentialThinking.js';
+import { lspGotoDefinitionTool } from './lspGotoDefinition.js';
+import { lspFindReferencesTool } from './lspFindReferences.js';
+import { lspDocumentSymbolTool } from './lspDocumentSymbol.js';
 
 /**
  * 所有内置工具列表
@@ -48,4 +54,9 @@ export const builtinTools = [
   todoWriteTool,
   todoReadTool,
   sequentialThinkingTool,
+  // LSP 工具(issue #13 / IK8MWS)— 依赖 typescript-language-server,
+  // 缺失时工具返回 success:false + 安装提示,不崩溃。
+  lspGotoDefinitionTool,
+  lspFindReferencesTool,
+  lspDocumentSymbolTool,
 ];
