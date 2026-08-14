@@ -47,18 +47,18 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 
 ### 🚀 v3.0.1 亮点(结构强化 · 21 项行动)
 
-> 本 release 是 **结构强化 release**,优先级从「功能数量」转向「结构稳定性」。本次不实际打 TAG,等 P0 × 4 行动落地后正式发版。
+> 本 release 是 **结构强化 release**,优先级从「功能数量」转向「结构稳定性」。截至 2026-08-14,P0 × 6 已全部落地,4 条验收底线实测达成,`v3.0.1` TAG 随本次发布补打。
 
 **📋 21 项 P0/P1/P2 行动清单**
-- 🎯 **P0 × 6**:#1 启动预取(冷启动 < 120ms)/ #2 服务层补足(memory + compact)/ #3 权限 5 mode(540 例决策)/ #4 Feature Flag DCE / **#5 ★ Workspace Backend 收敛(已完成)** / #19 builtin-skill-new
-- 📋 **P1 × 7**:#7 Coordinator / #8 TeamMemorySync / #9 Zod v4 / #10 ripgrep / #11 OpenTelemetry / #12 Token Budget TUI / #13 LSP / #20 / #21 builtin-skills
+- 🎯 **P0 × 6(全部已合并)**:#1 启动预取(冷启动 < 120ms,PR !2)/ #2 服务层补足(memory + compact,PR !3)/ #3 权限 5 mode(585 例决策,PR !4)/ #4 Feature Flag DCE(PR !5)/ **#5 ★ Workspace Backend 收敛(已完成,PR !6 守卫)** / #19 builtin-skill-new(PR !7)
+- 📋 **P1 × 9**:#7 Coordinator / #8 TeamMemorySync / #9 Zod v4 / #10 ripgrep / #11 OpenTelemetry / #12 Token Budget TUI / #13 LSP / #20 / #21 builtin-skills
 - 🔮 **P2 × 4**:#14 Multi-Agent Team / #15(挂起)/ #16 Voice / #17 Plugin Marketplace / #18 analytics
 - ❌ **#6 IDE Bridge** 按产品原则划掉
 
-**🛠 3 个内置 Skills(跟随发布,对所有用户一致)**
-- `karpathy-wiki-new` — 一键建 Karpathy Wiki 知识库脚手架(3 目录 + 6 模板)
-- `karpathy-wiki-ingest` — 把 raw/ 编译为结构化 wiki 页面
-- `karpathy-wiki-lint` — 知识库健康检查(5 项:断链 / orphan / 摘要戳 / 日期戳 / 链接密度)
+**🛠 内置 Skills**
+- `karpathy-wiki-new` — 一键建 Karpathy Wiki 知识库脚手架(3 目录 + 6 模板)✅ 已随 v3.0.1 发布(PR !7)
+- `karpathy-wiki-ingest` — 把 raw/ 编译为结构化 wiki 页面(#20,📋 v3.1.0 待落地)
+- `karpathy-wiki-lint` — 知识库健康检查(5 项:断链 / orphan / 摘要戳 / 日期戳 / 链接密度)(#21,📋 v3.1.0 待落地)
 - 设计:复用现有 `loadSkill` 工具,默认可信 + 详细日志,见 [`wiki/内置-Skills.md`](wiki/内置-Skills.md)
 
 **🧹 Obsolete 清理(commit a104d85)**
