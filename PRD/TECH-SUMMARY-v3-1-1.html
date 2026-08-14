@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技术概要 · v3.1.1 — ALICE / VERONICA</title>
+<style>
+  /* ──────────────── 设计令牌 ──────────────── */
+  :root {
+    --ink:        #1a1612;
+    --ink-soft:   #4a4540;
+    --ink-mute:   #8a8580;
+    --paper:      #f5f0e8;
+    --paper-2:    #ebe5d8;
+    --rule:       #d8d0c0;
+    --accent:     #b85c00;
+    --accent-ink: #f5f0e8;
+
+    --serif:  'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', 'Iowan Old Style', Georgia, serif;
+    --sans:   'Source Han Sans SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', system-ui, -apple-system, sans-serif;
+    --mono:   'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+
+    --t-display: 600 4.6rem/1.05 var(--serif);
+    --t-h1:      600 2.6rem/1.15 var(--serif);
+    --t-h2:      600 1.7rem/1.25 var(--serif);
+    --t-h3:      600 1.25rem/1.35 var(--serif);
+    --t-body:    400 1rem/1.8 var(--serif);
+    --t-eyebrow: 500 0.78rem/1 var(--sans);
+    --t-mono:    400 0.85rem/1.65 var(--mono);
+    --t-small:   400 0.85rem/1.7 var(--sans);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    line-height: 1.85;
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(184,92,0,0.03), transparent 40%),
+      radial-gradient(circle at 90% 100%, rgba(74,69,64,0.04), transparent 50%);
+  }
+
+  .doc {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 5rem 3.5rem 7rem;
+  }
+
+  .eyebrow {
+    font: var(--t-eyebrow);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .eyebrow::before {
+    content: '';
+    width: 1.6rem;
+    height: 1px;
+    background: var(--ink-soft);
+  }
+
+  .hero {
+    padding-top: 2rem;
+    padding-bottom: 3.5rem;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 4.5rem;
+  }
+  .hero .meta {
+    display: flex;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 2.2rem;
+    color: var(--ink-soft);
+    font: var(--t-small);
+  }
+  .hero .meta b { color: var(--ink); font-weight: 600; }
+  .hero h1 {
+    font: var(--t-display);
+    letter-spacing: -0.018em;
+    margin-bottom: 1.4rem;
+  }
+  .hero h1 .v {
+    color: var(--accent);
+    font-style: italic;
+  }
+  .hero .lede {
+    font: var(--t-body);
+    font-size: 1.1rem;
+    line-height: 1.75;
+    color: var(--ink-soft);
+    max-width: 44em;
+  }
+
+  section {
+    margin-bottom: 5rem;
+    scroll-margin-top: 2rem;
+  }
+  section h2 {
+    font: var(--t-h1);
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+  }
+  section h2 .index {
+    font: var(--t-eyebrow);
+    color: var(--accent);
+    margin-right: 1.2rem;
+    letter-spacing: 0.18em;
+  }
+  section h3 {
+    font: var(--t-h2);
+    color: var(--ink);
+    margin-top: 2.5rem;
+    margin-bottom: 0.8rem;
+  }
+  section h4 {
+    font: var(--t-h3);
+    color: var(--ink);
+    margin-top: 1.8rem;
+    margin-bottom: 0.6rem;
+  }
+  section p {
+    font: var(--t-body);
+    color: var(--ink-soft);
+    margin-bottom: 1rem;
+    max-width: 46em;
+  }
+  section p strong { color: var(--ink); font-weight: 600; }
+  section p code, section li code {
+    font: var(--t-mono);
+    background: var(--paper-2);
+    padding: 0.08em 0.4em;
+    border-radius: 3px;
+    color: var(--accent);
+    font-size: 0.92em;
+  }
+  section ul, section ol {
+    margin: 0 0 1.5rem 1.3rem;
+    color: var(--ink-soft);
+    max-width: 46em;
+  }
+  section li {
+    margin-bottom: 0.5rem;
+    line-height: 1.75;
+  }
+  section li::marker { color: var(--accent); }
+  section li strong { color: var(--ink); font-weight: 600; }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    padding: 0.4rem 0 0.4rem 1.8rem;
+    margin: 2rem 0 2.5rem;
+    max-width: 46em;
+  }
+  .callout p {
+    font: var(--t-body);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    color: var(--ink);
+    margin: 0;
+  }
+  .callout .label {
+    font: var(--t-eyebrow);
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0 2.5rem;
+    font: var(--t-small);
+  }
+  .table th, .table td {
+    text-align: left;
+    padding: 0.7rem 0.4rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  .table th {
+    font: var(--t-eyebrow);
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    border-bottom: 1.5px solid var(--ink);
+    font-weight: 600;
+  }
+  .table td { color: var(--ink-soft); }
+  .table td strong { color: var(--ink); font-weight: 600; }
+  .table td code {
+    font: var(--t-mono);
+    background: var(--paper-2);
+    padding: 0.04em 0.32em;
+    border-radius: 2px;
+    color: var(--accent);
+    font-size: 0.92em;
+  }
+  .table .col-num { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  .sub-block {
+    border: 1px solid var(--rule);
+    padding: 1.6rem 1.8rem;
+    margin: 2rem 0;
+    background: var(--paper-2);
+  }
+  .sub-block h4 {
+    margin: 0 0 0.6rem;
+    font: var(--t-h3);
+    color: var(--ink);
+  }
+  .sub-block p {
+    margin: 0;
+    color: var(--ink-soft);
+    max-width: none;
+  }
+  .sub-block + .sub-block { margin-top: 1rem; }
+
+  .footer {
+    margin-top: 5rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font: var(--t-small);
+    color: var(--ink-mute);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .footer .stamp {
+    font: var(--t-eyebrow);
+    letter-spacing: 0.16em;
+    color: var(--accent);
+  }
+
+  @media (max-width: 720px) {
+    .doc { padding: 3rem 1.4rem 4rem; }
+    .hero h1 { font-size: 2.8rem; }
+    section h2 { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <!-- ─────────────────── 头图 ─────────────────── -->
+  <header class="hero">
+    <div class="eyebrow">技术概要 · Technical Summary</div>
+    <div class="meta">
+      <span><b>版本</b> · v3.1.1</span>
+      <span><b>发布日期</b> · 2026-08-15</span>
+      <span><b>基础 commit</b> · <code>f6b3c08</code></span>
+      <span><b>发版 commit</b> · <code>b71ed55</code></span>
+      <span><b>主线 tag</b> · <code>v3.1.1</code></span>
+    </div>
+    <h1>技术概要 <span class="v">v3.1.1</span></h1>
+    <p class="lede">v3.1.0 = 9 个 P1 全部落地(基础设施)。v3.1.1 = 4 个 P2 全部落地(扩展能力)。本文件是 v3.1.1 的<strong>技术概要</strong>,不重复 PRD 中的产品视角。</p>
+  </header>
+
+  <!-- ─────────────────── 0 · 一句话总结 ─────────────────── -->
+  <section id="summary">
+    <h2><span class="index">0</span>一句话总结</h2>
+    <p>本文件是配套 <code>PRD/PRD-v3-1-1.html</code> 的技术版本 —— 工程师视角,关注架构决策、工程指标、技术债、关键取舍。给维护者、code reviewer、下个周期的设计者用。</p>
+  </section>
+
+  <!-- ─────────────────── 1 · 工程基线 ─────────────────── -->
+  <section id="baseline">
+    <h2><span class="index">1</span>工程基线</h2>
+    <table class="table">
+      <thead>
+        <tr><th>项</th><th>值</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>TypeScript 严格度</td><td><code>strict: false</code></td></tr>
+        <tr><td>ESM 模块</td><td><code>.js</code> 导入后缀</td></tr>
+        <tr><td>包管理</td><td>bun(<code>bun install</code> / <code>bun build.ts</code> / <code>bun run test-case/*.ts</code>)</td></tr>
+        <tr><td>新增 npm 依赖</td><td><strong>0</strong></td></tr>
+        <tr><td>受影响源文件</td><td>15 个新增 + 3 个修改(<code>agentLoop</code> / <code>concurrentAgentRunner</code> / <code>profileRegistry</code>)</td></tr>
+        <tr><td>受影响测试</td><td>13 个新增(<code>test-case/test-issue-{014,016,017,018}*</code>)+ 全量基线 14 个</td></tr>
+        <tr><td>测试断言</td><td><strong>1,173</strong> PASS / 0 FAIL</td></tr>
+        <tr><td><code>bun build.ts</code></td><td>成功(1 dead-branch fold)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ─────────────────── 2 · 四大子系统 — 工程视角 ─────────────────── -->
+  <section id="subsystems">
+    <h2><span class="index">2</span>四大子系统 —— 工程视角</h2>
+
+    <!-- ── OTEL ── -->
+    <h3>2.1 OTEL Analytics(<code>src/services/analytics/</code>)</h3>
+    <div class="sub-block">
+      <h4>关键点</h4>
+      <p><strong>纯函数聚合器</strong>;<code>aggregateFromFile()</code> 是唯一 IO 入口,内部 <code>aggregateSpans()</code> 同步无副作用。</p>
+    </div>
+    <table class="table">
+      <tr><td>文件</td><td><code>aggregator.ts</code>(225 行)+ <code>analyticsRenderer.ts</code>(140 行)+ <code>index.ts</code></td></tr>
+      <tr><td>输入</td><td><code>~/.alice/otel/trace.jsonl</code>(OTEL SDK console exporter 输出)</td></tr>
+      <tr><td>输出</td><td><code>AggregateResult{ totalSpans, skippedLines, dateRange, dailyTokens[], toolErrorRates[], heatmap }</code></td></tr>
+      <tr><td>渲染</td><td><code>renderDashboard(result, mode)</code> —— <code>mode='plain' | 'ansi'</code>,纯字符串,无 React</td></tr>
+      <tr><td>隐私</td><td><code>assertPrivacySafe(obj)</code>:深度遍历 + 子串白名单(拒绝 <code>prompt</code> / <code>completion</code> / <code>system_prompt</code> / <code>user_message</code> / <code>assistant_message</code> 等)</td></tr>
+      <tr><td>容错</td><td>损坏行(非法 JSON / 缺关键字段)跳过 + <code>skippedLines</code> 计数</td></tr>
+      <tr><td>热力图</td><td>7 d × 24 h 网格,<code>dates[0]=今天,dates[6]=6 天前</code></td></tr>
+      <tr><td>错误率</td><td>per-tool <code>success / failed / errorRate</code>(<code>errorRate = failed / total</code>)</td></tr>
+      <tr><td>单元隔离</td><td><code>process.ts</code> / <code>workspace.ts</code> 等都不引用 → 关闭 OTEL 时(没 SDK 启用)产物 = 0</td></tr>
+    </table>
+
+    <!-- ── 多 Agent ── -->
+    <h3>2.2 Multi-Agent Team(<code>src/runtime/agent/coordinator/</code> + <code>src/tools/builtin/teamMessage.ts</code>)</h3>
+    <div class="sub-block">
+      <h4>关键点</h4>
+      <p>5 个 PR 分层构建:协议 → tool 绑定 → profile 表层 → runner 集成 → workspace 协调。每一层独立测试。端到端契约在单个测试里验证:3 个 worker 并发跑同一 bus。</p>
+    </div>
+    <table class="table">
+      <tr><td>新增文件</td><td><code>teamMessageBus.ts</code>(225 行)+ <code>executorRunner.ts</code>(150 行)+ <code>reviewerRunner.ts</code>(130 行)+ <code>workspaceCoordinator.ts</code>(200 行)</td></tr>
+      <tr><td>修改文件</td><td><code>concurrentAgentRunner.ts</code>(+25 行)+ <code>profileRegistry.ts</code>(<code>SpawnEvent</code> 扩 <code>step</code>/<code>review</code> 两个分支)+ <code>coordinator/profileRegistry.ts</code></td></tr>
+      <tr><td>新增 tool</td><td><code>teamMessage.ts</code>(200 行,send / recv / ack 三 action)</td></tr>
+      <tr><td>通信协议</td><td><code>{ sequence, from, to, tsMs, payload }</code> envelope;<code>sequence</code> 单调;<code>to='*'</code> 广播</td></tr>
+      <tr><td>ack 语义</td><td>重投上限 1 次(共 2 次投递);超时 / 超限 warn-and-continue</td></tr>
+      <tr><td>上下文注入</td><td><code>setTeamMessageContext({ from, bus })</code>(进程级单例 — 后续可换 per-worker)</td></tr>
+      <tr><td>Runner 扩展</td><td><code>runAgents</code> 新增 <code>opts.teamMessageBus</code> / <code>teamMessageLimit</code>;spec done 后 yield <code>team_message_batch</code> 事件</td></tr>
+      <tr><td>7 → 4 profile</td><td><code>coder</code> 重命名为 <code>executor</code>(本 PR 实装);剩 3 个未实装:<code>writer</code> / <code>security</code> / <code>tester</code></td></tr>
+      <tr><td>锁</td><td><code>WorkspaceCoordinator.withLock(workspace, fn)</code>:chain-based FIFO,跨 workspace 并发,失败自动释放,超时抛 <code>WorkspaceLockTimeoutError</code></td></tr>
+      <tr><td>端到端</td><td>1 个集成测试 <code>test-issue-014-workspace.ts</code> 同时跑 3 worker + bus + lock 协调</td></tr>
+    </table>
+
+    <h4>关键架构决策</h4>
+    <ul>
+      <li><code>teamMessageBus</code> 是<strong>纯逻辑内存总线</strong>,不依赖任何 IO / 网络 —— 后续可加 <code>FileBus</code> / <code>NetBus</code> wrapper</li>
+      <li><code>workspaceCoordinator</code> 用<strong>链式 Promise</strong> 而非 <code>Promise.race</code> —— race 方式并发任务被同时唤醒会破坏 FIFO</li>
+      <li><code>executorRunner</code> / <code>reviewerRunner</code> 的 runner 形状(一次性 LLM 调用 + generator yield)与 v3.0.1 一致 —— 复用原模式,降低心智负担</li>
+    </ul>
+
+    <!-- ── Voice ── -->
+    <h3>2.3 Voice(<code>src/voice/</code>)</h3>
+    <div class="sub-block">
+      <h4>关键点</h4>
+      <p>6 个文件,源码层 ≈ 32 KB(DCE 友好)。<code>processUserInput(buffer)</code> 是统一 voice/text 入口。<code>getVoiceProcessor(voiceMode?)</code> 工厂,读 <code>feature('voice_mode', false)</code> 选 Null 或 Real。</p>
+    </div>
+    <table class="table">
+      <tr><td>新增文件</td><td>6 个:<code>types.ts</code> / <code>nullEngine.ts</code> / <code>voiceInput.ts</code> / <code>whisperEngine.ts</code> / <code>voiceProcessor.ts</code> / <code>wakeWordEngine.ts</code> + <code>index.ts</code></td></tr>
+      <tr><td>源码体积</td><td>≈ 32 KB(DCE 友好)</td></tr>
+      <tr><td>入口</td><td><code>processUserInput(buffer, deps?)</code> 统一 voice/text 路径;<code>getVoiceProcessor(voiceMode?)</code> 工厂</td></tr>
+      <tr><td>Null 实现</td><td><code>NullAudioCapture</code> / <code>NullAsrEngine</code> / <code>NullWakeWordDetector</code> / <code>NullVoiceProcessor</code>(<code>voice_mode=false</code> 或平台不支持)</td></tr>
+      <tr><td>whisper.cpp 集成</td><td><code>WhisperCppEngine.spawn(binary, args)</code>,写 PCM 到 mkdtemp tmp file → 读 stdout;错误类型:<code>binary_missing</code>(ENOENT)/ <code>timeout</code>(SIGKILL)/ <code>unknown</code>(非 0 退出码)</td></tr>
+      <tr><td>WakeWord</td><td><code>EnergyWakeWordDetector</code>(prototype):RMS 能量阈值,窗口 100 ms,峰值 RMS 统计</td></tr>
+      <tr><td>失败语义</td><td><strong>全部 warn-and-continue</strong>:voice 输入失败 → 返空 <code>NormalizedInput</code>,<code>source='voice'</code> 保留(metadata 仍记 capture 时长)</td></tr>
+      <tr><td>接口修复</td><td>v3.1.1 part-1 写的 <code>WakeWordDetector.detect(timeoutMs)</code> 是 streaming 签名,与 batch API 不一致;v3.1.1 part-4 改为 <code>detect(audio) → WakeWordEvent</code></td></tr>
+      <tr><td>关键 feature</td><td><code>feature('voice_mode', false)</code> —— 沿用 #4 FeatureFlag 体系</td></tr>
+    </table>
+
+    <h4>关键架构决策</h4>
+    <ul>
+      <li><code>processUserInput</code> 是<strong>纯函数</strong> —— 测试可注入 mock ASR / 任意延迟,无需 stub IO</li>
+      <li>整个 <code>src/voice/**</code> 在 <code>voice_mode=false</code> 时<strong>零运行时开销</strong> —— DCE 折叠 <code>getVoiceProcessor()</code> 调用,<code>NullVoiceProcessor</code> 路径是 dead branch</li>
+      <li><code>WhisperCppEngine</code> 用 <code>command-exists.sync</code>(同步版)—— promise 版 resolve 时返 binary 字符串(非 boolean)</li>
+    </ul>
+
+    <!-- ── Plugin ── -->
+    <h3>2.4 Plugin Marketplace(<code>src/plugin/</code>)</h3>
+    <div class="sub-block">
+      <h4>关键点</h4>
+      <p>6 个文件,源码层 ≈ 30 KB。<code>Marketplace</code> / <code>PluginRegistry</code> / <code>PluginLoader</code> 三个独立类。<code>loadPluginSampleWeather()</code> 端到端 fixture。</p>
+    </div>
+    <table class="table">
+      <tr><td>新增文件</td><td>6 个:<code>types.ts</code> / <code>manifest.ts</code> / <code>registry.ts</code> / <code>sandbox.ts</code> / <code>marketplace.ts</code> / <code>loader.ts</code> + <code>index.ts</code></td></tr>
+      <tr><td>源码体积</td><td>≈ 30 KB</td></tr>
+      <tr><td>入口</td><td><code>Marketplace</code> / <code>PluginRegistry</code> / <code>PluginLoader</code> 三个独立类;<code>loadPluginSampleWeather()</code> 端到端 fixture</td></tr>
+      <tr><td>Manifest</td><td>Zod v4 schema;<code>PLUGIN_NAME_RE</code> / <code>SEMVER_RE</code> / <code>TOOL_NAME_RE</code> 三个正则;<code>superRefine</code> 检查 tools.name 唯一</td></tr>
+      <tr><td>验证</td><td>拒绝 8+ 畸形 manifest,字段级 issues 含 path(如 <code>tools.1.name</code>)</td></tr>
+      <tr><td>Registry</td><td>install / uninstall / get / list / has / setStatus;<code>scanPluginDir</code> 扫 <code>~/.alice/plugins/&lt;plugin&gt;/manifest.json</code>,broken plugin 也被发现</td></tr>
+      <tr><td>Sandbox</td><td><code>vm.runInNewContext</code> 求值;<code>require</code> / <code>process.env</code> Proxy 拦截(双路径 get + has);per-plugin + per-session tool quota</td></tr>
+      <tr><td>签名</td><td><code>signManifest</code> / <code>verifySignature</code>(HMAC-SHA256 模拟 GPG);<code>crypto.timingSafeEqual</code> 防时序攻击;<code>SignatureVerifyError</code> 含 source + reason</td></tr>
+      <tr><td>端到端</td><td>39 断言覆盖 install → load → invoke → mock 返数据 → unload → 签名失败</td></tr>
+    </table>
+
+    <h4>关键架构决策</h4>
+    <ul>
+      <li><code>verifySignature</code> 是抽象函数 —— 后续 PR 可换 <code>openpgp</code> / GPG subprocess,接口不动</li>
+      <li>签名失败 → 抛 <code>SignatureVerifyError</code> + 累加 <code>signatureFailures</code> 统计 + registry 仍空(未污染)</li>
+      <li><code>vm.runInNewContext</code> 简化沙箱(不引入 <code>vm2</code> / <code>isolated-vm</code> 性能成本)—— 足够覆盖 issue body ② ③ 的核心断言</li>
+      <li>broken plugin 用 stub manifest 先 install 再 setStatus(broken),让 <code>registry.list()</code> 能看到完整信息(含 brokenReason)</li>
+    </ul>
+  </section>
+
+  <!-- ─────────────────── 3 · 测试统计 ─────────────────── -->
+  <section id="test-stats">
+    <h2><span class="index">3</span>测试统计 —— 每个 PR 的断言贡献</h2>
+
+    <table class="table">
+      <thead>
+        <tr><th>PR</th><th>Issue</th><th>新增脚本</th><th>断言</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>!17</code></td><td>#18</td><td><code>test-issue-018.ts</code></td><td class="col-num">45</td></tr>
+        <tr><td><code>!18</code></td><td>#14 / 第 1 部分</td><td><code>test-issue-014.ts</code></td><td class="col-num">34</td></tr>
+        <tr><td><code>!19</code></td><td>#14 / 第 2 部分</td><td><code>test-issue-014-tool.ts</code></td><td class="col-num">58</td></tr>
+        <tr><td><code>!20</code></td><td>#14 / 第 3 部分</td><td><code>test-issue-014-profiles.ts</code></td><td class="col-num">47</td></tr>
+        <tr><td><code>!21</code></td><td>#14 / 第 4 部分</td><td><code>test-issue-014-concurrent.ts</code></td><td class="col-num">29</td></tr>
+        <tr><td><code>!22</code></td><td>#14 / 第 5 部分</td><td><code>test-issue-014-workspace.ts</code></td><td class="col-num">24</td></tr>
+        <tr><td><code>!23</code></td><td>#16 / 第 1 部分</td><td><code>test-issue-016.ts</code></td><td class="col-num">38</td></tr>
+        <tr><td><code>!24</code></td><td>#16 / 第 2 部分</td><td><code>test-issue-016-whisper.ts</code></td><td class="col-num">21</td></tr>
+        <tr><td><code>!25</code></td><td>#16 / 第 3 部分</td><td><code>test-issue-016-processor.ts</code></td><td class="col-num">37</td></tr>
+        <tr><td><code>!26</code></td><td>#16 / 第 4 部分</td><td><code>test-issue-016-wakeword.ts</code></td><td class="col-num">28</td></tr>
+        <tr><td><code>!27</code></td><td>#17 / 第 1 部分</td><td><code>test-issue-017.ts</code></td><td class="col-num">49</td></tr>
+        <tr><td><code>!28</code></td><td>#17 / 第 2 部分</td><td><code>test-issue-017-sandbox.ts</code></td><td class="col-num">48</td></tr>
+        <tr><td><code>!29</code></td><td>#17 / 第 3 部分</td><td><code>test-issue-017-marketplace.ts</code></td><td class="col-num">39</td></tr>
+        <tr><td colspan="2"><em>基线(v3.1.0)</em></td><td>—</td><td class="col-num">608</td></tr>
+        <tr><td colspan="2"><em>增量</em></td><td>—</td><td class="col-num"><strong>+ 565</strong></td></tr>
+        <tr><td colspan="2"><strong>v3.1.1 合计</strong></td><td><strong>27 个</strong></td><td class="col-num"><strong>1,173</strong></td></tr>
+      </tbody>
+    </table>
+
+    <h3>测试设计原则(本周期 13 个新脚本统一)</h3>
+    <ul>
+      <li><strong>不用 mock 库</strong> —— 直接构造 fake 子系统(stub shell script / in-memory bus / mock AudioCapture)</li>
+      <li><strong>不用 jest / vitest</strong> —— 全部 <code>bun run &lt;script&gt;.ts</code> 直跑,断言写在脚本内</li>
+      <li><strong>不依赖网络 / 真实 API</strong> —— whisper.cpp / GPG 全部 stub 模拟</li>
+      <li><strong>隐私断言独立验证</strong> —— <code>assertPrivacySafe</code> 在 aggregator 出口强制</li>
+      <li><strong>失败隔离</strong> —— 每个子系统都有"容错路径"断言(超时 / binary 缺失 / 抛错 → graceful)</li>
+    </ul>
+  </section>
+
+  <!-- ─────────────────── 4 · 关键设计决策 — 横向对比 ─────────────────── -->
+  <section id="decisions">
+    <h2><span class="index">4</span>关键设计决策 —— 横向对比</h2>
+
+    <table class="table">
+      <thead>
+        <tr><th>决策</th><th>选择</th><th>备选</th><th>取舍</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>OTEL 聚合</td>
+          <td>纯函数,reader 是唯一 IO 入口</td>
+          <td>流式 watch + 增量</td>
+          <td>简化,无状态;代价:每次全量扫;v3.2.0 改增量</td>
+        </tr>
+        <tr>
+          <td>多 worker 通信</td>
+          <td><code>vm.runInNewContext</code> 求值</td>
+          <td>单独 child process</td>
+          <td>性能 + 复杂度;<code>vm</code> 足够覆盖 sandbox 测试</td>
+        </tr>
+        <tr>
+          <td><code>teamMessage</code> 工具上下文</td>
+          <td>globalThis 单例 + <code>setTeamMessageContext</code></td>
+          <td>per-worker Map</td>
+          <td>简单;并发不安全留给后续 PR</td>
+        </tr>
+        <tr>
+          <td>Voice 抽象</td>
+          <td><code>VoiceProcessor</code> 基类 + Null/Real + factory</td>
+          <td>直接 if-else</td>
+          <td>后续可扩展(<code>RealStreamingVoiceProcessor</code>)</td>
+        </tr>
+        <tr>
+          <td>whisper.cpp 接入</td>
+          <td><code>child_process.spawn</code> + tmp file</td>
+          <td>node pipe</td>
+          <td>whisper.cpp CLI 期望文件路径;pipe 不可行</td>
+        </tr>
+        <tr>
+          <td>WakeWord</td>
+          <td>RMS 能量 prototype</td>
+          <td>snowboy / openWakeWord</td>
+          <td>模型需外部依赖,prototype 诚实;接口已留好</td>
+        </tr>
+        <tr>
+          <td>Plugin sandbox</td>
+          <td><code>vm</code> + require/env 白名单</td>
+          <td><code>vm2</code> / <code>isolated-vm</code></td>
+          <td>性能成本;<code>vm</code> 够</td>
+        </tr>
+        <tr>
+          <td>Plugin 签名</td>
+          <td>HMAC-SHA256 模拟 GPG</td>
+          <td>openpgp</td>
+          <td>测试可重现;接口抽象;后续 PR 替换</td>
+        </tr>
+        <tr>
+          <td>Workspace 锁</td>
+          <td>chain-based FIFO</td>
+          <td><code>Promise.race</code> + 队列</td>
+          <td>race 方式并发任务被同时唤醒会破坏 FIFO</td>
+        </tr>
+        <tr>
+          <td>error 处理</td>
+          <td>warn-and-continue</td>
+          <td>throw</td>
+          <td>所有 voice / plugin / OTEL 子系统失败都不阻塞主对话</td>
+        </tr>
+        <tr>
+          <td>测试</td>
+          <td>bun + 自写 assert + fake 子系统</td>
+          <td>jest + mock</td>
+          <td>不引入 jest 依赖;<code>bun</code> 已够</td>
+        </tr>
+        <tr>
+          <td>模块目录</td>
+          <td>每个新子系统一个独立 <code>src/&lt;domain&gt;/</code> 目录</td>
+          <td>散在 <code>src/</code></td>
+          <td>边界清晰,DCE 友好</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ─────────────────── 5 · 与 v3.1.0 的非交互性 ─────────────────── -->
+  <section id="compatibility">
+    <h2><span class="index">5</span>与 v3.1.0 的非交互性</h2>
+    <p>v3.1.1 <strong>完全 additive</strong>:</p>
+    <ul>
+      <li>没有删除 v3.1.0 任何文件</li>
+      <li>没有修改 v3.1.0 任何导出</li>
+      <li>没有修改 v3.1.0 任何行为(只是 <code>concurrentAgentRunner</code> 多了可选 <code>teamMessageBus</code> 参数;<code>SpawnEvent</code> 加了 2 个可选 type 分支)</li>
+      <li>没有 npm 依赖变化</li>
+      <li><code>package.json</code> 版本号 <code>3.1.0</code> → <code>3.1.1</code> 是 patch 级别</li>
+    </ul>
+
+    <h3>升级路径</h3>
+    <pre style="background: var(--paper-2); padding: 1rem 1.2rem; border-left: 3px solid var(--accent); font: var(--t-mono); font-size: 0.9rem; color: var(--ink-soft); overflow-x: auto;">git fetch origin
+git checkout v3.1.1
+bun install   # lockfile 不变
+bun build.ts # 成功</pre>
+
+    <p>无数据库迁移,无配置变更,无环境变量变化。</p>
+  </section>
+
+  <!-- ─────────────────── 6 · 已知技术债 ─────────────────── -->
+  <section id="tech-debt">
+    <h2><span class="index">6</span>已知技术债</h2>
+    <p>按"本周期能 / 不能解决"分类。</p>
+
+    <h3>6.1 本周期有意留白(明确知道,等 v3.2.0)</h3>
+    <table class="table">
+      <thead>
+        <tr><th>债</th><th>位置</th><th>原因</th><th>解决路径</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>EnergyWakeWord 是 RMS prototype</td>
+          <td><code>src/voice/wakeWordEngine.ts</code></td>
+          <td>真 wake-word 模型需外部依赖</td>
+          <td>v3.2.0 换 <code>SnowboyWakeWordDetector</code></td>
+        </tr>
+        <tr>
+          <td>HMAC 模拟 GPG</td>
+          <td><code>src/plugin/marketplace.ts</code></td>
+          <td>真 GPG 需 key 基础设施</td>
+          <td>v3.2.0 换 <code>openpgp</code></td>
+        </tr>
+        <tr>
+          <td><code>vm</code> 而非 V8 isolate</td>
+          <td><code>src/plugin/sandbox.ts</code></td>
+          <td><code>isolated-vm</code> 是 native 依赖</td>
+          <td>评估是否真的需要</td>
+        </tr>
+        <tr>
+          <td>无 cross-OS audio capture</td>
+          <td><code>src/voice/nullEngine.ts</code></td>
+          <td>平台特定实现,各 OS 独立 PR</td>
+          <td>v3.2.0 per-OS</td>
+        </tr>
+        <tr>
+          <td>无 remote marketplace HTTP</td>
+          <td>(无)</td>
+          <td>鉴权 / rate limit / 计费</td>
+          <td>v3.3.0+</td>
+        </tr>
+        <tr>
+          <td><code>globalThis</code> 单例 teamMessageContext</td>
+          <td><code>src/tools/builtin/teamMessage.ts</code></td>
+          <td>并发 N worker 时不安全</td>
+          <td>后续 PR per-worker Map</td>
+        </tr>
+        <tr>
+          <td>3 个未实装 profile(writer / security / tester)</td>
+          <td><code>src/runtime/agent/coordinator/profileRegistry.ts</code></td>
+          <td>不在 P2 范围</td>
+          <td>v3.2.0+ 各 1 个 PR</td>
+        </tr>
+        <tr>
+          <td>TeamMemorySync 远程 endpoint</td>
+          <td>(v3.1.0 遗留)</td>
+          <td>需 auth 模型</td>
+          <td>v4.0.0</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>6.2 v3.1.1 引入的潜在问题</h3>
+    <table class="table">
+      <thead>
+        <tr><th>问题</th><th>严重度</th><th>描述</th><th>触发条件</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>command-exists</code> 升级到 promise 版</td>
+          <td>低</td>
+          <td>当时 promise 版 resolve 时返 binary 字符串(非 boolean),已用 sync 版</td>
+          <td>升级 package 需重新验证</td>
+        </tr>
+        <tr>
+          <td><code>crypto.timingSafeEqual</code> 长度不等</td>
+          <td>中</td>
+          <td>长度不等会抛错,已显式提前 return</td>
+          <td>短签名场景测试过</td>
+        </tr>
+        <tr>
+          <td><code>process.env</code> Proxy 性能</td>
+          <td>低</td>
+          <td>每次属性访问都过 Proxy 逻辑;plugin 调用频率低,影响小</td>
+          <td>性能 profile 后续</td>
+        </tr>
+        <tr>
+          <td>zod v4 path 含 symbol</td>
+          <td>中</td>
+          <td><code>path: PropertyKey[]</code> 含 symbol;已显式 cast 成 string</td>
+          <td>v3.1.0 #9 已升级 zod v4,新代码走 <code>zod/v4</code> 入口</td>
+        </tr>
+        <tr>
+          <td><code>wakeWordEngine.findFirstRmsHit</code> 边界</td>
+          <td>低</td>
+          <td>buffer 长度 &lt; windowSize 时返 -1;测试覆盖</td>
+          <td>短 buffer 场景</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ─────────────────── 7 · 工程化指标 ─────────────────── -->
+  <section id="metrics">
+    <h2><span class="index">7</span>工程化指标</h2>
+    <table class="table">
+      <thead>
+        <tr><th>指标</th><th>值</th><th>趋势(相比 v3.1.0)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>总测试数</td><td>27</td><td>+13</td></tr>
+        <tr><td>总断言数</td><td>1,173</td><td>+565</td></tr>
+        <tr><td>源文件 LOC(增量)</td><td>约 3,000</td><td>+新 15 个文件</td></tr>
+        <tr><td>测试 LOC(增量)</td><td>约 4,000</td><td>+新 13 个测试</td></tr>
+        <tr><td>文档 LOC(增量)</td><td>600+</td><td>PRD + TECH-SUMMARY + release-notes</td></tr>
+        <tr><td>PR 周期</td><td>单 PR 流水线(避免冲突)</td><td>一致的策略</td></tr>
+        <tr><td>Build 时间</td><td>&lt; 3 s</td><td>无变化</td></tr>
+        <tr><td><code>bun build.ts</code> 警告</td><td>0</td><td>无变化</td></tr>
+        <tr><td>TypeScript 错误</td><td>0</td><td>无变化</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ─────────────────── 8 · 下一步 ─────────────────── -->
+  <section id="next">
+    <h2><span class="index">8</span>下一步</h2>
+    <p>按优先级排序的工程事项(不重复 PRD 中的产品路线图):</p>
+    <ol>
+      <li><strong>重构 <code>setTeamMessageContext</code></strong>:用 per-worker Map 替代 globalThis 单例,修复并发 N worker 的 ctx race</li>
+      <li><strong><code>zod/v4</code> 统一</strong>:确认 v3.1.0 #9 升级后,所有新代码走 <code>zod/v4</code> 入口(v3.1.0 旧代码继续走默认入口)</li>
+      <li><strong>whisper.cpp fixture</strong>:加一个"真实 1s 16kHz mono PCM 录音 + whisper.cpp 子进程"端到端测试(需要 binary)</li>
+      <li><strong>Plugin end-to-end test</strong>:加一个 <code>plugin install → load → invoke → uninstall</code> 的真实 IO 路径测试</li>
+      <li><strong>DCE 验证</strong>:跑 <code>bun build.ts</code> 后 grep <code>dist/</code> 中 <code>voice</code> / <code>plugin</code> 引用,确认 flag 关闭时真的剪除</li>
+    </ol>
+  </section>
+
+  <!-- ─────────────────── 收尾 ─────────────────── -->
+  <section id="end">
+    <h2><span class="index">9</span>来源</h2>
+    <ul>
+      <li><code>main</code> HEAD: <code>b71ed55</code>(release commit)</li>
+      <li>12 个 PR + 1 个发版 commit</li>
+      <li>27 个测试脚本 / 1,173 断言</li>
+      <li>4 个 P2 issue 全部落地:<code>#18</code> / <code>#14</code> / <code>#16</code> / <code>#17</code></li>
+    </ul>
+
+    <div class="callout">
+      <span class="label">配套文档</span>
+      <p><strong>PRD 视角</strong>:<a href="PRD-v3-1-1.html">PRD/PRD-v3-1-1.html</a> · <strong>上一版</strong>:<code>release-notes/v3.1.0.md</code> · <strong>历史</strong>:<code>wiki/v3.0.1-rollout.md</code></p>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div><span class="stamp">v3.1.1</span> · ALICE / VERONICA · 2026-08-15</div>
+    <div>配套 PRD-v3-1-1.html</div>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,37 +1,38 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PRD · v3.1.1 — ALICE / VERONICA</title>
 <style>
-  /* ──────────────── design tokens (anthropic editorial) ──────────────── */
+  /* ──────────────── 设计令牌 (anthropic 编辑式美术) ──────────────── */
   :root {
-    /* warm, restrained palette — no AI purple/blue */
+    /* 暖色、克制的调色板 — 不用 AI 紫蓝 */
     --ink:        #1a1612;
     --ink-soft:   #4a4540;
     --ink-mute:   #8a8580;
     --paper:      #f5f0e8;
     --paper-2:    #ebe5d8;
     --rule:       #d8d0c0;
-    --accent:     #b85c00;        /* warm amber — single accent */
+    --accent:     #b85c00;        /* 暖琥珀色 — 唯一 accent */
     --accent-ink: #f5f0e8;
     --positive:   #2d5016;
     --negative:   #8b2a1f;
 
-    /* typography */
-    --serif:  'EB Garamond', 'Cormorant Garamond', 'Iowan Old Style', 'Apple Garamond', Georgia, serif;
-    --sans:   'Inter', -apple-system, 'Helvetica Neue', system-ui, sans-serif;
-    --mono:   'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+    /* 字体 — 中文优先,西文 fallback */
+    --serif:  'Source Han Serif SC', 'Noto Serif SC', 'Songti SC', 'Iowan Old Style', Georgia, serif;
+    --sans:   'Source Han Sans SC', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+    --mono:   'JetBrains Mono', 'SF Mono', 'Menlo', 'Source Han Mono SC', monospace;
 
-    --t-display: 700 6.5rem/0.92 var(--serif);
-    --t-h1:      600 3.25rem/1.05 var(--serif);
-    --t-h2:      500 2.1rem/1.2 var(--serif);
-    --t-h3:      500 1.4rem/1.3 var(--serif);
-    --t-body:    400 1.0625rem/1.65 var(--serif);
+    --t-display: 600 5.4rem/1.05 var(--serif);
+    --t-h1:      600 2.8rem/1.15 var(--serif);
+    --t-h2:      600 1.85rem/1.25 var(--serif);
+    --t-h3:      600 1.35rem/1.35 var(--serif);
+    --t-h4:      600 1.1rem/1.4 var(--serif);
+    --t-body:    400 1.0625rem/1.85 var(--serif);
     --t-eyebrow: 500 0.78rem/1 var(--sans);
-    --t-mono:    400 0.875rem/1.6 var(--mono);
-    --t-small:   400 0.85rem/1.55 var(--sans);
+    --t-mono:    400 0.875rem/1.65 var(--mono);
+    --t-small:   400 0.875rem/1.7 var(--sans);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -42,7 +43,7 @@
     color: var(--ink);
     font-family: var(--serif);
     font-size: 1rem;
-    line-height: 1.65;
+    line-height: 1.85;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-image:
@@ -50,7 +51,7 @@
       radial-gradient(circle at 90% 100%, rgba(74,69,64,0.04), transparent 50%);
   }
 
-  /* ──────────────── layout ──────────────── */
+  /* ──────────────── 版面 ──────────────── */
   .doc {
     max-width: 1080px;
     margin: 0 auto;
@@ -73,7 +74,7 @@
     background: var(--ink-soft);
   }
 
-  /* ──────────────── hero ──────────────── */
+  /* ──────────────── 头图 ──────────────── */
   .hero {
     padding-top: 2.5rem;
     padding-bottom: 4rem;
@@ -89,10 +90,10 @@
     font: var(--t-small);
     letter-spacing: 0.02em;
   }
-  .hero .meta b { color: var(--ink); font-weight: 500; }
+  .hero .meta b { color: var(--ink); font-weight: 600; }
   .hero h1 {
     font: var(--t-display);
-    letter-spacing: -0.025em;
+    letter-spacing: -0.02em;
     color: var(--ink);
     margin-bottom: 1.5rem;
   }
@@ -102,22 +103,21 @@
   }
   .hero .lede {
     font: var(--t-body);
-    font-size: 1.18rem;
-    line-height: 1.55;
+    font-size: 1.15rem;
+    line-height: 1.75;
     color: var(--ink-soft);
-    max-width: 38em;
-    font-style: italic;
+    max-width: 42em;
   }
-  .hero .lede em { color: var(--ink); font-style: normal; font-weight: 500; }
+  .hero .lede strong { color: var(--ink); font-weight: 600; }
 
-  /* ──────────────── sections ──────────────── */
+  /* ──────────────── 章节 ──────────────── */
   section {
     margin-bottom: 6rem;
     scroll-margin-top: 2rem;
   }
   section h2 {
     font: var(--t-h1);
-    letter-spacing: -0.018em;
+    letter-spacing: -0.015em;
     color: var(--ink);
     margin-bottom: 0.6rem;
   }
@@ -132,7 +132,7 @@
     color: var(--ink-soft);
     font-style: italic;
     margin-bottom: 2.5rem;
-    max-width: 36em;
+    max-width: 38em;
   }
   section h3 {
     font: var(--t-h2);
@@ -150,9 +150,9 @@
     font: var(--t-body);
     color: var(--ink-soft);
     margin-bottom: 1.1rem;
-    max-width: 38em;
+    max-width: 42em;
   }
-  section p strong { color: var(--ink); font-weight: 500; }
+  section p strong { color: var(--ink); font-weight: 600; }
   section p code, section li code {
     font: var(--t-mono);
     background: var(--paper-2);
@@ -162,33 +162,35 @@
     font-size: 0.92em;
   }
 
-  /* ──────────────── lists ──────────────── */
+  /* ──────────────── 列表 ──────────────── */
   section ul, section ol {
     margin: 0 0 1.5rem 1.3rem;
     color: var(--ink-soft);
-    max-width: 38em;
+    max-width: 42em;
   }
   section li {
-    margin-bottom: 0.5rem;
-    line-height: 1.55;
+    margin-bottom: 0.55rem;
+    line-height: 1.75;
   }
   section li::marker { color: var(--accent); }
+  section li strong { color: var(--ink); font-weight: 600; }
 
-  /* ──────────────── pull-quote / callout ──────────────── */
+  /* ──────────────── 强调框 ──────────────── */
   .callout {
     border-left: 3px solid var(--accent);
     padding: 0.4rem 0 0.4rem 1.8rem;
     margin: 2rem 0 2.5rem;
-    max-width: 38em;
+    max-width: 42em;
   }
   .callout p {
     font: var(--t-body);
-    font-size: 1.12rem;
-    line-height: 1.6;
+    font-size: 1.1rem;
+    line-height: 1.7;
     color: var(--ink);
     font-style: italic;
     margin: 0;
   }
+  .callout p strong { color: var(--ink); font-weight: 600; font-style: normal; }
   .callout .label {
     font: var(--t-eyebrow);
     color: var(--accent);
@@ -198,7 +200,7 @@
     display: block;
   }
 
-  /* ──────────────── tables ──────────────── */
+  /* ──────────────── 表格 ──────────────── */
   .table {
     width: 100%;
     border-collapse: collapse;
@@ -217,12 +219,12 @@
     text-transform: uppercase;
     color: var(--ink-soft);
     border-bottom: 1.5px solid var(--ink);
-    font-weight: 500;
+    font-weight: 600;
   }
   .table td {
     color: var(--ink-soft);
   }
-  .table td strong { color: var(--ink); font-weight: 500; }
+  .table td strong { color: var(--ink); font-weight: 600; }
   .table td code {
     font: var(--t-mono);
     background: var(--paper-2);
@@ -232,9 +234,8 @@
     font-size: 0.92em;
   }
   .table .col-num { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
-  .table .col-tag { font: var(--t-eyebrow); letter-spacing: 0.1em; }
 
-  /* ──────────────── PR strip (numbered cards) ──────────────── */
+  /* ──────────────── PR 卡条 ──────────────── */
   .pr-strip {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -262,7 +263,7 @@
   .pr-card .title {
     font: var(--t-h4);
     color: var(--ink);
-    line-height: 1.25;
+    line-height: 1.3;
   }
   .pr-card .meta {
     font: var(--t-small);
@@ -275,7 +276,7 @@
     color: var(--ink-soft);
   }
 
-  /* ──────────────── capability block ──────────────── */
+  /* ──────────────── 能力 block ──────────────── */
   .cap {
     margin: 0 0 4.5rem;
     padding: 2.4rem 0 2.6rem;
@@ -320,7 +321,7 @@
     letter-spacing: 0.16em;
     text-transform: uppercase;
     margin: 0 0 0.6rem;
-    font-weight: 500;
+    font-weight: 600;
   }
   .cap .body .specs ul {
     margin: 0 0 1.5rem;
@@ -329,7 +330,8 @@
     color: var(--ink-soft);
   }
   .cap .body .specs ul li {
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.4rem;
+    line-height: 1.6;
   }
   .cap .body .specs ul li code {
     font: var(--t-mono);
@@ -351,13 +353,13 @@
 
   @media (max-width: 720px) {
     .doc { padding: 3rem 1.4rem 4rem; }
-    .hero h1 { font-size: 3.5rem; }
+    .hero h1 { font-size: 3.2rem; }
     .cap .body { grid-template-columns: 1fr; gap: 1.5rem; }
     .cap .body .specs { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); padding-top: 1.5rem; }
-    section h2 { font-size: 2.2rem; }
+    section h2 { font-size: 2rem; }
   }
 
-  /* ──────────────── footer ──────────────── */
+  /* ──────────────── 底部 ──────────────── */
   .footer {
     margin-top: 6rem;
     padding-top: 2.5rem;
@@ -379,411 +381,411 @@
 <body>
 <div class="doc">
 
-  <!-- ─────────────────── hero ─────────────────── -->
+  <!-- ─────────────────── 头图 ─────────────────── -->
   <header class="hero">
-    <div class="eyebrow">Product Requirements Document</div>
+    <div class="eyebrow">产品需求文档 · Product Requirements Document</div>
     <div class="meta">
-      <span><b>Version</b> · v3.1.1</span>
-      <span><b>Released</b> · 2026-08-15</span>
-      <span><b>Base</b> · v3.1.0 (<code>9d789ff</code>)</span>
-      <span><b>Status</b> · Shipped</span>
+      <span><b>版本</b> · v3.1.1</span>
+      <span><b>发布日期</b> · 2026-08-15</span>
+      <span><b>基础版本</b> · v3.1.0(<code>9d789ff</code>)</span>
+      <span><b>状态</b> · 已发版</span>
     </div>
     <h1>ALICE&nbsp;/&nbsp;VERONICA <span class="v">v3.1.1</span></h1>
     <p class="lede">
-      A quiet expansion. Four <em>P2</em> issues — <em>observability, multi-agent collaboration, voice input, and a plugin marketplace</em> — folded into one release. Twelve pull requests, five hundred and sixty-five new assertions, zero breaking changes to the public surface of v3.1.0.
+      一次安静的扩张。四个 <strong>P2</strong> issue —— <strong>可观测性、多 Agent 协作、语音输入、插件市场</strong> —— 在一个版本里收口。12 个 PR,565 条新断言,对 v3.1.0 公开接口零破坏性变更。
     </p>
   </header>
 
-  <!-- ─────────────────── 01 · executive summary ─────────────────── -->
+  <!-- ─────────────────── 01 · 执行摘要 ─────────────────── -->
   <section id="summary">
-    <h2><span class="index">01</span>Executive summary</h2>
-    <p class="subtitle">What this release is, and what it deliberately is not.</p>
+    <h2><span class="index">01</span>执行摘要</h2>
+    <p class="subtitle">这个版本是什么,以及它刻意不做什么。</p>
 
     <p>
-      v3.1.0 closed the foundational arc — P1 × 9, the eight-item Zod v4 schema runtime, OpenTelemetry SDK scaffolding, the LSP integration, ripgrep substitution, the karpathy wiki ingest / lint bundled skills, and the token-budget bar. <strong>v3.1.1 opens the second arc</strong>: the long-promised <em>P2</em> capabilities that sit on top of that foundation, with no rewrites underneath.
+      v3.1.0 完成了基础弧线 —— P1 × 9,八项 Zod v4 运行时 Schema 校验、OpenTelemetry SDK 脚手架、LSP 集成、ripgrep 替换、karpathy wiki ingest / lint 内置 skill、token 预算条。<strong>v3.1.1 开启第二条弧线</strong>:在这些基础之上,把长期承诺的 <em>P2</em> 能力补齐,底下不做任何重写。
     </p>
 
     <div class="callout">
-      <span class="label">In one line</span>
-      <p>v3.1.1 makes ALICE an <em>observable, collaborative, voiceable, and extensible</em> assistant — without changing what v3.1.0 already shipped.</p>
+      <span class="label">一句话</span>
+      <p>v3.1.1 让 ALICE 成为 <strong>可观测、可协作、可语音、可扩展</strong> 的助理 —— 不改变 v3.1.0 已经交付的内容。</p>
     </div>
 
-    <h3>At a glance</h3>
+    <h3>数字一览</h3>
     <table class="table">
       <thead>
-        <tr><th>Dimension</th><th>Value</th></tr>
+        <tr><th>维度</th><th>值</th></tr>
       </thead>
       <tbody>
-        <tr><td>Issues closed (P2)</td><td>4 — <code>#18</code> · <code>#14</code> · <code>#16</code> · <code>#17</code></td></tr>
-        <tr><td>Pull requests</td><td>12 (PR <code>!17</code> – PR <code>!29</code>)</td></tr>
-        <tr><td>Commits on <code>main</code></td><td>13 (12 feature commits + 1 release commit)</td></tr>
-        <tr><td>New test assertions</td><td><strong>565</strong> on top of v3.1.0's 608 — total <strong>1173</strong></td></tr>
-        <tr><td>New source files</td><td>15 — <code>src/voice/*</code> (6) · <code>src/plugin/*</code> (6) · <code>src/services/analytics/*</code> (2) · <code>src/runtime/agent/coordinator/workspaceCoordinator.ts</code></td></tr>
-        <tr><td>Lines of test code added</td><td>≈ 4,000 across <code>test-case/</code></td></tr>
-        <tr><td>Build</td><td><code>bun build.ts</code> succeeds · 1 dead-branch fold in <code>feature()</code> callsite</td></tr>
-        <tr><td>Dependencies</td><td>No new packages — all 4 issues built on existing imports (<code>zod/v4</code>, <code>vm</code>, <code>crypto</code>, <code>child_process</code>)</td></tr>
+        <tr><td>关闭的 P2 issue</td><td>4 个 —— <code>#18</code> · <code>#14</code> · <code>#16</code> · <code>#17</code></td></tr>
+        <tr><td>合并的 PR</td><td>12 个(PR <code>!17</code> – PR <code>!29</code>)</td></tr>
+        <tr><td><code>main</code> 上的 commit</td><td>13 个(12 个特性 commit + 1 个发版 commit)</td></tr>
+        <tr><td>新增测试断言</td><td><strong>565</strong>(v3.1.0 基线 608),合计 <strong>1,173</strong></td></tr>
+        <tr><td>新增源文件</td><td>15 个 —— <code>src/voice/*</code>(6)· <code>src/plugin/*</code>(6)· <code>src/services/analytics/*</code>(2)· <code>src/runtime/agent/coordinator/workspaceCoordinator.ts</code></td></tr>
+        <tr><td>测试代码增量</td><td>约 4,000 行,跨 <code>test-case/</code></td></tr>
+        <tr><td>构建</td><td><code>bun build.ts</code> 成功 · 1 处 dead-branch 折叠(<code>feature()</code> 调用点)</td></tr>
+        <tr><td>依赖变更</td><td>无新增包 —— 4 个 issue 都用现有依赖(<code>zod/v4</code>、<code>vm</code>、<code>crypto</code>、<code>child_process</code>)</td></tr>
       </tbody>
     </table>
 
-    <h3>What is not in v3.1.1</h3>
+    <h3>v3.1.1 不做的事</h3>
     <ul>
-      <li><strong>No new runtime dependencies.</strong> All four P2 capabilities were built with the existing import surface. Voice, plugin sandboxing, marketplace signing, and multi-agent bus all use Node's built-in <code>vm</code>, <code>crypto</code>, <code>child_process</code>, and <code>events</code> modules.</li>
-      <li><strong>No breaking API changes.</strong> Every P2 entry point is opt-in (a <code>teamMessageBus?</code> option, a <code>voice_mode</code> feature flag, a <code>Marketplace</code> class instantiated on demand, a <code>PluginRegistry</code> independent from the builtin tool list).</li>
-      <li><strong>No remote infrastructure.</strong> The TeamMemorySync remote endpoint, real GPG / openpgp signature verification, real wake-word models (snowboy / openWakeWord), and the plugin marketplace HTTP API are all <em>deliberately scoped out</em> — v3.2.0 work.</li>
+      <li><strong>不引入新的运行时依赖。</strong>4 个 P2 能力都基于现有 import 表面构建:Voice 用 <code>vm</code>、<code>crypto</code>、<code>child_process</code>、<code>events</code> 等 Node 内置模块。</li>
+      <li><strong>没有破坏性 API 变更。</strong>每个 P2 入口都是可选的:<code>teamMessageBus?</code> 参数、<code>voice_mode</code> feature flag、按需实例化的 <code>Marketplace</code> 类、与 builtin tool 列表独立的 <code>PluginRegistry</code>。</li>
+      <li><strong>不引入远程基础设施。</strong>TeamMemorySync 远程端点、真正的 GPG / openpgp 签名验证、真正的 wake-word 模型(snowboy / openWakeWord)、插件市场 HTTP API —— 都是<em>刻意留白</em>的,留给 v3.2.0。</li>
     </ul>
   </section>
 
-  <!-- ─────────────────── 02 · four capabilities ─────────────────── -->
+  <!-- ─────────────────── 02 · 四大能力 ─────────────────── -->
   <section id="capabilities">
-    <h2><span class="index">02</span>The four capabilities</h2>
-    <p class="subtitle">Each capability is shipped as its own subsystem — independently testable, independently disable-able, independently replaceable.</p>
+    <h2><span class="index">02</span>四大能力</h2>
+    <p class="subtitle">每个能力作为独立子系统交付 —— 可独立测试、可独立禁用、可独立替换。</p>
 
-    <!-- ── OTEL ── -->
+    <!-- ── 可观测性 ── -->
     <div class="cap">
-      <div class="cap-head"><span class="num">I.</span><h3>Observability &middot; OTEL local dashboard</h3></div>
+      <div class="cap-head"><span class="num">I.</span><h3>可观测性 · OTEL 本地 dashboard</h3></div>
       <div class="body">
         <div class="narrative">
-          <p>Built on top of v3.1.0's OpenTelemetry SDK (issue <code>#11</code>), the analytics layer reads the SDK's <code>~/.alice/otel/trace.jsonl</code> console exporter output and surfaces a privacy-respecting local dashboard. The aggregator is a <em>pure function</em> — same input, same output, no IO, easy to test.</p>
-          <p>Privacy is enforced at the aggregator's exit. <code>assertPrivacySafe</code> walks the output object recursively and rejects any string value containing <code>prompt</code>, <code>completion</code>, <code>system_prompt</code>, <code>user_message</code>, or <code>assistant_message</code> substrings. The aggregator only ever emits <em>counts</em> and <em>category names</em>.</p>
+          <p>基于 v3.1.0 的 OpenTelemetry SDK(issue <code>#11</code>),analytics 层读取 SDK 输出的 <code>~/.alice/otel/trace.jsonl</code> console exporter,呈现一个隐私安全的本地 dashboard。聚合器是<em>纯函数</em> —— 同样输入同样输出,无 IO,易测试。</p>
+          <p>隐私在聚合器出口强制。<code>assertPrivacySafe</code> 深度遍历输出对象,拒绝任何含 <code>prompt</code>、<code>completion</code>、<code>system_prompt</code>、<code>user_message</code>、<code>assistant_message</code> 子串的字符串值。聚合器只输出<em>计数</em>和<em>类别名</em>。</p>
         </div>
         <div class="specs">
-          <h5>New files</h5>
+          <h5>新增文件</h5>
           <ul>
-            <li><code>src/services/analytics/aggregator.ts</code> · pure function</li>
+            <li><code>src/services/analytics/aggregator.ts</code> · 纯函数</li>
             <li><code>src/services/analytics/analyticsRenderer.ts</code> · ANSI / plain</li>
           </ul>
-          <h5>Output</h5>
+          <h5>输出</h5>
           <ul>
-            <li>7 d × 24 h heatmap of invocation density</li>
-            <li>Per-day input / output / total token tables</li>
-            <li>Per-tool call / success / failed / error rate</li>
-            <li>Date range, total spans, skipped-line count</li>
+            <li>7 天 × 24 小时调用密度热力图</li>
+            <li>每日 input / output / total token 表</li>
+            <li>每个工具的 call / success / failed / errorRate</li>
+            <li>日期范围、totalSpans、skippedLines 计数</li>
           </ul>
           <div class="stat">
             <div><span class="k">PR</span><span class="v">!17</span></div>
-            <div><span class="k">Assertions</span><span class="v">45</span></div>
-            <div><span class="k">Source</span><span class="v">≈ 11 KB</span></div>
+            <div><span class="k">断言</span><span class="v">45</span></div>
+            <div><span class="k">源码</span><span class="v">≈ 11 KB</span></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ── Multi-agent ── -->
+    <!-- ── 协作 ── -->
     <div class="cap">
-      <div class="cap-head"><span class="num">II.</span><h3>Collaboration &middot; multi-agent team</h3></div>
+      <div class="cap-head"><span class="num">II.</span><h3>协作 · 多 Agent 团队</h3></div>
       <div class="body">
         <div class="narrative">
-          <p>The original v3.0.1 Coordinator was a single-agent sequencer. v3.1.1 extends it into a true <em>team</em>: workers share a <code>TeamMessageBus</code>, can publish and acknowledge typed messages, and run with strict per-workspace locks so they don't trample each other's writes.</p>
-          <p>Five PRs build this in layers — protocol, tool binding, profile surface, runner integration, workspace coordination — each tested in isolation. The end-to-end contract is asserted in a single 24-assertion test that runs three workers concurrently against one bus.</p>
+          <p>最初的 v3.0.1 Coordinator 是单 Agent 串行器。v3.1.1 把它扩展为真正的<em>团队</em>:worker 共享一个 <code>TeamMessageBus</code>、可以发布与确认类型化消息、运行在 per-workspace 严格锁下避免相互覆盖。</p>
+          <p>5 个 PR 分层构建 —— 协议、tool 绑定、profile 表层、runner 集成、workspace 协调 —— 每一层独立测试。端到端契约在单个 24 断言的测试里验证:3 个 worker 并发跑同一 bus。</p>
         </div>
         <div class="specs">
-          <h5>New files</h5>
+          <h5>新增文件</h5>
           <ul>
             <li><code>teamMessageBus.ts</code> · sequence + ack + retry</li>
-            <li><code>teamMessage.ts</code> · builtin tool (send / recv / ack)</li>
-            <li><code>executorRunner.ts</code> · 3–6 step LLM planner</li>
-            <li><code>reviewerRunner.ts</code> · 1–5 finding LLM reviewer</li>
-            <li><code>concurrentAgentRunner.ts</code> · multi-worker merge</li>
-            <li><code>workspaceCoordinator.ts</code> · per-workspace FIFO lock</li>
+            <li><code>teamMessage.ts</code> · 内置 tool(send / recv / ack)</li>
+            <li><code>executorRunner.ts</code> · 3–6 步 LLM 规划</li>
+            <li><code>reviewerRunner.ts</code> · 1–5 finding LLM 评审</li>
+            <li><code>concurrentAgentRunner.ts</code> · 多 worker 合并</li>
+            <li><code>workspaceCoordinator.ts</code> · per-workspace FIFO 锁</li>
           </ul>
-          <h5>Profiles now spawnable</h5>
+          <h5>当前可 spawn 的 profile</h5>
           <ul>
-            <li><code>consultant</code> · <code>researcher</code> (since v3.0.1)</li>
-            <li><code>executor</code> · <code>reviewer</code> (new in v3.1.1)</li>
-            <li>3 still dormant: <code>writer</code> · <code>security</code> · <code>tester</code></li>
+            <li><code>consultant</code> · <code>researcher</code>(v3.0.1 已有)</li>
+            <li><code>executor</code> · <code>reviewer</code>(v3.1.1 新增)</li>
+            <li>3 个仍未实装:<code>writer</code> · <code>security</code> · <code>tester</code></li>
           </ul>
           <div class="stat">
             <div><span class="k">PRs</span><span class="v">!18–22</span></div>
-            <div><span class="k">Assertions</span><span class="v">194</span></div>
-            <div><span class="k">Profile set</span><span class="v">4 / 7</span></div>
+            <div><span class="k">断言</span><span class="v">194</span></div>
+            <div><span class="k">Profile 集</span><span class="v">4 / 7</span></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ── Voice ── -->
+    <!-- ── 输入 ── -->
     <div class="cap">
-      <div class="cap-head"><span class="num">III.</span><h3>Input &middot; voice</h3></div>
+      <div class="cap-head"><span class="num">III.</span><h3>输入 · 语音</h3></div>
       <div class="body">
         <div class="narrative">
-          <p>Four PRs land the voice subsystem as a clean abstraction: a <code>VoiceProcessor</code> base class with two implementations (<code>NullVoiceProcessor</code> for the default-off path, <code>RealVoiceProcessor</code> for the production stack), a <code>WhisperCppEngine</code> that spawns the whisper.cpp CLI as a child process, and a prototype <code>EnergyWakeWordDetector</code> keyed on RMS energy. The whole subsystem sits behind one feature flag: <code>voice_mode</code>.</p>
-          <p>The architectural contract is the single <code>processUserInput(buffer)</code> entry point. Whether the buffer is <code>{ kind: 'text', content }</code> or <code>{ kind: 'voice', audio }</code>, the function returns the same <code>NormalizedInput</code> shape. Downstream code does not need to know.</p>
+          <p>4 个 PR 把语音子系统作为干净抽象落地:一个 <code>VoiceProcessor</code> 基类,两个实现(<code>NullVoiceProcessor</code> 走默认关闭路径,<code>RealVoiceProcessor</code> 走生产栈)、一个 <code>WhisperCppEngine</code> 通过子进程跑 whisper.cpp、一个 prototype <code>EnergyWakeWordDetector</code> 基于 RMS 能量。整个子系统只受一个 feature flag 控制:<code>voice_mode</code>。</p>
+          <p>架构契约是单一的 <code>processUserInput(buffer)</code> 入口。无论 buffer 是 <code>{ kind: 'text', content }</code> 还是 <code>{ kind: 'voice', audio }</code>,函数返回相同的 <code>NormalizedInput</code> 形态。下游代码不需要知道。</p>
         </div>
         <div class="specs">
-          <h5>New files (6)</h5>
+          <h5>新增文件(6)</h5>
           <ul>
             <li><code>voice/types.ts</code> · <code>nullEngine.ts</code> · <code>voiceInput.ts</code></li>
             <li><code>whisperEngine.ts</code> · <code>voiceProcessor.ts</code> · <code>wakeWordEngine.ts</code></li>
           </ul>
-          <h5>Failure modes (all warn-and-continue)</h5>
+          <h5>失败模式(全部 warn-and-continue)</h5>
           <ul>
-            <li><code>WhisperCppEngine.isAvailable() = false</code> → empty <code>content</code></li>
-            <li>Child process timeout → <code>AsrError('timeout')</code></li>
-            <li>Subprocess non-zero exit → <code>AsrError('unknown')</code></li>
-            <li>ENAMETOOLONG / binary missing → <code>AsrError('binary_missing')</code></li>
+            <li><code>WhisperCppEngine.isAvailable() = false</code> → 返空 <code>content</code></li>
+            <li>子进程超时 → <code>AsrError('timeout')</code></li>
+            <li>子进程非 0 退出码 → <code>AsrError('unknown')</code></li>
+            <li>ENAMETOOLONG / binary 缺失 → <code>AsrError('binary_missing')</code></li>
           </ul>
           <div class="stat">
             <div><span class="k">PRs</span><span class="v">!23–26</span></div>
-            <div><span class="k">Assertions</span><span class="v">134</span></div>
-            <div><span class="k">Source</span><span class="v">≈ 32 KB</span></div>
+            <div><span class="k">断言</span><span class="v">134</span></div>
+            <div><span class="k">源码</span><span class="v">≈ 32 KB</span></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ── Plugin ── -->
+    <!-- ── 扩展 ── -->
     <div class="cap">
-      <div class="cap-head"><span class="num">IV.</span><h3>Extension &middot; plugin marketplace</h3></div>
+      <div class="cap-head"><span class="num">IV.</span><h3>扩展 · 插件市场</h3></div>
       <div class="body">
         <div class="narrative">
-          <p>Four new source files plus tests give ALICE a real plugin surface. A <code>PluginManifest</code> is validated with a Zod v4 schema; a <code>PluginRegistry</code> holds installed plugin info; a <code>PluginSandbox</code> runs plugin code in a <code>vm</code> context with a whitelist for <code>require</code> and <code>process.env</code>; a <code>Marketplace</code> wraps the install path with HMAC-SHA256 signature verification.</p>
-          <p>The end-to-end fixture — <code>loadPluginSampleWeather()</code> — signs a manifest, installs it, loads the tool into the host registry, invokes <code>get_weather('北京')</code>, and asserts the round-trip result. 39 assertions cover the entire chain.</p>
+          <p>4 个新源文件加测试,给 ALICE 一个真正的 plugin 表面。<code>PluginManifest</code> 用 Zod v4 schema 校验;<code>PluginRegistry</code> 持有已安装 plugin 信息;<code>PluginSandbox</code> 在 <code>vm</code> 上下文里跑 plugin 代码,<code>require</code> 与 <code>process.env</code> 都用白名单;<code>Marketplace</code> 用 HMAC-SHA256 签名验证包装 install 路径。</p>
+          <p>端到端 fixture —— <code>loadPluginSampleWeather()</code> —— 签名 manifest、安装、加载 tool 到主 registry、调用 <code>get_weather('北京')</code>、断言回环结果。39 断言覆盖整条链。</p>
         </div>
         <div class="specs">
-          <h5>New files (5)</h5>
+          <h5>新增文件(5)</h5>
           <ul>
             <li><code>plugin/types.ts</code> · <code>manifest.ts</code> · <code>registry.ts</code></li>
             <li><code>sandbox.ts</code> · <code>marketplace.ts</code> · <code>loader.ts</code></li>
           </ul>
-          <h5>Security boundaries</h5>
+          <h5>安全边界</h5>
           <ul>
-            <li>Manifest rejects 8+ malformed shapes with field-level issues</li>
-            <li>Sandbox blocks <code>fs</code>, <code>child_process</code>, <code>os</code>, <code>net</code>, <code>http</code>, <code>https</code>, <code>crypto</code>, <code>path</code></li>
-            <li>Per-plugin (default 100) + per-session (default 1000) tool call quotas</li>
-            <li>HMAC signature verification with constant-time comparison</li>
+            <li>Manifest 拒绝 8+ 种畸形结构,带字段级 issues</li>
+            <li>Sandbox 拦截 <code>fs</code>、<code>child_process</code>、<code>os</code>、<code>net</code>、<code>http</code>、<code>https</code>、<code>crypto</code>、<code>path</code></li>
+            <li>Per-plugin(默认 100)+ per-session(默认 1000)tool 调用配额</li>
+            <li>HMAC 签名验证(常数时间比较)</li>
           </ul>
           <div class="stat">
             <div><span class="k">PRs</span><span class="v">!27–29</span></div>
-            <div><span class="k">Assertions</span><span class="v">135</span></div>
-            <div><span class="k">Source</span><span class="v">≈ 30 KB</span></div>
+            <div><span class="k">断言</span><span class="v">135</span></div>
+            <div><span class="k">源码</span><span class="v">≈ 30 KB</span></div>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ─────────────────── 03 · architecture ─────────────────── -->
+  <!-- ─────────────────── 03 · 架构 ─────────────────── -->
   <section id="architecture">
-    <h2><span class="index">03</span>Architecture map</h2>
-    <p class="subtitle">Where the four subsystems sit in the source tree, and what they touch.</p>
+    <h2><span class="index">03</span>架构图</h2>
+    <p class="subtitle">四个子系统在源码树中的位置,以及它们影响什么。</p>
 
-    <h3>Source tree (new in v3.1.1, marked with <code>+</code>)</h3>
+    <h3>源码树(v3.1.1 新增,标 <code>+</code>)</h3>
     <table class="table">
       <thead>
-        <tr><th>Path</th><th>Role</th><th>Size</th></tr>
+        <tr><th>路径</th><th>角色</th><th>行数</th></tr>
       </thead>
       <tbody>
-        <tr><td><code>src/services/analytics/aggregator.ts</code> <strong>+</strong></td><td>OTEL JSONL → 7 d × 24 h heatmap + token table + per-tool error rate (pure function)</td><td class="col-num">225</td></tr>
-        <tr><td><code>src/services/analytics/analyticsRenderer.ts</code> <strong>+</strong></td><td>ANSI / plain string rendering</td><td class="col-num">140</td></tr>
+        <tr><td><code>src/services/analytics/aggregator.ts</code> <strong>+</strong></td><td>OTEL JSONL → 7d×24h 热力图 + token 表 + per-tool 错误率(纯函数)</td><td class="col-num">225</td></tr>
+        <tr><td><code>src/services/analytics/analyticsRenderer.ts</code> <strong>+</strong></td><td>ANSI / plain 字符串渲染</td><td class="col-num">140</td></tr>
         <tr><td><code>src/runtime/agent/coordinator/teamMessageBus.ts</code> <strong>+</strong></td><td>sequence + ack + retry + warn-and-continue</td><td class="col-num">225</td></tr>
-        <tr><td><code>src/runtime/agent/coordinator/executorRunner.ts</code> <strong>+</strong></td><td>3–6 step LLM task planner</td><td class="col-num">150</td></tr>
-        <tr><td><code>src/runtime/agent/coordinator/reviewerRunner.ts</code> <strong>+</strong></td><td>1–5 finding LLM reviewer</td><td class="col-num">130</td></tr>
-        <tr><td><code>src/runtime/agent/coordinator/workspaceCoordinator.ts</code> <strong>+</strong></td><td>per-workspace FIFO lock + timeout + failure isolation</td><td class="col-num">200</td></tr>
-        <tr><td><code>src/runtime/agent/concurrentAgentRunner.ts</code></td><td>modified — accept <code>teamMessageBus</code>, yield <code>team_message_batch</code></td><td class="col-num">+25</td></tr>
+        <tr><td><code>src/runtime/agent/coordinator/executorRunner.ts</code> <strong>+</strong></td><td>3–6 步 LLM 任务规划</td><td class="col-num">150</td></tr>
+        <tr><td><code>src/runtime/agent/coordinator/reviewerRunner.ts</code> <strong>+</strong></td><td>1–5 finding LLM 评审</td><td class="col-num">130</td></tr>
+        <tr><td><code>src/runtime/agent/coordinator/workspaceCoordinator.ts</code> <strong>+</strong></td><td>per-workspace FIFO 锁 + 超时 + 失败隔离</td><td class="col-num">200</td></tr>
+        <tr><td><code>src/runtime/agent/concurrentAgentRunner.ts</code></td><td>修改 —— 接受 <code>teamMessageBus</code>,yield <code>team_message_batch</code></td><td class="col-num">+25</td></tr>
         <tr><td><code>src/tools/builtin/teamMessage.ts</code> <strong>+</strong></td><td>send / recv / ack AliceTool</td><td class="col-num">200</td></tr>
-        <tr><td><code>src/voice/types.ts</code> <strong>+</strong></td><td>AudioCapture / AsrEngine / WakeWordDetector contracts</td><td class="col-num">110</td></tr>
-        <tr><td><code>src/voice/nullEngine.ts</code> <strong>+</strong></td><td>Null / default-off implementations</td><td class="col-num">50</td></tr>
-        <tr><td><code>src/voice/voiceInput.ts</code> <strong>+</strong></td><td>processUserInput unified entry</td><td class="col-num">60</td></tr>
-        <tr><td><code>src/voice/whisperEngine.ts</code> <strong>+</strong></td><td>whisper.cpp child-process ASR</td><td class="col-num">140</td></tr>
-        <tr><td><code>src/voice/voiceProcessor.ts</code> <strong>+</strong></td><td>NullVoiceProcessor / RealVoiceProcessor / factory</td><td class="col-num">165</td></tr>
-        <tr><td><code>src/voice/wakeWordEngine.ts</code> <strong>+</strong></td><td>EnergyWakeWordDetector (RMS threshold prototype)</td><td class="col-num">110</td></tr>
-        <tr><td><code>src/plugin/{types,manifest,registry,sandbox,marketplace,loader}.ts</code> <strong>+</strong></td><td>6 files · manifest Zod + registry + sandbox + marketplace + loader</td><td class="col-num">680</td></tr>
+        <tr><td><code>src/voice/types.ts</code> <strong>+</strong></td><td>AudioCapture / AsrEngine / WakeWordDetector 契约</td><td class="col-num">110</td></tr>
+        <tr><td><code>src/voice/nullEngine.ts</code> <strong>+</strong></td><td>Null / 默认关闭实现</td><td class="col-num">50</td></tr>
+        <tr><td><code>src/voice/voiceInput.ts</code> <strong>+</strong></td><td>processUserInput 统一入口</td><td class="col-num">60</td></tr>
+        <tr><td><code>src/voice/whisperEngine.ts</code> <strong>+</strong></td><td>whisper.cpp 子进程 ASR</td><td class="col-num">140</td></tr>
+        <tr><td><code>src/voice/voiceProcessor.ts</code> <strong>+</strong></td><td>NullVoiceProcessor / RealVoiceProcessor / 工厂</td><td class="col-num">165</td></tr>
+        <tr><td><code>src/voice/wakeWordEngine.ts</code> <strong>+</strong></td><td>EnergyWakeWordDetector(RMS 阈值 prototype)</td><td class="col-num">110</td></tr>
+        <tr><td><code>src/plugin/{types,manifest,registry,sandbox,marketplace,loader}.ts</code> <strong>+</strong></td><td>6 文件 · manifest Zod + registry + sandbox + marketplace + loader</td><td class="col-num">680</td></tr>
       </tbody>
     </table>
 
-    <h3>Layering</h3>
-    <p>The four new capabilities share one architectural decision: <em>they all sit above v3.1.0, not inside it</em>. None of the P2 changes touched:</p>
+    <h3>分层</h3>
+    <p>四个新能力共享一个架构决策:<em>它们都位于 v3.1.0 之上,而不是嵌入其中</em>。v3.1.1 没有触及:</p>
     <ul>
-      <li>The agent loop core (<code>src/runtime/agent/agentLoop.ts</code>)</li>
-      <li>The permission system (<code>src/core/permission/*</code>)</li>
-      <li>The build-time DCE pipeline (<code>src/runtime/feature/buildTimeDCE.ts</code>)</li>
-      <li>Any tool in <code>src/tools/builtin/</code> except the new <code>teamMessage.ts</code></li>
+      <li>Agent 循环核心(<code>src/runtime/agent/agentLoop.ts</code>)</li>
+      <li>权限系统(<code>src/core/permission/*</code>)</li>
+      <li>Build 期 DCE 流水线(<code>src/runtime/feature/buildTimeDCE.ts</code>)</li>
+      <li><code>src/tools/builtin/</code> 下的任何已有 tool(仅新增 <code>teamMessage.ts</code>)</li>
     </ul>
-    <p>This is what makes the test count 1173 instead of something much higher — the new code is self-contained and tests don't have to mock the existing surface.</p>
+    <p>这是测试总数 1,173 而不是更高的原因 —— 新代码自包含,测试不需要 mock 现有表面。</p>
   </section>
 
-  <!-- ─────────────────── 04 · test coverage ─────────────────── -->
+  <!-- ─────────────────── 04 · 测试覆盖 ─────────────────── -->
   <section id="testing">
-    <h2><span class="index">04</span>Test coverage</h2>
-    <p class="subtitle">v3.1.0 baseline was 608 assertions. v3.1.1 adds 565, for 1173 total.</p>
+    <h2><span class="index">04</span>测试覆盖</h2>
+    <p class="subtitle">v3.1.0 基线 608 断言。v3.1.1 新增 565,合计 1,173。</p>
 
-    <h3>Per-PR contribution</h3>
+    <h3>每个 PR 的断言贡献</h3>
     <table class="table">
       <thead>
-        <tr><th>PR</th><th>Issue</th><th>New script(s)</th><th>Assertions</th></tr>
+        <tr><th>PR</th><th>Issue</th><th>新增脚本</th><th>断言</th></tr>
       </thead>
       <tbody>
         <tr><td><code>!17</code></td><td>#18</td><td><code>test-issue-018.ts</code></td><td class="col-num">45</td></tr>
-        <tr><td><code>!18</code></td><td>#14 · pt&nbsp;1</td><td><code>test-issue-014.ts</code></td><td class="col-num">34</td></tr>
-        <tr><td><code>!19</code></td><td>#14 · pt&nbsp;2</td><td><code>test-issue-014-tool.ts</code></td><td class="col-num">58</td></tr>
-        <tr><td><code>!20</code></td><td>#14 · pt&nbsp;3</td><td><code>test-issue-014-profiles.ts</code></td><td class="col-num">47</td></tr>
-        <tr><td><code>!21</code></td><td>#14 · pt&nbsp;4</td><td><code>test-issue-014-concurrent.ts</code></td><td class="col-num">29</td></tr>
-        <tr><td><code>!22</code></td><td>#14 · pt&nbsp;5</td><td><code>test-issue-014-workspace.ts</code></td><td class="col-num">24</td></tr>
-        <tr><td><code>!23</code></td><td>#16 · pt&nbsp;1</td><td><code>test-issue-016.ts</code></td><td class="col-num">38</td></tr>
-        <tr><td><code>!24</code></td><td>#16 · pt&nbsp;2</td><td><code>test-issue-016-whisper.ts</code></td><td class="col-num">21</td></tr>
-        <tr><td><code>!25</code></td><td>#16 · pt&nbsp;3</td><td><code>test-issue-016-processor.ts</code></td><td class="col-num">37</td></tr>
-        <tr><td><code>!26</code></td><td>#16 · pt&nbsp;4</td><td><code>test-issue-016-wakeword.ts</code></td><td class="col-num">28</td></tr>
-        <tr><td><code>!27</code></td><td>#17 · pt&nbsp;1</td><td><code>test-issue-017.ts</code></td><td class="col-num">49</td></tr>
-        <tr><td><code>!28</code></td><td>#17 · pt&nbsp;2</td><td><code>test-issue-017-sandbox.ts</code></td><td class="col-num">48</td></tr>
-        <tr><td><code>!29</code></td><td>#17 · pt&nbsp;3</td><td><code>test-issue-017-marketplace.ts</code></td><td class="col-num">39</td></tr>
-        <tr><td colspan="2"><em>baseline (v3.1.0)</em></td><td>—</td><td class="col-num">608</td></tr>
-        <tr><td colspan="2"><em>delta</em></td><td>—</td><td class="col-num"><strong>+ 565</strong></td></tr>
-        <tr><td colspan="2"><strong>v3.1.1 total</strong></td><td><strong>27 scripts</strong></td><td class="col-num"><strong>1,173</strong></td></tr>
+        <tr><td><code>!18</code></td><td>#14 · 第 1 部分</td><td><code>test-issue-014.ts</code></td><td class="col-num">34</td></tr>
+        <tr><td><code>!19</code></td><td>#14 · 第 2 部分</td><td><code>test-issue-014-tool.ts</code></td><td class="col-num">58</td></tr>
+        <tr><td><code>!20</code></td><td>#14 · 第 3 部分</td><td><code>test-issue-014-profiles.ts</code></td><td class="col-num">47</td></tr>
+        <tr><td><code>!21</code></td><td>#14 · 第 4 部分</td><td><code>test-issue-014-concurrent.ts</code></td><td class="col-num">29</td></tr>
+        <tr><td><code>!22</code></td><td>#14 · 第 5 部分</td><td><code>test-issue-014-workspace.ts</code></td><td class="col-num">24</td></tr>
+        <tr><td><code>!23</code></td><td>#16 · 第 1 部分</td><td><code>test-issue-016.ts</code></td><td class="col-num">38</td></tr>
+        <tr><td><code>!24</code></td><td>#16 · 第 2 部分</td><td><code>test-issue-016-whisper.ts</code></td><td class="col-num">21</td></tr>
+        <tr><td><code>!25</code></td><td>#16 · 第 3 部分</td><td><code>test-issue-016-processor.ts</code></td><td class="col-num">37</td></tr>
+        <tr><td><code>!26</code></td><td>#16 · 第 4 部分</td><td><code>test-issue-016-wakeword.ts</code></td><td class="col-num">28</td></tr>
+        <tr><td><code>!27</code></td><td>#17 · 第 1 部分</td><td><code>test-issue-017.ts</code></td><td class="col-num">49</td></tr>
+        <tr><td><code>!28</code></td><td>#17 · 第 2 部分</td><td><code>test-issue-017-sandbox.ts</code></td><td class="col-num">48</td></tr>
+        <tr><td><code>!29</code></td><td>#17 · 第 3 部分</td><td><code>test-issue-017-marketplace.ts</code></td><td class="col-num">39</td></tr>
+        <tr><td colspan="2"><em>基线(v3.1.0)</em></td><td>—</td><td class="col-num">608</td></tr>
+        <tr><td colspan="2"><em>增量</em></td><td>—</td><td class="col-num"><strong>+ 565</strong></td></tr>
+        <tr><td colspan="2"><strong>v3.1.1 合计</strong></td><td><strong>27 个脚本</strong></td><td class="col-num"><strong>1,173</strong></td></tr>
       </tbody>
     </table>
   </section>
 
-  <!-- ─────────────────── 05 · migration ─────────────────── -->
+  <!-- ─────────────────── 05 · 迁移 ─────────────────── -->
   <section id="migration">
-    <h2><span class="index">05</span>Migration &amp; compatibility</h2>
-    <p class="subtitle">v3.1.1 is a strict additive release. Every v3.1.0 consumer should upgrade without code changes.</p>
+    <h2><span class="index">05</span>迁移与兼容性</h2>
+    <p class="subtitle">v3.1.1 是严格的加性版本。v3.1.0 的所有消费方应无需代码改动即可升级。</p>
 
-    <h3>Upgrade</h3>
-    <p>No new dependencies, no breaking API changes, no database migrations. The release commit is on <code>main</code> at <code>b71ed55</code>, tagged <code>v3.1.1</code>.</p>
+    <h3>升级步骤</h3>
+    <p>无新增依赖、无破坏性 API 变更、无数据库迁移。发版 commit 在 <code>main</code> 上为 <code>b71ed55</code>,tag 为 <code>v3.1.1</code>。</p>
 
-    <h3>Behavior changes you may notice</h3>
+    <h3>行为变化(你可能注意到的)</h3>
     <ul>
-      <li><strong>Profile list now shows 4 spawnable.</strong> The <code>:agents</code> slash command will list <code>consultant</code>, <code>researcher</code>, <code>executor</code>, and <code>reviewer</code> instead of just two. If you have UI that enumerates the set, expect the count to grow.</li>
-      <li><strong>Run-loop is no-op compatible.</strong> If you <em>don't</em> pass <code>teamMessageBus</code> to <code>runAgents()</code>, the behavior is byte-identical to v3.1.0.</li>
-      <li><strong>Voice is opt-in by flag.</strong> Until a user adds <code>voice_mode: true</code> to <code>~/.alice/settings.jsonc</code>, no voice code runs at all (NullVoiceProcessor).</li>
-      <li><strong>Plugin system is inert without an explicit Marketplace.</strong> The <code>PluginRegistry</code>, <code>PluginSandbox</code>, and <code>Marketplace</code> classes are not imported by any existing call site. Nothing executes until you instantiate one.</li>
+      <li><strong>profile 列表变 4 个 spawnable。</strong><code>:agents</code> slash 命令会列出 <code>consultant</code>、<code>researcher</code>、<code>executor</code>、<code>reviewer</code> 而不是两个。如果有 UI 枚举该集合,数量会增加。</li>
+      <li><strong>Runner 调用零侵入兼容。</strong>如果不传 <code>teamMessageBus</code> 给 <code>runAgents()</code>,行为与 v3.1.0 字节级一致。</li>
+      <li><strong>语音默认 flag 关闭。</strong>除非用户在 <code>~/.alice/settings.jsonc</code> 显式加入 <code>voice_mode: true</code>,否则任何 voice 代码都不运行(NullVoiceProcessor)。</li>
+      <li><strong>Plugin 系统在不显式实例化时静默。</strong><code>PluginRegistry</code>、<code>PluginSandbox</code>、<code>Marketplace</code> 没有被任何现有调用点 import,直到你实例化一个之前都不会执行。</li>
     </ul>
 
-    <h3>What to read first if you only have ten minutes</h3>
+    <h3>如果只有 10 分钟,先读这些</h3>
     <ol>
-      <li><code>release-notes/v3.1.1.md</code> — the executable summary</li>
-      <li><code>test-list.md</code> — the index of what 27 scripts verify</li>
-      <li>The four cap blocks in section <a href="#capabilities">02</a> of this document</li>
+      <li><code>release-notes/v3.1.1.md</code> —— 可执行摘要</li>
+      <li><code>test-list.md</code> —— 27 个脚本验证什么的索引</li>
+      <li>本文档 <a href="#capabilities">02 章节</a>的四个 cap 块</li>
     </ol>
   </section>
 
-  <!-- ─────────────────── 06 · limitations ─────────────────── -->
+  <!-- ─────────────────── 06 · 已知限制 ─────────────────── -->
   <section id="limitations">
-    <h2><span class="index">06</span>Known limitations</h2>
-    <p class="subtitle">Honest about what v3.1.1 does not solve.</p>
+    <h2><span class="index">06</span>已知限制</h2>
+    <p class="subtitle">诚实列出 v3.1.1 没有解决的问题。</p>
 
     <table class="table">
       <thead>
-        <tr><th>Capability</th><th>Limitation</th><th>Why</th><th>Target</th></tr>
+        <tr><th>能力</th><th>限制</th><th>原因</th><th>目标</th></tr>
       </thead>
       <tbody>
         <tr>
           <td>OTEL dashboard</td>
-          <td>No streaming / no real-time tail</td>
-          <td>Aggregator is batch; reading a 5&nbsp;MB JSONL twice per second is not free</td>
+          <td>无流式 / 无实时 tail</td>
+          <td>聚合器是 batch;每秒两次扫 5 MB JSONL 不便宜</td>
           <td>v3.2.0</td>
         </tr>
         <tr>
-          <td>Multi-agent</td>
-          <td>3 of 7 profiles still dormant (<code>writer</code>, <code>security</code>, <code>tester</code>)</td>
-          <td>Out of scope for the P2 batch; each is its own initiative</td>
+          <td>多 Agent</td>
+          <td>7 个 profile 还有 3 个未实装(<code>writer</code>、<code>security</code>、<code>tester</code>)</td>
+          <td>不在 P2 范围内;每个独立</td>
           <td>v3.2.0 / v3.3.0</td>
         </tr>
         <tr>
-          <td>Multi-agent</td>
-          <td>TeamMemorySync remote endpoint is still local-mock only</td>
-          <td>Remote needs an auth model that is its own design exercise</td>
+          <td>多 Agent</td>
+          <td>TeamMemorySync 远程端点仍 local-mock</td>
+          <td>远程需 auth 模型,本身是个设计专题</td>
           <td>v4.0.0</td>
         </tr>
         <tr>
-          <td>Voice</td>
-          <td><code>EnergyWakeWordDetector</code> is RMS-based, not phoneme-based</td>
-          <td>Real wake-word needs a model; a placeholder detector is more honest than a fake one</td>
-          <td>v3.2.0 (snowboy / openWakeWord swap)</td>
+          <td>语音</td>
+          <td><code>EnergyWakeWordDetector</code> 是 RMS,不是音素</td>
+          <td>真 wake-word 需模型;占位检测器比假检测器更诚实</td>
+          <td>v3.2.0(snowboy / openWakeWord 替换)</td>
         </tr>
         <tr>
-          <td>Voice</td>
-          <td>No <code>AVFoundation</code> / <code>WASAPI</code> / <code>pulse</code> capture implementation</td>
-          <td>Cross-OS audio capture is its own platform-specific work</td>
-          <td>v3.2.0 (per-OS)</td>
+          <td>语音</td>
+          <td>无 <code>AVFoundation</code> / <code>WASAPI</code> / <code>pulse</code> capture 实现</td>
+          <td>跨 OS 音频采集是平台特定工作</td>
+          <td>v3.2.0(per-OS)</td>
         </tr>
         <tr>
-          <td>Plugin</td>
-          <td>HMAC-SHA256 simulates GPG</td>
-          <td>Real GPG / openpgp needs key infrastructure</td>
+          <td>插件</td>
+          <td>HMAC-SHA256 模拟 GPG</td>
+          <td>真 GPG / openpgp 需 key 基础设施</td>
           <td>v3.2.0</td>
         </tr>
         <tr>
-          <td>Plugin</td>
-          <td>Sandbox uses <code>vm</code>, not a real V8 isolate</td>
-          <td>True isolation needs <code>isolated-vm</code> (native); <code>vm</code> is enough for the threat model</td>
-          <td>v3.2.0 (if needed)</td>
+          <td>插件</td>
+          <td>沙箱用 <code>vm</code>,非真 V8 isolate</td>
+          <td>真隔离需 <code>isolated-vm</code>(native);<code>vm</code> 对当前威胁模型足够</td>
+          <td>v3.2.0(按需)</td>
         </tr>
         <tr>
-          <td>Plugin</td>
-          <td>No remote marketplace HTTP API</td>
-          <td>Authentication, rate limiting, and billing are out of scope</td>
+          <td>插件</td>
+          <td>无远程市场 HTTP API</td>
+          <td>鉴权、限流、计费超出范围</td>
           <td>v3.3.0+</td>
         </tr>
       </tbody>
     </table>
   </section>
 
-  <!-- ─────────────────── 07 · pull requests ─────────────────── -->
+  <!-- ─────────────────── 07 · PR 列表 ─────────────────── -->
   <section id="prs">
-    <h2><span class="index">07</span>The twelve pull requests</h2>
-    <p class="subtitle">In the order they merged.</p>
+    <h2><span class="index">07</span>十二个 Pull Request</h2>
+    <p class="subtitle">按合并顺序排列。</p>
 
     <div class="pr-strip">
-      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/17"><span class="num">PR !17</span><span class="title">OTEL local dashboard</span><span class="meta">+45 · <code>#18</code></span></a>
-      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/18"><span class="num">PR !18</span><span class="title">TeamMessageBus protocol</span><span class="meta">+34 · <code>#14</code>/1</span></a>
-      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/19"><span class="num">PR !19</span><span class="title">TeamMessage tool</span><span class="meta">+58 · <code>#14</code>/2</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/17"><span class="num">PR !17</span><span class="title">OTEL 本地 dashboard</span><span class="meta">+45 · <code>#18</code></span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/18"><span class="num">PR !18</span><span class="title">TeamMessageBus 协议层</span><span class="meta">+34 · <code>#14</code>/1</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/19"><span class="num">PR !19</span><span class="title">teamMessage tool</span><span class="meta">+58 · <code>#14</code>/2</span></a>
       <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/20"><span class="num">PR !20</span><span class="title">executor + reviewer</span><span class="meta">+47 · <code>#14</code>/3</span></a>
-      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/21"><span class="num">PR !21</span><span class="title">Multi-worker bus</span><span class="meta">+29 · <code>#14</code>/4</span></a>
-      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/22"><span class="num">PR !22</span><span class="title">Workspace coordination</span><span class="meta">+24 · <code>#14</code>/5</span></a>
-      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/23"><span class="num">PR !23</span><span class="title">Voice interface layer</span><span class="meta">+38 · <code>#16</code>/1</span></a>
-      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/24"><span class="num">PR !24</span><span class="title">whisper.cpp engine</span><span class="meta">+21 · <code>#16</code>/2</span></a>
-      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/25"><span class="num">PR !25</span><span class="title">VoiceProcessor</span><span class="meta">+37 · <code>#16</code>/3</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/21"><span class="num">PR !21</span><span class="title">多 worker 总线</span><span class="meta">+29 · <code>#14</code>/4</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/22"><span class="num">PR !22</span><span class="title">workspace 协调</span><span class="meta">+24 · <code>#14</code>/5</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/23"><span class="num">PR !23</span><span class="title">语音接口层</span><span class="meta">+38 · <code>#16</code>/1</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/24"><span class="num">PR !24</span><span class="title">whisper.cpp 引擎</span><span class="meta">+21 · <code>#16</code>/2</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/25"><span class="num">PR !25</span><span class="title">VoiceProcessor 抽象</span><span class="meta">+37 · <code>#16</code>/3</span></a>
       <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/26"><span class="num">PR !26</span><span class="title">WakeWord + DCE</span><span class="meta">+28 · <code>#16</code>/4</span></a>
       <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/27"><span class="num">PR !27</span><span class="title">Plugin manifest</span><span class="meta">+49 · <code>#17</code>/1</span></a>
       <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/28"><span class="num">PR !28</span><span class="title">Plugin sandbox</span><span class="meta">+48 · <code>#17</code>/2</span></a>
-      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/29"><span class="num">PR !29</span><span class="title">Marketplace + e2e</span><span class="meta">+39 · <code>#17</code>/3</span></a>
+      <a class="pr-card" href="https://gitee.com/andershsueh/alice-cli/pulls/29"><span class="num">PR !29</span><span class="title">市场 + 端到端</span><span class="meta">+39 · <code>#17</code>/3</span></a>
     </div>
   </section>
 
-  <!-- ─────────────────── 08 · roadmap ─────────────────── -->
+  <!-- ─────────────────── 08 · 路线图 ─────────────────── -->
   <section id="roadmap">
-    <h2><span class="index">08</span>Roadmap to v3.2.0</h2>
-    <p class="subtitle">The next batch is bounded by what v3.1.1 explicitly leaves undone.</p>
+    <h2><span class="index">08</span>v3.2.0 路线图</h2>
+    <p class="subtitle">下一批的边界由 v3.1.1 明确留白的内容定义。</p>
 
-    <h3>Concretely, the v3.2.0 candidate list</h3>
+    <h3>v3.2.0 具体候选清单</h3>
     <ol>
-      <li><strong>Streaming OTEL dashboard.</strong> Watch <code>trace.jsonl</code> via <code>fs.watch</code>, render deltas instead of re-reading the whole file.</li>
-      <li><strong>Real wake-word model.</strong> Swap <code>EnergyWakeWordDetector</code> for a <code>SnowboyWakeWordDetector</code> / <code>OpenWakeWordDetector</code> that loads a model file. The <code>WakeWordDetector</code> interface does not need to change.</li>
-      <li><strong>Real GPG signature verification.</strong> Replace the HMAC layer with <code>openpgp</code> or a <code>gpg</code> subprocess. <code>verifySignature</code> signature stays the same; the implementation underneath swaps.</li>
-      <li><strong>Plugin marketplace HTTP API.</strong> A new <code>MarketplaceClient</code> class that fetches a manifest from a URL, verifies its signature against a pinned public key, and runs the existing <code>Marketplace.install</code> path.</li>
-      <li><strong>Cross-OS audio capture.</strong> <code>AVFoundationCapture</code> (macOS), <code>WASAPICapture</code> (Windows), <code>PulseAudioCapture</code> (Linux). The <code>AudioCapture</code> interface from v3.1.1 is what they implement.</li>
-      <li><strong>Profile #3 — <code>writer</code>.</strong> Use the same LLM-planner shape as <code>executor</code>, tuned for prose rather than code steps.</li>
+      <li><strong>流式 OTEL dashboard。</strong>通过 <code>fs.watch</code> 监视 <code>trace.jsonl</code>,渲染增量而非全量重读。</li>
+      <li><strong>真 wake-word 模型。</strong>把 <code>EnergyWakeWordDetector</code> 换成 <code>SnowboyWakeWordDetector</code> / <code>OpenWakeWordDetector</code>,加载模型文件。<code>WakeWordDetector</code> 接口不需要变。</li>
+      <li><strong>真 GPG 签名验证。</strong>用 <code>openpgp</code> 或 <code>gpg</code> 子进程替换 HMAC 层。<code>verifySignature</code> 签名不变,底层实现换。</li>
+      <li><strong>Plugin 市场 HTTP API。</strong>新增 <code>MarketplaceClient</code> 类,从 URL 拉 manifest,对 pin 过的公钥验证签名,然后跑现有的 <code>Marketplace.install</code> 路径。</li>
+      <li><strong>跨 OS 音频采集。</strong><code>AVFoundationCapture</code>(macOS)、<code>WASAPICapture</code>(Windows)、<code>PulseAudioCapture</code>(Linux)。v3.1.1 的 <code>AudioCapture</code> 接口就是它们要实现的。</li>
+      <li><strong>Profile #3 —— <code>writer</code>。</strong>复用 <code>executor</code> 的 LLM 规划器形态,针对散文而非代码步骤调优。</li>
     </ol>
-    <p>None of these change the v3.1.1 surface. They extend it.</p>
+    <p>这些都不会改变 v3.1.1 表面。它们是扩展。</p>
   </section>
 
-  <!-- ─────────────────── 09 · closing ─────────────────── -->
+  <!-- ─────────────────── 09 · 收尾 ─────────────────── -->
   <section id="closing">
-    <h2><span class="index">09</span>Closing note</h2>
-    <p class="subtitle">For the next person who has to maintain this.</p>
+    <h2><span class="index">09</span>收尾</h2>
+    <p class="subtitle">给下个维护者。</p>
 
     <p>
-      v3.1.1 is intentionally small. It is four features, each one shipped behind its own flag, each one independently testable, each one with a known placeholder for the next thing. The codebase grew by roughly <strong>15 source files and 4,000 lines of test code</strong>; nothing else moved.
+      v3.1.1 故意做小。四个特性,每个都在自己的 flag 后面交付,每个独立可测,每个都留有明确的"下一步占位"。代码库大约增加了 <strong>15 个源文件 + 4,000 行测试代码</strong>;其他没动。
     </p>
 
     <p>
-      If you are debugging one of these subsystems, the fastest path is: <code>test-list.md</code> → the matching <code>test-issue-NNN.ts</code> → run it under <code>bun</code>. The tests are not unit tests with mocks; they construct real <code>TeamMessageBus</code>es, real <code>vm</code> sandboxes, real <code>child_process</code>es for <code>whisper.cpp</code> stubs, and real <code>fs</code> writes for the registry scan. The behavior is the behavior.
+      如果在调试某个子系统,最快的路径是:<code>test-list.md</code> → 对应的 <code>test-issue-NNN.ts</code> → 用 <code>bun</code> 跑。测试不是带 mock 的单元测试;它们构造真实的 <code>TeamMessageBus</code>、真实的 <code>vm</code> 沙箱、whisper.cpp 的真实 <code>child_process</code> stub、registry scan 的真实 <code>fs</code> 写。行为即行为。
     </p>
 
     <p>
-      If you are extending one of these subsystems: the interfaces (<code>VoiceProcessor</code>, <code>PluginLoader</code>, <code>Marketplace</code>, <code>WorkspaceCoordinator</code>) are small on purpose. Read the file, not the docs.
+      如果在扩展某个子系统:接口(<code>VoiceProcessor</code>、<code>PluginLoader</code>、<code>Marketplace</code>、<code>WorkspaceCoordinator</code>)是故意做小的。读源码,而不是文档。
     </p>
 
     <div class="callout">
-      <span class="label">The rule of thumb</span>
-      <p>Ship the smallest honest thing. Then the next smallest honest thing. Then stop.</p>
+      <span class="label">经验法则</span>
+      <p>交付最小、最诚实的东西。然后下一个最小、最诚实的东西。然后停。</p>
     </div>
   </section>
 
   <footer class="footer">
     <div><span class="stamp">v3.1.1</span> · ALICE / VERONICA · 2026-08-15</div>
-    <div>Built by 12 PRs · Verified by 1,173 assertions</div>
+    <div>12 PR 构建 · 1,173 断言验证</div>
   </footer>
 
 </div>
