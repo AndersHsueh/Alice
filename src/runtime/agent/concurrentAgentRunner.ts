@@ -1,11 +1,10 @@
 /**
  * src/runtime/agent/concurrentAgentRunner.ts
  *
- * IK8MWM #7 — concurrentAgentRunner(预留多 agent 并发骨架)。
+ * IK8MWM #7 + IK8MWV #14 — concurrentAgentRunner(多 agent 并发)。
  *
- * 现状:本 issue 只实装 2 个可 spawn profile(consultant / researcher),
- *      主对话触发 /consult /research 仍是「串行」(单 agent 同跑)。
- *      并发只对接 k 个独立 spawn,作为 P1 批次 5 个 profile 实装时的接入点。
+ * 现状:#7 留了并发骨架(2 个 spawnable profile);#14 part-4 引入 TeamMessageBus
+ *      让多 worker 通过 teamMessage tool 通信。
  *
  * 设计:
  *  - runAgents(specs):一组 spawn spec → AsyncGenerator<SpawnEvent>,把
@@ -16,6 +15,9 @@
  *    yield 单条 error 事件,跳过该 spec,记 warn,不影响其它 spec。
  *  - 失败隔离:任意 spec 失败仅记 log,其它 spec 继续,
  *    最终 done 事件聚合所有 topics / memories。
+ *  - 多 worker 通信(本 PR 新增):opts.teamMessageBus 提供时,
+ *    每个 spec 跑前后自动 setTeamMessageContext({ from: profileName, bus }),
+ *    spec done 后从 bus 拉本 worker 的消息,yield 'team_message_batch' 事件。
  */
 
 import {
@@ -25,6 +27,7 @@ import {
   type SpawnEvent,
   type SpawnRequest,
 } from './coordinator/profileRegistry.js';
+import type { TeamMessageBus, TeamEnvelope } from './coordinator/teamMessageBus.js';
 
 export interface AgentSpec {
   profileName: string;
@@ -36,7 +39,28 @@ export interface RunAgentsOptions {
   concurrency?: number;
   /** 失败时是否继续(默认 true:不阻塞主对话) */
   continueOnError?: boolean;
+  /**
+   * 共享的 TeamMessageBus 实例(可选)。
+   * 提供时:每个 spec 跑期间 setTeamMessageContext,worker 通过 teamMessage tool 发/收消息。
+   * 不提供时:不启用 worker 通信。
+   */
+  teamMessageBus?: TeamMessageBus;
+  /**
+   * done 后拉本 worker 消息的 limit(默认 32,范围 [1,256])。
+   * 仅当 teamMessageBus 提供时生效。
+   */
+  teamMessageLimit?: number;
 }
+
+/** done 之后的 worker 消息批次(扩展 SpawnEvent) */
+export interface TeamMessageBatchEvent {
+  type: 'team_message_batch';
+  profileName: string;
+  messages: TeamEnvelope[];
+}
+
+/** runAgents yield 的事件类型 — 在 SpawnEvent 基础上 + team_message_batch */
+export type RunAgentsEvent = SpawnEvent | TeamMessageBatchEvent;
 
 interface ActiveItem {
   spec: AgentSpec;
@@ -50,9 +74,11 @@ export async function* runAgents(
   specs: AgentSpec[],
   deps: SpawnDeps,
   opts: RunAgentsOptions = {},
-): AsyncGenerator<SpawnEvent> {
+): AsyncGenerator<RunAgentsEvent> {
   const concurrency = Math.max(1, opts.concurrency ?? 2);
   const continueOnError = opts.continueOnError ?? true;
+  const bus = opts.teamMessageBus;
+  const msgLimit = Math.max(1, Math.min(256, opts.teamMessageLimit ?? 32));
 
   // 预过滤:spawnable=false / 不存在 → 直接吐 error 事件,不进队列
   const queue: AgentSpec[] = [];
@@ -91,6 +117,22 @@ export async function* runAgents(
     );
 
     if (tagged.result.done) {
+      // spec done — 拉本 worker 收到的消息(IK8MWV #14 多 worker 通信)
+      const finishedSpec = active[tagged.idx]!.spec;
+      if (bus) {
+        const envs = bus.receive(finishedSpec.profileName).slice(0, msgLimit);
+        // 自动 ack(主对话已消费)— 真实场景可让上层决定是否 ack
+        for (const env of envs) {
+          bus.ack(finishedSpec.profileName, env.sequence);
+        }
+        if (envs.length > 0) {
+          yield {
+            type: 'team_message_batch',
+            profileName: finishedSpec.profileName,
+            messages: envs,
+          };
+        }
+      }
       active.splice(tagged.idx, 1);
     } else {
       const ev = tagged.result.value;
