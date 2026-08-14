@@ -4,7 +4,7 @@ import { runtimeToolRegistry } from '../runtime/tools/toolRegistry.js';
 import { RuntimeToolExecutor } from '../runtime/tools/toolExecutor.js';
 import type { ModelConfig, Config } from '../types/index.js';
 import type { Message } from '../types/index.js';
-import type { ToolCallRecord } from '../types/tool.js';
+import type { ToolCallRecord, ToolCall, ToolResult } from '../types/tool.js';
 import { getErrorMessage } from '../utils/error.js';
 import { ToolLoopDetector } from './loopDetection.js';
 import {
@@ -15,6 +15,70 @@ import {
   type BudgetUsage,
 } from '../runtime/agent/tokenBudget.js';
 import type { ModelRegistry } from '../daemon/modelRegistry.js';
+
+/**
+ * 工具参数自修重试上限(IK8MWO #9):超过该次数仍校验失败 → 报错给用户
+ * 总次数 = 1(原始调用) + MAX_TOOL_PARAM_RETRIES(2)= 3 次
+ */
+export const MAX_TOOL_PARAM_RETRIES = 2;
+
+/**
+ * 单条 tool_call 的"参数校验失败"判定(IK8MWO #9)。
+ *  - executor 返回 success: false + error 含「参数验证失败」前缀(registry.validateParams 失败)
+ *  - 或者 JSON.parse 失败时报「参数解析失败」
+ *
+ * 暴露给测试用 — 之前靠测试复刻一份导致重复实现(simplify #13 / reuse #2)。
+ */
+export function isParamValidationFailure(result: any): boolean {
+  if (!result) return false;
+  if (result.success !== false) return false;
+  const err = getErrorMessage(result.error);
+  return err.includes('参数验证失败') || err.includes('参数解析失败');
+}
+
+/**
+ * 单次 tool_call 循环内的「参数校验失败」自修计数器(IK8MWO #9)。
+ *
+ *  - 按 toolName 计数:同一工具连续失败 → next 累加
+ *  - 任意一次成功 → 该工具计数被删除(下一轮重新计数)
+ *  - next > maxRetries → throw(由上层 chat*WithTools 抛出)
+ *
+ * 抽成类是为了让 chatWithTools 与 chatStreamWithTools 复用同一段策略;
+ * 原本两处方法各写一份 19 行的 for 循环(simplify #1 / altitude #2 / reuse #6)。
+ */
+export class ToolValidationRetryTracker {
+  private counts = new Map<string, number>();
+
+  constructor(private readonly maxRetries: number) {}
+
+  /**
+   * 记录一次「成功/失败」结果;失败超限时直接抛错。
+   * @param toolName 工具名
+   * @param result   执行结果(含 success / error)
+   */
+  record(toolName: string, result: ToolResult | undefined): void {
+    if (!isParamValidationFailure(result)) {
+      this.counts.delete(toolName);
+      return;
+    }
+    const next = (this.counts.get(toolName) ?? 0) + 1;
+    this.counts.set(toolName, next);
+    if (next > this.maxRetries) {
+      throw new Error(
+        `工具 "${toolName}" 参数校验连续失败 ${next} 次(超过 ${this.maxRetries} 次重试上限),已停止自修。\n` +
+        `最后一次错误: ${getErrorMessage(result?.error)}`,
+      );
+    }
+  }
+
+  /** 一次性应用一组 tool_call 的结果(等价于为每条 record 一次)。
+   *  任何一条失败即抛错,与上面 record 的语义一致。 */
+  applyBatch(toolCalls: ToolCall[], results: ToolResult[]): void {
+    for (let i = 0; i < toolCalls.length; i++) {
+      this.record(toolCalls[i]!.function.name, results[i]);
+    }
+  }
+}
 
 export class LLMClient {
   private provider: BaseProvider;
@@ -179,11 +243,14 @@ export class LLMClient {
       throw new Error('工具系统未启用，请先调用 enableTools()');
     }
 
+    // tools 列表在会话期间不变 — 提到 while 外面,避免每次迭代重新构建
     const tools = runtimeToolRegistry.toOpenAIFunctions();
     let conversationMessages = [...messages];
     const maxIterations = configManager.getMaxIterations();
     let iteration = 0;
     const loopDetector = new ToolLoopDetector();
+    // IK8MWO #9:自修重试计数(按 toolName 连续失败次数)
+    const retryTracker = new ToolValidationRetryTracker(MAX_TOOL_PARAM_RETRIES);
 
     while (iteration < maxIterations) {
       iteration++;
@@ -249,6 +316,9 @@ export class LLMClient {
           conversationMessages.push(toolMessage);
         }
 
+        // IK8MWO #9:自修重试计数 — 校验失败按 toolName 累加,超限抛错
+        retryTracker.applyBatch(response.tool_calls, toolResults);
+
         // 继续循环，让 LLM 根据工具结果生成回复
         continue;
       }
@@ -280,12 +350,15 @@ export class LLMClient {
       throw new Error('工具系统未启用');
     }
 
+    // tools 列表在会话期间不变 — 提到 while 外面,避免每次迭代重新构建
     const tools = runtimeToolRegistry.toOpenAIFunctions();
     let conversationMessages = [...messages];
     const maxIterations = configManager.getMaxIterations();
     let iteration = 0;
     const loopDetector = new ToolLoopDetector();
     const start = Date.now();
+    // IK8MWO #9:自修重试计数(按 toolName 连续失败次数)
+    const retryTracker = new ToolValidationRetryTracker(MAX_TOOL_PARAM_RETRIES);
 
     // Budget 追踪（tokenBudget 为 null/0/undefined 时，checkTokenBudget 直接返回 no_budget）
     const budget = (tokenBudget && tokenBudget > 0) ? tokenBudget : null;
@@ -378,6 +451,9 @@ export class LLMClient {
             timestamp: new Date(),
           });
         }
+
+        // IK8MWO #9:自修重试计数 — 与 chatWithTools 共用 ToolValidationRetryTracker
+        retryTracker.applyBatch(accumulatedToolCalls, toolResults);
 
         yield '\n';
 

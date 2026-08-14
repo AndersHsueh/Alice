@@ -1,5 +1,6 @@
 import type { AliceTool, OpenAIFunction } from '../../types/tool.js';
 import { toolRegistry as baseToolRegistry, ToolRegistry as BaseToolRegistry } from '../../tools/registry.js';
+import type { ValidationResult } from '../../tools/zodAdapter.js';
 
 /**
  * v2-lite runtime wrapper for tool registration/query.
@@ -32,7 +33,8 @@ export class RuntimeToolRegistry {
     return this.registry.toOpenAIFunctions();
   }
 
-  validateParams(toolName: string, params: any): { valid: boolean; errors?: string } {
+  // IK8MWO #9:透传 ValidationResult(含 issues / engine),不丢失字段路径
+  validateParams(toolName: string, params: any): ValidationResult {
     return this.registry.validateParams(toolName, params);
   }
 

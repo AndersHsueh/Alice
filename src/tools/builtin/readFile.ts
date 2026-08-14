@@ -1,11 +1,22 @@
 /**
- * 文件系统工具：读取文件
+ * 文件系统工具:读取文件
  */
 
 import path from 'path';
 import { readFile as fsReadFile } from 'fs/promises';
 import type { AliceTool, ToolResult } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
+import { z } from 'zod/v4';
+import { requiredNonEmptyString, encodingEnum } from '../zodPrimitives.js';
+
+/**
+ * zod v4 schema(IK8MWO #9):高频读文件,字段路径错误有助于 LLM 修复。
+ * `path` 必填 + 字符串;`encoding` 可选枚举。
+ */
+const readFileSchema = z.object({
+  path: requiredNonEmptyString('path'),
+  encoding: encodingEnum.optional(),
+});
 
 export const readFileTool: AliceTool = {
   name: 'readFile',
@@ -16,7 +27,7 @@ export const readFileTool: AliceTool = {
     properties: {
       path: {
         type: 'string',
-        description: '文件路径（相对或绝对路径）'
+        description: '文件路径(相对或绝对路径)'
       },
       encoding: {
         type: 'string',
@@ -26,6 +37,7 @@ export const readFileTool: AliceTool = {
     },
     required: ['path']
   },
+  zodSchema: readFileSchema,
 
   async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
     const { path: filePath, encoding = 'utf-8' } = params;

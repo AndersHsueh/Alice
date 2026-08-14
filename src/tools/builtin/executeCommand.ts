@@ -1,6 +1,6 @@
 /**
- * 命令执行工具：执行 shell 命令
- * 支持跨平台（Windows/macOS/Linux）
+ * 命令执行工具:执行 shell 命令
+ * 支持跨平台(Windows/macOS/Linux)
  */
 
 import { spawn } from 'child_process';
@@ -8,9 +8,11 @@ import type { AliceTool, ToolResult } from '../../types/tool.js';
 import { getErrorMessage } from '../../utils/error.js';
 import { injectAliceCoAuthorTrailer, type ShellFlavor } from '../../utils/gitCoAuthor.js';
 import { configManager } from '../../utils/config.js';
+import { z } from 'zod/v4';
+import { requiredNonEmptyString } from '../zodPrimitives.js';
 
 /**
- * 危险命令模式（跨平台）
+ * 危险命令模式(跨平台)
  */
 const DANGEROUS_PATTERNS = [
   /rm\s+-rf/i,              // Unix 删除
@@ -31,10 +33,19 @@ export function isDangerousCommand(command: string): boolean {
   return DANGEROUS_PATTERNS.some(pattern => pattern.test(command));
 }
 
+/**
+ * zod v4 schema(IK8MWO #9):`command` 必填,`timeout` 必传正整数。
+ */
+const executeCommandSchema = z.object({
+  command: requiredNonEmptyString('command'),
+  cwd: z.string().optional(),
+  timeout: z.int().positive().optional(),
+});
+
 export const executeCommandTool: AliceTool = {
   name: 'executeCommand',
   label: '执行命令',
-  description: '执行 shell 命令并返回输出（支持 Windows/macOS/Linux）',
+  description: '执行 shell 命令并返回输出(支持 Windows/macOS/Linux)',
   parameters: {
     type: 'object',
     properties: {
@@ -44,15 +55,16 @@ export const executeCommandTool: AliceTool = {
       },
       cwd: {
         type: 'string',
-        description: '工作目录（默认为当前目录）'
+        description: '工作目录(默认为当前目录)'
       },
       timeout: {
         type: 'number',
-        description: '超时时间（毫秒，默认 30000）'
+        description: '超时时间(毫秒,默认 30000)'
       }
     },
     required: ['command']
   },
+  zodSchema: executeCommandSchema,
 
   async execute(toolCallId, params, signal, onUpdate, context): Promise<ToolResult> {
     const { command, timeout = 30000 } = params;

@@ -2,16 +2,26 @@
  * 工具系统类型定义
  */
 
+import type { z } from 'zod';
+
 /**
  * JSON Schema 参数定义
+ *
+ * 兼容字段为 zod v4 `z.toJSONSchema()` 产物的最小子集；
+ * LLM 对外暴露走 `OpenAIFunction.parameters` 时,toOpenAIFunctions() 会用
+ * `zodSchema ?? parameters` 二选一(见 tools/schemaFromZod.ts)。
  */
 export interface ToolParameter {
-  type: string;
+  type?: string;
   description?: string;
-  enum?: string[];
+  enum?: unknown[];
   items?: ToolParameter;
   properties?: Record<string, ToolParameter>;
   required?: string[];
+  anyOf?: ToolParameter[];
+  oneOf?: ToolParameter[];
+  additionalProperties?: boolean | ToolParameter;
+  default?: unknown;
 }
 
 /**
@@ -21,6 +31,7 @@ export interface ToolParameterSchema {
   type: 'object';
   properties: Record<string, ToolParameter>;
   required?: string[];
+  [key: string]: unknown;
 }
 
 /**
@@ -106,8 +117,15 @@ export interface AliceTool {
   label: string;
   /** 工具描述（会发送给 LLM） */
   description: string;
-  /** 参数 JSON Schema */
+  /** 参数 JSON Schema（兜底字段;若设置了 zodSchema,会由 schemaFromZod 转出对外 schema） */
   parameters: ToolParameterSchema;
+  /**
+   * zod v4 参数 schema(可选,IK8MWO #9)。
+   * 高频工具(executeCommand/writeFile/editFile/searchFiles/readFile)走 zod 路径,
+   * 缺工具/低风险工具仍走 ajv JSONSchema 路径。
+   * 校验器在 registry.validateParams 中分流:有 zodSchema 走 zod,无则 ajv。
+   */
+  zodSchema?: z.ZodType;
   /**
    * 执行工具
    * @param toolCallId - 工具调用的唯一 ID

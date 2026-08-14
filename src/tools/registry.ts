@@ -3,12 +3,9 @@
  * 管理所有可用工具的注册和查询
  */
 
-import type { AliceTool, OpenAIFunction } from '../types/tool.js';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
-
-const ajv = new Ajv();
-addFormats(ajv);
+import type { AliceTool, OpenAIFunction, ToolParameterSchema } from '../types/tool.js';
+import { ajvInstance, parseZodSchema, parseJsonSchema, type ValidationResult } from './zodAdapter.js';
+import { toPublicSchema } from './schemaFromZod.js';
 
 export class ToolRegistry {
   private tools: Map<string, AliceTool> = new Map();
@@ -16,11 +13,19 @@ export class ToolRegistry {
 
   /**
    * 注册工具
+   *
+   * 关键(IK8MWO #9):无论工具是 zod 还是 JSONSchema,都校验"对外 schema"。
+   *  zod 工具的 `parameters` 字段是手写 JSON Schema,LLM 实际看到的对外 schema
+   *  是 `toPublicSchema(tool)`,所以 register 时也要校验这个,而不是跳过。
+   *
+   *  zod v4 产出的 JSONSchema 会带 `$schema: "https://json-schema.org/draft/2020-12/schema"`,
+   *  ajv 默认只识别 draft-07;此处剥离 `$schema` 后再校验(运行时按 draft-07 解析,
+   *  大多数字段语义一致,等价于 draft-2020-12 的子集)。
    */
   register(tool: AliceTool): void {
-    // 验证参数 schema
-    const isValid = ajv.validateSchema(tool.parameters);
-    if (!isValid) {
+    const publicSchema = toPublicSchema(tool) as ToolParameterSchema;
+    const { $schema: _meta, ...schemaless } = publicSchema;
+    if (!ajvInstance.validateSchema(schemaless as ToolParameterSchema)) {
       throw new Error(`Invalid parameter schema for tool: ${tool.name}`);
     }
 
@@ -40,7 +45,7 @@ export class ToolRegistry {
    * 批量注册工具
    */
   registerAll(tools: AliceTool[]): void {
-    tools.forEach(tool => this.register(tool));
+    tools.forEach((tool) => this.register(tool));
   }
 
   /**
@@ -66,43 +71,39 @@ export class ToolRegistry {
 
   /**
    * 转换为 OpenAI Function Calling 格式
+   *
+   * zod 工具的统一路径:通过 schemaFromZod.ts 转 JSONSchema,确保 LLM 收到的 description/enum/required
+   * 与 zod 定义一致。
    */
   toOpenAIFunctions(): OpenAIFunction[] {
-    const canonical = this.getAll().map(tool => ({
-      name: tool.name,
+    const mapFn = (name: string, tool: AliceTool): OpenAIFunction => ({
+      name,
       description: tool.description,
-      parameters: tool.parameters
-    }));
-
-    const aliases = Array.from(this.aliasMap.entries()).map(([alias, tool]) => ({
-      name: alias,
-      description: tool.description,
-      parameters: tool.parameters
-    }));
-
+      parameters: toPublicSchema(tool) as ToolParameterSchema,
+    });
+    const canonical = this.getAll().map((t) => mapFn(t.name, t));
+    const aliases = Array.from(this.aliasMap, ([alias, t]) => mapFn(alias, t));
     return [...canonical, ...aliases];
   }
 
   /**
-   * 验证工具参数
+   * 验证工具参数(IK8MWO #9 改造)
+   *
+   * 路由:有 zodSchema 走 zod v4,否则走 ajv JSONSchema。registry 决定 engine,
+   *  不在 validator 里做运行时 sniff。
    */
-  validateParams(toolName: string, params: any): { valid: boolean; errors?: string } {
+  validateParams(toolName: string, params: any): ValidationResult {
     const tool = this.get(toolName);
     if (!tool) {
-      return { valid: false, errors: `Tool not found: ${toolName}` };
-    }
-
-    const validate = ajv.compile(tool.parameters);
-    const valid = validate(params);
-
-    if (!valid) {
       return {
         valid: false,
-        errors: ajv.errorsText(validate.errors)
+        errors: `Tool not found: ${toolName}`,
+        engine: 'ajv',
       };
     }
-
-    return { valid: true };
+    return tool.zodSchema
+      ? parseZodSchema(tool.zodSchema, params)
+      : parseJsonSchema(tool.parameters, params);
   }
 
   /**

@@ -39,10 +39,8 @@ const debugLogger = createDebugLogger('FILE_COMMAND_LOADER');
  * single source of truth for both validation and type inference.
  */
 const TomlCommandDefSchema = z.object({
-  prompt: z.string({
-    required_error: "The 'prompt' field is required.",
-    invalid_type_error: "The 'prompt' field must be a string.",
-  }),
+  // zod v4: required_error / invalid_type_error 已合并为 error
+  prompt: z.string({ error: "The 'prompt' field is required and must be a string." }),
   description: z.string().optional(),
 });
 

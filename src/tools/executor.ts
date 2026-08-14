@@ -11,6 +11,7 @@ import { eventBus } from '../core/events.js';
 import { createToolCallEvent } from '../types/events.js';
 import type { ToolExecuteEvent, ToolErrorEvent } from '../types/events.js';
 import { getErrorMessage } from '../utils/error.js';
+import { formatError } from '../runtime/tools/toolResultFormatter.js';
 import type { PermissionDecision } from '../core/permission/permissionDecision.js';
 
 /**
@@ -80,9 +81,15 @@ export class ToolExecutor {
     // 验证参数
     const validation = toolRegistry.validateParams(toolName, params);
     if (!validation.valid) {
+      // IK8MWO #9:渲染字段路径 + 引擎标签,方便 LLM 修复
+      const detailed = formatError({
+        engine: validation.engine,
+        issues: validation.issues,
+        error: validation.errors,
+      });
       return {
         success: false,
-        error: `参数验证失败: ${validation.errors}`
+        error: `参数验证失败: ${detailed}`,
       };
     }
 
