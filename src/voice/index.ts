@@ -26,3 +26,13 @@ export type {
 export { AudioCaptureError, AsrError } from './types.js';
 export { NullAudioCapture, NullAsrEngine, NullWakeWordDetector } from './nullEngine.js';
 export { WhisperCppEngine, type WhisperCppEngineOptions, type WhisperLogger } from './whisperEngine.js';
+export {
+  VoiceProcessor,
+  NullVoiceProcessor,
+  RealVoiceProcessor,
+  createRealVoiceProcessor,
+  createNullVoiceProcessor,
+  getVoiceProcessor,
+  type RealVoiceProcessorOptions,
+  type VoiceProcessorLogger,
+} from './voiceProcessor.js';
