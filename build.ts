@@ -1,8 +1,7 @@
-#!/usr/bin/env node
 /**
  * build.ts — Feature Flag 驱动的构建期 DCE(IK8MWJ #4)
  *
- * 运行:node build.ts(Node ≥ 23.6 原生 type stripping,不依赖 Bun)
+ * 运行:bun build.ts(Node < 22.18 无默认 type stripping,勿改回 node)
  *
  * 流程:
  *  1. 加载 flags(~/.alice/feature_flags.jsonc + ALICE_FEATURE_* env)

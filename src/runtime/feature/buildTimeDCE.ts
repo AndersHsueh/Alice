@@ -6,8 +6,8 @@
  *    (flag 表里有值用表,没有就用字面量 default,isFeatureActive 未知 → false)
  * 2. if (常量) 分支剪除:条件为 true 只留 then,为 false 只留 else / 整句删除
  *
- * 只用 TypeScript 编译器 API,Node 直接可跑,不依赖 Bun。
- * 注意:本文件只允许「可擦除」TS 语法(build.ts 会被 Node 直接加载它)。
+ * 只用 TypeScript 编译器 API,bun / Node ≥ 22.18 均可直接跑。
+ * 注意:本文件只允许「可擦除」TS 语法(build.ts 会直接加载它)。
  */
 
 import ts from 'typescript';

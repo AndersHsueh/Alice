@@ -8,7 +8,7 @@
  * 文件每次读取前 stat mtime,变更即热生效。
  *
  * 注意:本文件只允许「可擦除」TS 语法 + 包级/内置 import —
- * build.ts 会被 Node 原生 type stripping 直接加载它,不能经过 tsc。
+ * build.ts(bun 直跑)会直接加载它,不能经过 tsc。
  */
 
 import fs from 'node:fs';

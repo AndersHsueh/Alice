@@ -201,7 +201,8 @@ alice
 
 ### 前置要求
 
-- **Node.js**: ≥ 18.0.0
+- **Bun**: ≥ 1.0.0(构建工具链;`bun install` / `bun run build`)
+- **Node.js**: ≥ 18.0.0(运行 dist 产物)
 - **LM Studio**: 用于本地运行大语言模型
   - 下载地址: [https://lmstudio.ai/](https://lmstudio.ai/)
   - 启动本地服务器（默认端口 1234）

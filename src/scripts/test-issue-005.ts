@@ -108,7 +108,7 @@ function assertEq0(list: string[], msg: string): void {
 async function testTscTypeCheck(): Promise<void> {
   section('② tsc 层:类型检查通过(守卫模块可解析)');
 
-  // 优先用 build.ts(Node 直跑);不存在则退回 tsc --noEmit
+  // 优先用 build.ts(经 bun 直跑);不存在则退回 tsc --noEmit
   const buildTs = path.join(REPO_ROOT, 'build.ts');
   const useBuildTs = fs.stat(buildTs).then(() => true, () => false);
 
@@ -118,7 +118,7 @@ async function testTscTypeCheck(): Promise<void> {
       encoding: 'utf-8',
       timeout: 300_000,
     });
-    assert(res.status === 0, `node build.ts 通过 (exit=${res.status})`);
+    assert(res.status === 0, `build.ts 通过 (exit=${res.status})`);
   } else {
     const tscBin = path.join(REPO_ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
     const res = spawnSync(process.execPath, [tscBin, '--noEmit', '-p', 'tsconfig.json'], {

@@ -172,7 +172,7 @@ async function testProductAssertion(): Promise<void> {
     encoding: 'utf-8',
     timeout: 300_000,
   });
-  assertEq(res.status, 0, `node build.ts 构建成功 (stderr: ${res.stderr?.slice(-200) ?? ''})`);
+  assertEq(res.status, 0, `build.ts 构建成功 (stderr: ${res.stderr?.slice(-200) ?? ''})`);
 
   const distDir = path.join(REPO_ROOT, 'dist');
   const count = await countOccurrences(distDir, 'acp-integration');
