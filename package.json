@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "bun run src/index.tsx",
     "dev:watch": "bun --watch run src/index.tsx",
-    "build": "tsc",
+    "build": "node build.ts",
     "postbuild": "node scripts/postbuild.mjs",
     "start": "bun run dist/index.js",
     "clean": "bun rm -rf dist",

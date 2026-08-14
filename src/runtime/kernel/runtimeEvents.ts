@@ -6,6 +6,11 @@ export type RuntimeEvent =
   | { type: 'text_delta'; content: string }
   | { type: 'tool_finished'; record: ToolCallRecord }
   | { type: 'warning'; warning: RuntimeWarning }
+  | {
+      type: 'permission_denied';
+      toolName: string;
+      reason: string;
+    }
   | { type: 'done'; sessionId: string; messages: Message[]; summary: RuntimeTurnSummary }
   | { type: 'error'; message: string }
   | {

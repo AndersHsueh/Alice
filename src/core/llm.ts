@@ -158,6 +158,13 @@ export class LLMClient {
   }
 
   /**
+   * 设置权限 gate(IK8MWI #3,需先 enableTools)
+   */
+  setPermissionGate(gate: import('../tools/executor.js').PermissionGate): void {
+    this.toolExecutor?.setPermissionGate(gate);
+  }
+
+  /**
    * 带工具的对话（非流式）
    * @param workspace - 可选，当前会话绑定的工作目录，工具基于此解析路径与 cwd
    */

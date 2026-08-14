@@ -11,11 +11,21 @@ import { eventBus } from '../core/events.js';
 import { createToolCallEvent } from '../types/events.js';
 import type { ToolExecuteEvent, ToolErrorEvent } from '../types/events.js';
 import { getErrorMessage } from '../utils/error.js';
+import type { PermissionDecision } from '../core/permission/permissionDecision.js';
+
+/**
+ * 权限 gate(IK8MWI #3):执行前做三维决策(limit → rule → mode)。
+ * 由 daemon/services 注入;未注入时保持旧行为(仅 dangerous_cmd 确认)。
+ */
+export interface PermissionGate {
+  check(toolName: string, params: Record<string, unknown>, workspace?: string): Promise<PermissionDecision>;
+}
 
 export class ToolExecutor {
   private config: Config;
   private abortControllers: Map<string, AbortController> = new Map();
   private onConfirm?: (message: string, command: string) => Promise<boolean>;
+  private permissionGate?: PermissionGate;
 
   constructor(config: Config) {
     this.config = config;
@@ -26,6 +36,13 @@ export class ToolExecutor {
    */
   setConfirmHandler(handler: (message: string, command: string) => Promise<boolean>): void {
     this.onConfirm = handler;
+  }
+
+  /**
+   * 设置权限 gate(注入后替代旧的 dangerous_cmd 单维判断)
+   */
+  setPermissionGate(gate: PermissionGate): void {
+    this.permissionGate = gate;
   }
 
   /**
@@ -69,8 +86,42 @@ export class ToolExecutor {
       };
     }
 
-    // 危险命令检查（仅对 executeCommand）
-    if (toolName === 'executeCommand' && this.config.dangerous_cmd) {
+    // 权限决策(IK8MWI #3):gate 注入后走三维决策;否则保持旧 dangerous_cmd 行为
+    if (this.permissionGate) {
+      const decision = await this.permissionGate.check(toolName, params, context?.workspace);
+      if (decision.action === 'deny') {
+        const result: ToolResult = {
+          success: false,
+          error: `权限拒绝(${decision.source}): ${decision.reason}`,
+          permissionDenied: true,
+        };
+        await eventBus.emit('tool:permission_denied', {
+          toolName,
+          toolCallId: id,
+          params,
+          reason: decision.reason,
+          source: decision.source,
+        });
+        onUpdate?.({
+          id,
+          toolName,
+          toolLabel: tool.label,
+          params,
+          status: 'error',
+          result,
+          startTime: Date.now(),
+          endTime: Date.now(),
+        });
+        return result;
+      }
+      if (decision.action === 'ask') {
+        const confirmed = await this.confirmPermission(toolName, params, decision.reason);
+        if (!confirmed) {
+          return { success: false, error: '用户取消执行' };
+        }
+      }
+    } else if (toolName === 'executeCommand' && this.config.dangerous_cmd) {
+      // 危险命令检查（仅对 executeCommand,旧路径）
       if (isDangerousCommand(params.command)) {
         const confirmed = await this.confirmDangerousCommand(params.command);
         if (!confirmed) {
@@ -231,5 +282,23 @@ export class ToolExecutor {
 
     const message = `⚠️ 检测到危险命令！\n\n命令: ${command}\n\n此命令可能造成数据丢失或系统损坏。\n确认执行吗？`;
     return await this.onConfirm(message, command);
+  }
+
+  /**
+   * 权限确认(gate 判定为 ask 时)
+   */
+  private async confirmPermission(
+    toolName: string,
+    params: Record<string, unknown>,
+    reason: string,
+  ): Promise<boolean> {
+    if (!this.onConfirm) {
+      // 没有确认处理器，直接拒绝
+      return false;
+    }
+    const subject =
+      typeof params['command'] === 'string' ? (params['command'] as string) : toolName;
+    const message = `⚠️ 工具调用需要确认\n\n工具: ${toolName}\n原因: ${reason}\n\n确认执行吗？`;
+    return await this.onConfirm(message, subject);
   }
 }

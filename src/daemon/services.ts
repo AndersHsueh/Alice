@@ -17,6 +17,16 @@ import { getErrorMessage } from '../utils/error.js';
 import { eventBus } from '../core/events.js';
 import type { ToolCallEvent, ToolExecuteEvent, ToolErrorEvent } from '../types/events.js';
 import { runtimeToolRegistry } from '../runtime/tools/toolRegistry.js';
+import path from 'path';
+import { PolicyLimitsManager } from '../core/permission/policyLimits.js';
+import {
+  mergePolicies,
+  sanitizePolicy,
+  loadWorkspacePolicyFile,
+} from '../core/permission/permissionPolicy.js';
+import { decide } from '../core/permission/permissionDecision.js';
+import { isDangerousCommand } from '../tools/builtin/executeCommand.js';
+import type { PermissionGate } from '../tools/executor.js';
 
 let initialized = false;
 const llmClientCache = new Map<string, LLMClient>();
@@ -172,6 +182,7 @@ export function getLLMClient(modelConfig: ModelConfig, systemPrompt: string): LL
     client.setConfirmHandler(async (_message: string, _command: string) => {
       return Promise.resolve(getConfig().dangerous_cmd === false);
     });
+    client.setPermissionGate(createPermissionGate());
     client.setModelRegistry(modelRegistry);
     llmClientCache.set(key, client);
   }
@@ -180,6 +191,41 @@ export function getLLMClient(modelConfig: ModelConfig, systemPrompt: string): LL
 
 export function getSessionManager() {
   return sessionManager;
+}
+
+/** org 级限额管理器(hot-reload:~/.alice/policyLimits.jsonc) */
+const policyLimitsManager = new PolicyLimitsManager(
+  path.join(configManager.getConfigDir(), 'policyLimits.jsonc'),
+);
+
+/**
+ * 生产权限 gate(IK8MWI #3):三源 merge(user settings < workspace .alice/policy.jsonc
+ * < org policyLimits.jsonc)后做三维决策(limit → rule → mode)。
+ * org 文件每次 check 都 stat mtime,变更即生效,daemon 无需重启。
+ */
+export function createPermissionGate(): PermissionGate {
+  return {
+    async check(toolName, params, workspace) {
+      const cfg = configManager.get();
+      const user = sanitizePolicy({
+        mode: cfg.permission_mode,
+        rules: cfg.permission_rules,
+      });
+      const workspacePolicy = workspace ? await loadWorkspacePolicyFile(workspace) : {};
+      const org = await policyLimitsManager.get();
+      const policy = mergePolicies(user, workspacePolicy, org);
+
+      const command = typeof params['command'] === 'string' ? params['command'] : undefined;
+      const content = typeof params['content'] === 'string' ? params['content'] : undefined;
+      return decide(policy, org.limits ?? {}, {
+        tool: toolName,
+        command,
+        isDangerous: command ? isDangerousCommand(command) : false,
+        fileSizeBytes: content !== undefined ? Buffer.byteLength(content) : undefined,
+        timeoutMs: typeof params['timeout'] === 'number' ? params['timeout'] : undefined,
+      });
+    },
+  };
 }
 
 export function isInitialized(): boolean {

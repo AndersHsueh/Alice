@@ -108,6 +108,19 @@ function flushToolState(
   return records;
 }
 
+/** 权限拒绝(IK8MWI #3):record.result.permissionDenied → permission_denied 事件 */
+function toPermissionDeniedEvent(
+  record: ToolCallRecord,
+): { type: 'permission_denied'; toolName: string; reason: string } | null {
+  const result = record.result as { permissionDenied?: boolean; error?: string } | undefined;
+  if (!result?.permissionDenied) return null;
+  return {
+    type: 'permission_denied',
+    toolName: record.toolName,
+    reason: result.error ?? '权限拒绝',
+  };
+}
+
 export async function* runAgentLoop(
   req: RuntimeChatRequest,
   deps: AgentLoopDependencies
@@ -268,6 +281,8 @@ export async function* runAgentLoop(
         const records = flushToolState(toolState, finalMessages, accumulatedContent);
         for (const record of records) {
           yield { type: 'tool_finished', record };
+          const denied = toPermissionDeniedEvent(record);
+          if (denied) yield denied;
         }
         accumulatedContent = '';
         lastYieldedNormalLength = 0;
@@ -297,6 +312,8 @@ export async function* runAgentLoop(
       const records = flushToolState(toolState, finalMessages, accumulatedContent);
       for (const record of records) {
         yield { type: 'tool_finished', record };
+        const denied = toPermissionDeniedEvent(record);
+        if (denied) yield denied;
       }
       accumulatedContent = '';
     }
