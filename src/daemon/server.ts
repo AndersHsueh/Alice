@@ -11,6 +11,60 @@ import { DaemonRoutes } from './routes.js';
 import { getErrorMessage } from '../utils/error.js';
 import { DaemonLogger } from './logger.js';
 
+const MAX_SOCKET_HEADER_BYTES = 64 * 1024;
+const MAX_SOCKET_BODY_BYTES = 16 * 1024 * 1024;
+
+export type SocketFrameResult =
+  | { status: 'incomplete' }
+  | { status: 'complete'; frame: Buffer; trailing: Buffer }
+  | { status: 'error'; httpStatus: 400 | 413 | 431; message: string };
+
+/**
+ * Unix socket 上的 HTTP/1.1 单请求分帧器。
+ * daemon 的响应固定 Connection: close，因此每条连接只 dispatch 第一帧；trailing
+ * 单独返回给宿主审计/丢弃，绝不并入 JSON body 或二次 dispatch。
+ */
+export function parseSocketHttpFrame(buffer: Buffer): SocketFrameResult {
+  const headerEnd = buffer.indexOf('\r\n\r\n');
+  if (headerEnd < 0) {
+    return buffer.length > MAX_SOCKET_HEADER_BYTES
+      ? { status: 'error', httpStatus: 431, message: 'Request headers too large' }
+      : { status: 'incomplete' };
+  }
+  if (headerEnd > MAX_SOCKET_HEADER_BYTES) {
+    return { status: 'error', httpStatus: 431, message: 'Request headers too large' };
+  }
+
+  const headerText = buffer.subarray(0, headerEnd).toString('latin1');
+  const contentLengths = headerText
+    .split('\r\n')
+    .slice(1)
+    .filter((line) => /^content-length\s*:/i.test(line))
+    .map((line) => line.slice(line.indexOf(':') + 1).trim());
+  if (contentLengths.length > 1) {
+    return { status: 'error', httpStatus: 400, message: 'Duplicate Content-Length headers' };
+  }
+  const rawLength = contentLengths[0] ?? '0';
+  if (!/^\d+$/.test(rawLength)) {
+    return { status: 'error', httpStatus: 400, message: 'Invalid Content-Length' };
+  }
+  const contentLength = Number(rawLength);
+  if (!Number.isSafeInteger(contentLength)) {
+    return { status: 'error', httpStatus: 400, message: 'Invalid Content-Length' };
+  }
+  if (contentLength > MAX_SOCKET_BODY_BYTES) {
+    return { status: 'error', httpStatus: 413, message: 'Request body too large' };
+  }
+
+  const frameLength = headerEnd + 4 + contentLength;
+  if (buffer.length < frameLength) return { status: 'incomplete' };
+  return {
+    status: 'complete',
+    frame: buffer.subarray(0, frameLength),
+    trailing: buffer.subarray(frameLength),
+  };
+}
+
 export class DaemonServer {
   private config: DaemonConfig;
   private logger: DaemonLogger;
@@ -83,16 +137,33 @@ export class DaemonServer {
 
       this.socketServer = net.createServer((socket) => {
         let buffer = Buffer.alloc(0);
+        let dispatched = false;
 
-        socket.on('data', async (data: Buffer) => {
+        socket.on('data', (data: Buffer) => {
+          if (dispatched) return;
           buffer = Buffer.concat([buffer, data]);
 
-          // 简单检测 HTTP 请求结束（通过空行）
-          const dataStr = buffer.toString();
-          if (dataStr.includes('\r\n\r\n')) {
-            await this.routes.handleSocketRequest(socket, buffer);
-            buffer = Buffer.alloc(0);
+          const parsed = parseSocketHttpFrame(buffer);
+          if (parsed.status === 'incomplete') return;
+          dispatched = true;
+          buffer = Buffer.alloc(0);
+          if (parsed.status === 'error') {
+            socket.end(
+              `HTTP/1.1 ${parsed.httpStatus} Bad Request\r\n` +
+              'Content-Type: application/json\r\nConnection: close\r\n\r\n' +
+              JSON.stringify({ error: parsed.message }),
+            );
+            return;
           }
+          if (parsed.trailing.length > 0) {
+            this.logger.warn('Unix Socket 收到首个请求后的多余字节，已按 Connection: close 丢弃', {
+              trailingBytes: parsed.trailing.length,
+            });
+          }
+          void this.routes.handleSocketRequest(socket, parsed.frame).catch((error: unknown) => {
+            this.logger.error('Unix Socket 路由处理失败', getErrorMessage(error));
+            if (!socket.destroyed) socket.end('HTTP/1.1 500 Internal Server Error\r\nConnection: close\r\n\r\n');
+          });
         });
 
         socket.on('error', (error) => {

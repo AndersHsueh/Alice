@@ -427,8 +427,7 @@ async function testSessionLifecycle(): Promise<void> {
 
   // 注入 teamId
   setSessionTeamIdForTest('lifecycle-team');
-  // 重新解析使 deps 注入生效 — 注意:pull/push deps 是 stagingDir 来源,
-  // 我们用 ENV ALICE_TEAM_SYNC_DIR 不可行,所以此处直接通过 pushTeamMemory(deps) 验证
+  // memoryDir 与 team stagingDir 均显式注入临时目录，测试不得写 ~/.alice。
 
   // 失败 warn-and-continue:summarize 抛错 → push 不被触发,error 仍 warn
   const logger = captureLogger();
@@ -460,28 +459,19 @@ async function testSessionLifecycle(): Promise<void> {
   ], okLogger, {
     memoryDir,
     summarize: async () => '- 团队用 bun + ESM\n- 提交用中文\n- commit 前跑测试',
-  });
+  }, { stagingDir });
   await wait(80);
   const localFile = path.join(memoryDir, 'session-ok-life.md');
   const exists = await fs.stat(localFile).then(() => true, () => false);
   assert(exists, '成功路径:本地记忆文件已落盘');
-  // 此时 pushTeamMemory 会因 stagingDir 不在 defaultStagingDir 而写入 ~/.alice/team-sync/staging
-  // 这在测试环境不可接受,验证"push 被尝试但失败时不阻塞主路径"即可:
-  //  - 主路径返回成功(memory 文件已写)
-  //  - 无 unhandled rejection(进程仍存活)
   assert(okLogger.warnings.length === 0 || okLogger.warnings.every((w) => !w.includes('uncaught')),
     '成功路径不抛 unhandled rejection');
 
-  // 直接验证:用 pushTeamMemory + 显式 stagingDir 替代默认路径,确认 teamId + bullets 真能写出
-  const pushR = await pushTeamMemory('lifecycle-team', 'session-ok-life',
-    ['团队用 bun + ESM', '提交用中文', 'commit 前跑测试'],
-    { stagingDir, logger: silentLogger() },
-  );
-  assert(pushR.ok === true, 'pushTeamMemory(显式 stagingDir) 成功');
+  // 自动上行 hook 必须落入注入的 stagingDir，而不是用户 home。
   const lifecycleFile = teamStagingPath('lifecycle-team', stagingDir);
   const lifecycleContent = await fs.readFile(lifecycleFile, 'utf-8');
-  assert(lifecycleContent.includes('团队用 bun'),
-    'staging jsonl 包含 A 端 bullets');
+  assert(lifecycleContent.includes('团队用 bun') && lifecycleContent.includes('session-ok-life'),
+    'fire-and-forget 自动 push 到临时 staging，包含 A 端 bullets');
 
   // setSessionTeamIdForTest 重置
   setSessionTeamIdForTest(null);

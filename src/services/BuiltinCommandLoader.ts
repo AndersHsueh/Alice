@@ -9,6 +9,7 @@ import type { SlashCommand } from '../ui/commands/types.js';
 import type { Config } from '../shim/qwen-code-core.js';
 import { aboutCommand } from '../ui/commands/aboutCommand.js';
 import { agentsCommand } from '../ui/commands/agentsCommand.js';
+import { analyticsCommand } from '../ui/commands/analyticsCommand.js';
 import { approvalModeCommand } from '../ui/commands/approvalModeCommand.js';
 import { authCommand } from '../ui/commands/authCommand.js';
 import { bugCommand } from '../ui/commands/bugCommand.js';
@@ -42,6 +43,8 @@ import { toolsCommand } from '../ui/commands/toolsCommand.js';
 import { vimCommand } from '../ui/commands/vimCommand.js';
 import { setupGithubCommand } from '../ui/commands/setupGithubCommand.js';
 import { insightCommand } from '../ui/commands/insightCommand.js';
+import { pluginsCommand } from '../ui/commands/pluginsCommand.js';
+import { voiceCommand } from '../ui/commands/voiceCommand.js';
 
 /**
  * Loads the core, hard-coded slash commands that are an integral part
@@ -61,6 +64,9 @@ export class BuiltinCommandLoader implements ICommandLoader {
     const allDefinitions: Array<SlashCommand | null> = [
       aboutCommand,
       agentsCommand,
+      analyticsCommand,
+      pluginsCommand,
+      voiceCommand,
       approvalModeCommand,
       authCommand,
       bugCommand,

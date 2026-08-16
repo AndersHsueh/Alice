@@ -133,18 +133,20 @@ export class LLMClient {
     }
   }
 
-  async chat(messages: Message[]): Promise<string> {
+  async chat(messages: Message[], signal?: AbortSignal): Promise<string> {
     try {
-      return await this.provider.chat(messages);
+      return await this.provider.chat(messages, signal);
     } catch (error) {
+      if (signal?.aborted) throw error;
       // 如果主 provider 失败且存在降级 provider，尝试降级
       if (this.fallbackProvider && this.shouldFallback(error)) {
         console.warn(`\n⚠️  主模型 (${this.modelConfig.name}) 连接失败，已自动切换到备用模型 (${this.fallbackModelConfig?.name})`);
         console.warn(`💡 提示：运行 'alice --test-model' 重新测速并更新推荐模型\n`);
         
         try {
-          return await this.fallbackProvider.chat(messages);
+          return await this.fallbackProvider.chat(messages, signal);
         } catch (fallbackError) {
+          if (signal?.aborted) throw fallbackError;
           throw new Error(`主模型和备用模型均失败\n主模型错误: ${error instanceof Error ? error.message : '未知错误'}\n备用模型错误: ${fallbackError instanceof Error ? fallbackError.message : '未知错误'}`);
         }
       }
@@ -346,6 +348,7 @@ export class LLMClient {
     workspace?: string,
     tokenBudget?: number | null,
     onBudgetUpdate?: (usage: BudgetUsage) => void,
+    signal?: AbortSignal,
   ): AsyncGenerator<string> {
     if (!this.toolExecutor) {
       throw new Error('工具系统未启用');
@@ -395,7 +398,7 @@ export class LLMClient {
 
         try {
           // 流式获取 LLM 响应
-          for await (const chunk of this.provider.chatStreamWithTools(conversationMessages, tools)) {
+          for await (const chunk of this.provider.chatStreamWithTools(conversationMessages, tools, signal)) {
             if (chunk.type === 'text' && chunk.content) {
               accumulatedContent += chunk.content;
               yield chunk.content;

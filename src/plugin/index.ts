@@ -37,6 +37,14 @@ export {
   type LoaderStats,
 } from './loader.js';
 export {
+  LocalSignedPluginManager,
+  signPluginArtifact,
+  type DeclarativePluginEntry,
+  type InstalledLocalPlugin,
+  type LocalSignedPluginManagerOptions,
+  type PluginPermissionRequest,
+} from './localMarketplace.js';
+export {
   PluginManifestError,
   type PluginManifest,
   type PluginInfo,

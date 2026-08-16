@@ -168,8 +168,8 @@ export class AnthropicProvider extends BaseProvider {
     return apiMessages;
   }
 
-  async chat(messages: Message[]): Promise<string> {
-    const response = await this.makeRequest(messages, []);
+  async chat(messages: Message[], signal?: AbortSignal): Promise<string> {
+    const response = await this.makeRequest(messages, [], signal);
     return response.content || '';
   }
 
@@ -219,7 +219,7 @@ export class AnthropicProvider extends BaseProvider {
     }
   }
 
-  async chatWithTools(messages: Message[], tools: OpenAIFunction[]): Promise<ChatResponse> {
+  async chatWithTools(messages: Message[], tools: OpenAIFunction[], signal?: AbortSignal): Promise<ChatResponse> {
     const anthropicTools = tools.map(tool => ({
       name: tool.name,
       description: tool.description,
@@ -252,6 +252,7 @@ export class AnthropicProvider extends BaseProvider {
           'x-api-key': this.config.apiKey || '',
           'anthropic-version': this.anthropicVersion,
         },
+        signal,
       });
     } catch (error: any) {
       throw error;
@@ -305,11 +306,12 @@ export class AnthropicProvider extends BaseProvider {
 
   async *chatStreamWithTools(
     messages: Message[],
-    tools: OpenAIFunction[]
+    tools: OpenAIFunction[],
+    signal?: AbortSignal,
   ): AsyncGenerator<ChatResponse> {
     // Anthropic streaming with tools 需要处理多个 content blocks
     // 简化实现：先不支持流式工具调用，usage 直接从非流式响应中获取
-    const result = await this.chatWithTools(messages, tools);
+    const result = await this.chatWithTools(messages, tools, signal);
     yield result;
   }
 
@@ -345,7 +347,7 @@ export class AnthropicProvider extends BaseProvider {
     }
   }
 
-  private async makeRequest(messages: Message[], tools: OpenAIFunction[]): Promise<any> {
+  private async makeRequest(messages: Message[], tools: OpenAIFunction[], signal?: AbortSignal): Promise<any> {
     const apiMessages = this.buildAnthropicMessages(messages);
     
     const requestBody: AnthropicMessagesRequest = {
@@ -374,6 +376,7 @@ export class AnthropicProvider extends BaseProvider {
         'x-api-key': this.config.apiKey || '',
         'anthropic-version': this.anthropicVersion,
       },
+      signal,
     });
 
     return response.data;

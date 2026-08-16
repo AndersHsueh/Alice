@@ -86,6 +86,7 @@ export class WorkspaceCoordinator {
   private readonly pendingCount = new Map<string, number>();
   private readonly opts: Required<CoordinatorOptions>;
   private readonly stats: CoordinatorStats = { acquired: 0, released: 0, waited: 0, timedOut: 0 };
+  private readonly artifacts = new Map<string, Map<string, unknown>>();
 
   constructor(opts: CoordinatorOptions = {}) {
     this.opts = {
@@ -138,7 +139,8 @@ export class WorkspaceCoordinator {
     });
 
     // 把 work 注册到 chain(下一个任务挂在它后面)
-    this.chains.set(ws, work.catch(() => undefined));
+    const chainTail = work.catch(() => undefined);
+    this.chains.set(ws, chainTail);
 
     // 超时计时(从进入 withLock 开始算)— 仅标记 timedOut,不直接 +1
     timeoutHandle = setTimeout(() => {
@@ -154,6 +156,8 @@ export class WorkspaceCoordinator {
       const remain = (this.pendingCount.get(ws) ?? 1) - 1;
       if (remain <= 0) {
         this.pendingCount.delete(ws);
+        // 仅删除仍指向本轮 tail 的项；避免旧任务 finally 覆盖新一轮 chain。
+        if (this.chains.get(ws) === chainTail) this.chains.delete(ws);
       } else {
         this.pendingCount.set(ws, remain);
       }
@@ -174,6 +178,22 @@ export class WorkspaceCoordinator {
   getPending(workspace: string): number {
     const ws = normalizeWorkspace(workspace);
     return this.pendingCount.get(ws) ?? 0;
+  }
+
+  /** 在同一 workspace 锁内提交共享工作产物，供后续 worker 消费。 */
+  async commitArtifact<T>(workspace: string, key: string, value: T): Promise<T> {
+    const normalized = normalizeWorkspace(workspace);
+    return this.withLock(normalized, async () => {
+      const items = this.artifacts.get(normalized) ?? new Map<string, unknown>();
+      items.set(key, value);
+      this.artifacts.set(normalized, items);
+      return value;
+    });
+  }
+
+  /** 读取共享工作产物快照；返回副本，避免绕过锁直接修改内部状态。 */
+  getArtifacts(workspace: string): ReadonlyMap<string, unknown> {
+    return new Map(this.artifacts.get(normalizeWorkspace(workspace)) ?? []);
   }
 }
 

@@ -4,11 +4,26 @@
 > 每个 issue 修复必须先在目录内新增对应测试脚本,并**在本文件补充一行记录**(作用 / 所属功能 / 对应 PR)。
 > 运行方式:`bun run test-case/<脚本名>.ts`(无需 jest/vitest,断言写在脚本内)。
 
-## 全量回归
+## 默认验证入口
 
 ```bash
-# issue 回归套件(当前基线 168 + 51 + 45 + 96 + 40 + 47 + 84 + 77 + 45 + 34 + 58 + 47 + 29 + 24 + 38 + 21 + 37 + 28 + 49 + 48 + 39 = 1105 断言)
-for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profiles 014-concurrent 014-workspace 016 016-whisper 016-processor 016-wakeword 017 017-sandbox 017-marketplace 018 019 020 021; do bun run test-case/test-issue-$t.ts || exit 1; done
+bun run test:core       # 30 个确定性脚本,当前基线 1085 PASS / 0 FAIL；执行前含 HOME I/O 安全门禁
+bun run test:release    # 正式 build.ts + 9 项 dist 生产冒烟
+bun run typecheck       # 复用 build.ts 的动态 feature-flag 生产边界
+bun run verify          # 按上述顺序执行,任一层失败即失败并保留原因
+```
+
+`bun test` 不属于默认入口:它会发现尚未完成 Bun/Vitest 迁移的上游 TUI 测试,缺失
+`ink-testing-library` 等依赖或调用不兼容 API。`test:legacy` 保留旧的 #007 profile
+契约回归(当前实现已将 coder 重命名为 executor),失败是预期的迁移欠账,不能计入通过数。
+`test:release-contract` 为 P0/P1/P2 历史 issue 的发布边界合同测试,由 `verify` 在最终 release build/smoke 后调用；需要 feature-flag 矩阵时写入隔离临时目录,不会覆盖最终 `dist/`。
+
+## 历史全量回归（已由 verify 替代）
+
+```bash
+# 不再使用旧的手工循环（它遗漏 test-issue-018-cli.ts 且会在旧 #007 契约处中断）。
+# 等价且完整的分层入口：
+bun run verify
 ```
 
 ## 清单(按 issue 编号排序)
@@ -32,18 +47,26 @@ for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profil
 | `test-issue-021.ts` | karpathy-wiki-lint bundled skill:5 项检查(BROKEN/ORPHAN/NOSUMMARY/NOSTAMP/LOWLINKS)命中与豁免、SUMMARY 计数、退出码恒 0、调用位置无关、MIN_LINKS 覆盖、SKILL.md 契约、dist 打包 | 内置 skills(skills/bundled) | issue #21(IK8MWU)/ PR !10 |
 | `test-issue-013.ts` | LSP 集成:tsls 探测/降级、JSON-RPC 四 method 往返、Location→{file,line,col,snippet}、SIGTERM 进程回收、tokenBudget.ts 端到端 symbols | 代码智能(services/lsp) | issue #13(IK8MWS)/ PR !16 |
 | `test-issue-018.ts` | OTEL 数据聚合 dashboard:7 天 fixture 聚合(每日 token + per-tool 错误率)、隐私断言(深度遍历检查敏感字段)、纯字符串 dashboard 渲染(7d × 24h 热力图 + 2 张表)、trace.jsonl 缺失/损坏行容错 | 可观测性(services/analytics) | issue #18(IK8MWZ)/ PR !17 |
+| `test-issue-018-cli.ts` | analytics CLI 接线:真实 BuiltinCommandLoader 加载 `/analytics` 与 `/otel` 别名、dashboard 消费、缺失/目录/控制字符路径错误处理 | 可观测性(UI command + analytics) | issue #18(IK8MWZ)/ PR !17 |
+| `test-runner-timeout.ts` | 统一测试入口自测：挂死子进程在毫秒级 timeout 内终止，并识别 ETIMEDOUT | 测试基础设施(scripts/run-test-suite.mjs) | 可靠性补强 |
+| `test-llm-abort.ts` | LLM 取消合同：signal 贯穿 LLMClient 主模型/fallback 与 OpenAI/Mistral/Anthropic/Google axios，取消后不再降级请求 | 模型 Provider(core/llm、core/providers) | 可靠性补强 |
 | `test-issue-014.ts` | teamMessageBus 协议层(第 1 部分):sequence 严格单调 + ack 语义(foreign ack / 重复 ack 防御) + 重投 1 次后失败丢弃 + warn-and-continue + 100 条 enqueue/ack 计数正确 | 多 Agent 编排(runtime/agent/coordinator/teamMessageBus) | issue #14(IK8MWV)/ PR !18 |
 | `test-issue-014-tool.ts` | teamMessage builtin tool(第 2 部分):send/recv/ack 三 action 行为 + 主对话直接调用失败 + 端到端跨 worker 通信 + 参数校验 + 不在 builtinTools 注册 | 多 Agent 编排(tools/builtin/teamMessage) | issue #14(IK8MWV)/ PR !19 |
 | `test-issue-014-profiles.ts` | executor / reviewer profile 实装(第 3 部分):spawnable=true 后可 spawn + runExecutor 生成 3-6 step + runReviewer 生成 1-5 finding + 剩余 3 个未实装 profile 仍抛错 + 原 coder 重命名为 executor | 多 Agent 编排(runtime/agent/coordinator) | issue #14(IK8MWV)/ PR !20 |
-| `test-issue-014-concurrent.ts` | concurrentAgentRunner 多 worker 共享总线(第 4 部分):spec done 后拉本 worker 消息 + yield team_message_batch + 3 worker 并发 + bus 跨 worker 通信 + limit 截断 + 隔离(其他 worker 消息不被混) + 自动 ack | 多 Agent 编排(runtime/agent/concurrentAgentRunner) | issue #14(IK8MWV)/ PR !21 |
+| `test-issue-014-concurrent.ts` | concurrentAgentRunner 多 worker 共享总线(第 4 部分):spec done 后拉本 worker 消息 + yield team_message_batch + 3 worker 并发 + bus 跨 worker 通信 + limit 截断 + 隔离(其他 worker 消息不被混) + 自动 ack + worker 超时/外部取消/continueOnError 清理 | 多 Agent 编排(runtime/agent/concurrentAgentRunner) | issue #14(IK8MWV)/ PR !21 + 可靠性补强 |
 | `test-issue-014-workspace.ts` | workspace 并发协调 + 端到端 single-task 拆分(第 5 部分):per-workspace 串行 FIFO 锁 + 跨 workspace 并发 + 错误自动释放 + 超时抛错 + 端到端 3 worker 并发 + ≥ 2 worker 完成度 ≥ 80% | 多 Agent 编排(runtime/agent/coordinator/workspaceCoordinator) | issue #14(IK8MWV)/ PR !22 |
+| `test-issue-014-team-cli.ts` | `/team` 用户入口：agentLoop slash 分流、四 worker 来源、并发、请求级 bus 隔离、空 prompt 与失败隔离 | 多 Agent 编排(runtime/agent/slashHandler) | issue #14(IK8MWV)/ 产品闭环补强 |
+| `test-issue-014-production-team.ts` | 生产 staged pipeline：调研并发、bus relay 因果交接、workspace artifact 事实源、executor 计划、reviewer 复核与 active generator 清理 | 多 Agent 编排(runtime/agent/coordinator/teamCoordinator) | issue #14(IK8MWV)/ 产品闭环补强 |
+| `test-issue-014-daemon-team.ts` | daemon 真实接线：`runChatStream` 复用生产 team factory，并从 `/team` 返回四角色协作结果 | 多 Agent 编排(daemon/chatHandler → teamCoordinator) | issue #14(IK8MWV)/ 产品闭环补强 |
 | `test-issue-016.ts` | Voice 接口层(第 1 部分):AudioCapture/AsrEngine/WakeWordDetector 契约 + NullAudioCapture/NullAsrEngine 默认实现 + processUserInput voice/text 统一路径 + ASR 不可用/抛错 graceful 降级 + 源码层 DCE 友好(< 20KB) | Voice(src/voice) | issue #16(IK8MWX)/ PR !23 |
 | `test-issue-016-whisper.ts` | whisper.cpp 子进程 ASR 引擎(第 2 部分):binary 缺失/存在检测 + transcribe 走子进程 + stdout trim 转 text + 非 0 退出码抛 AsrError + 超时抛 AsrError + tmp file 写入/清理 + extraArgs 透传 | Voice(src/voice/whisperEngine) | issue #16(IK8MWX)/ PR !24 |
 | `test-issue-016-processor.ts` | VoiceProcessor 抽象层(第 3 部分):VoiceProcessor 基类 + NullVoiceProcessor + RealVoiceProcessor 依赖注入 + getVoiceProcessor factory(读 voice_mode flag)+ shutdown/cancel 转发到子系统 + 抽象类多态 | Voice(src/voice/voiceProcessor) | issue #16(IK8MWX)/ PR !25 |
 | `test-issue-016-wakeword.ts` | EnergyWakeWordDetector(第 4 部分):RMS 能量阈值检测 + 静默/低能量/高能量 fixture + 阈值可调 + getStats(calls/hits/lastPeakRms) + cancel noop + DCE 友好(< 40KB) | Voice(src/voice/wakeWordEngine) | issue #16(IK8MWX)/ PR !26 |
+| `test-issue-016-voice-cli.ts` | `/voice status/start/stop` 受控降级：真实 flag 与依赖探测、Null fallback、依赖就绪/产品可启动状态分离、拒绝假启动与资源清理 | Voice(UI command + feature flags) | issue #16(IK8MWX)/ 产品闭环补强 |
 | `test-issue-017.ts` | Plugin manifest 验证 + registry(第 1 部分):Zod schema 拒绝 8+ 畸形 manifest + 字段级 issues + PluginRegistry CRUD + scanPluginDir 扫目录 + broken stub entry | 扩展生态(src/plugin) | issue #17(IK8MWY)/ PR !27 |
 | `test-issue-017-sandbox.ts` | Plugin Sandbox(第 2 部分):vm.runInNewContext + require 白名单拦截 + process.env 白名单拦截(get/has 双路径)+ tool quota(per-plugin + per-session)+ 失败隔离 + resetStats | 扩展生态(src/plugin/sandbox) | issue #17(IK8MWY)/ PR !28 |
 | `test-issue-017-marketplace.ts` | Marketplace + 端到端 sample-weather(第 3 部分):HMAC 签名校验失败拒装 + 签名通过安装 + 端到端 install → load → invoke → 返 mock 数据 + loader unload + 缺 impl 跳过 + load 未 install 抛错 + stats 累积 | 扩展生态(src/plugin/marketplace + loader) | issue #17(IK8MWY)/ PR !29 |
+| `test-issue-017-local-cli.ts` | `/plugins` 本地签名插件闭环：真实 discover/install/invoke/uninstall action、逐次验签、quota session、并发安装锁、symlink 边界与失败回滚 | 扩展生态(localMarketplace + UI command) | issue #17(IK8MWY)/ 产品闭环补强 |
 | `test-model.ts` | 手动入口:模型连通性 + 速度检查(等价 `alice --test-model`);实现位于 `src/utils/testModel.ts` | 模型诊断(utils/testModel) | 历史 dev 脚本(无 PR);2026-08-15 修复为可运行薄壳 |
 | `test-tools.ts` | 手动入口:toolRegistry / builtinTools / ToolExecutor 冒烟 | 工具系统 | 历史 dev 脚本(无 PR) |
 | `test-function-calling.ts` | 手动入口:LLM function calling 端到端(需真实 API) | function calling | 历史 dev 脚本(无 PR) |
@@ -51,5 +74,5 @@ for t in 001 002 003 004 005 007 008 009 010 011 012 013 014 014-tool 014-profil
 ## 备注
 
 - `src/services/test-commands/` 是命令 fixture 目录(`example.md`),非测试脚本,不迁移。
-- `package.json` 的 `test:xai` 指向 gitignore 的 `test/xai-connection.ts`(本地不存在),为历史死引用,保留待清理。
+- `package.json` 已移除历史失效的 `test:xai` 入口；模型/工具/function-calling 手工入口仍保留在 `script:test-*`。
 - 新增测试脚本命名约定:`test-issue-<编号 3 位>.ts`;性能基准用 `bench-<主题>.ts`。

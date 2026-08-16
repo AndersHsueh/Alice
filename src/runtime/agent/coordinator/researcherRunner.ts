@@ -15,10 +15,11 @@
  */
 
 import type { SpawnEvent, SpawnRequest, SpawnDeps } from './profileRegistry.js';
+import { awaitWithSignal, throwIfAborted } from './abort.js';
 
 export interface ResearcherRunnerOptions {
   /** 注入检索 hook(测试可 mock,生产用 SessionMemory.getRelevantMemories) */
-  search?: (prompt: string, topK: number) => Promise<string[]>;
+  search?: (prompt: string, topK: number, signal?: AbortSignal) => Promise<string[]>;
   /** 召回条数,默认 5 */
   topK?: number;
 }
@@ -32,7 +33,7 @@ function withScore(hits: string[]): Array<{ text: string; score: number }> {
 
 /** 默认检索:复用 deps.baseDeps.getRelevantMemories(由 chatHandler 注入 SessionMemory)。
  *  直接传 topK 给底层,避免再手动 slice。 */
-function defaultSearch(deps: SpawnDeps): (p: string, k: number) => Promise<string[]> {
+function defaultSearch(deps: SpawnDeps): (p: string, k: number, signal?: AbortSignal) => Promise<string[]> {
   return async (prompt: string, topK: number): Promise<string[]> => {
     const hook = deps.baseDeps.getRelevantMemories;
     if (!hook) return [];
@@ -50,8 +51,10 @@ export async function* runResearcher(
 
   let hits: string[] = [];
   try {
-    hits = await search(request.prompt, topK);
+    hits = await awaitWithSignal(search(request.prompt, topK, request.signal), request.signal);
+    throwIfAborted(request.signal);
   } catch (err: unknown) {
+    if (request.signal?.aborted) throw err;
     // 失败绝不阻塞主对话:记 warn,emit 0 条 hit + done
     deps.logger?.warn('researcher runner 检索失败(已忽略,不影响主对话)',
       err instanceof Error ? err.message : String(err));
@@ -60,7 +63,9 @@ export async function* runResearcher(
   }
 
   for (const h of withScore(hits)) {
+    throwIfAborted(request.signal);
     yield { type: 'memory_hit', text: h.text, score: h.score };
   }
+  throwIfAborted(request.signal);
   yield { type: 'done', topics: [], memories: hits };
 }

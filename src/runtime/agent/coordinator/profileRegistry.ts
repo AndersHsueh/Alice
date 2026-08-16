@@ -5,7 +5,7 @@
  *
  * 设计:
  *  - 7 个 profile 同时注册,**4 个 spawnable**(consultant / researcher / executor / reviewer),
- *    3 个明确标 spawnable=false(coder / writer / security / tester — 规划中)
+ *    3 个明确标 spawnable=false(writer / security / tester — 规划中)
  *  - spawn 调用 profile 专属 runner(consultantRunner / researcherRunner / executorRunner / reviewerRunner),
  *    由 runner 自行通过 deps.baseDeps 复用 SessionMemory / LLM client 等。
  *  - profile 失败(LLM 不可用 / memory 缺失)绝不阻塞主对话,
@@ -36,6 +36,8 @@ export interface SpawnRequest {
   prompt: string;
   /** session workspace,runner 写文件时(罕见)做 base */
   workspace?: string;
+  /** worker 级取消信号；超时或 Team 请求取消时触发。 */
+  signal?: AbortSignal;
 }
 
 /** warn-only logger 子集(daemon 的 DaemonLogger 有更多字段,runner 只用 warn) */
@@ -58,7 +60,7 @@ export interface SpawnDeps {
 
 export class ProfileNotImplementedError extends Error {
   constructor(public readonly profileName: string) {
-    super(`profile '${profileName}' 未实装(当前 IK8MWM #7 仅 consultant + researcher 可 spawn)`);
+    super(`profile '${profileName}' 未实装(可 spawn: consultant / researcher / executor / reviewer)`);
     this.name = 'ProfileNotImplementedError';
   }
 }
@@ -108,7 +110,7 @@ const PROFILES: readonly AgentProfile[] = [
     },
     spawnable: true,
   },
-  // ─── 5 个未实装 profile(本 PR 实装 executor + reviewer;剩余 3 个仍占位) ───
+  // ─── 3 个未实装 profile(writer / security / tester;executor + reviewer 已实装) ───
   {
     name: 'executor',
     role: '任务执行',

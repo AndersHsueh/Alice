@@ -24,6 +24,7 @@ import path from 'path';
 
 import {
   aggregateFromFile,
+  aggregateFromFileStream,
   aggregateSpans,
   defaultTracePath,
   assertPrivacySafe,
@@ -289,6 +290,54 @@ async function main(): Promise<void> {
   section('⑤ defaultTracePath() 路径契约');
   const dt = defaultTracePath();
   assert(dt.endsWith(path.join('.alice', 'otel', 'trace.jsonl')), '默认路径 ~/.alice/otel/trace.jsonl');
+
+  /* ─────── ⑥ 流式入口(大文件 + 上限/取消保护) ─────── */
+  section('⑥ 流式聚合(大文件 + 上限/取消保护)');
+  await withTempTrace(
+    Array.from({ length: 20_000 }, (_, i) => JSON.stringify({
+      name: 'tool.execute.streamProbe',
+      startTimeUnixNano: (BigInt(Date.UTC(2026, 7, 15, 12)) * 1_000_000n + BigInt(i)).toString(),
+      attributes: { 'tool.success': true },
+      status: { code: 1 },
+    })).join('\n'),
+    async (file) => {
+      const streamed = await aggregateFromFileStream(file, { now: new Date('2026-08-15T23:00:00') });
+      assertEq(streamed.totalSpans, 20_000, '大文件流式聚合不丢行');
+      assertEq(streamed.toolErrorRates[0]?.total, 20_000, '大文件仅保留工具聚合计数');
+
+      let limitError = '';
+      try {
+        await aggregateFromFileStream(file, { maxLines: 100 });
+      } catch (error: unknown) {
+        limitError = error instanceof Error ? error.message : String(error);
+      }
+      assert(limitError.includes('最大行数限制'), '超过最大行数时明确失败而非无限读取');
+
+      const controller = new AbortController();
+      const abortingAggregation = aggregateFromFileStream(file, { signal: controller.signal });
+      setImmediate(() => controller.abort());
+      let abortName = '';
+      try {
+        await abortingAggregation;
+      } catch (error: unknown) {
+        abortName = error instanceof Error ? error.name : '';
+      }
+      assertEq(abortName, 'AbortError', '处理中 AbortSignal 在宽松模式下仍向调用方传播');
+    },
+  );
+
+  await withTempTrace('x'.repeat(512 * 1024), async (file) => {
+    let byteLimitName = '';
+    let byteLimitMessage = '';
+    try {
+      await aggregateFromFileStream(file, { maxBytes: 32 });
+    } catch (error: unknown) {
+      byteLimitName = error instanceof Error ? error.name : '';
+      byteLimitMessage = error instanceof Error ? error.message : String(error);
+    }
+    assertEq(byteLimitName, 'AggregateLimitError', '超长无换行单行在原始 chunk 层触发字节上限');
+    assert(byteLimitMessage.includes('最大字节数限制'), '宽松模式不吞掉字节上限错误');
+  });
 
   /* ─────── summary ─────── */
   console.log('');

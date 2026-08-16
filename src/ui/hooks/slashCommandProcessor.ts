@@ -41,6 +41,7 @@ import {
   type ExtensionUpdateAction,
   type ExtensionUpdateStatus,
 } from '../state/extensions.js';
+import { startNewSessionWithPluginReset } from '../commands/pluginsCommand.js';
 
 type SerializableHistoryItem = Record<string, unknown>;
 const debugLogger = createDebugLogger('SLASH_COMMAND_PROCESSOR');
@@ -103,6 +104,9 @@ export const useSlashCommandProcessor = (
   logger: Logger | null,
 ) => {
   const { stats: sessionStats, startNewSession } = useSessionStats();
+  const startNewPluginSession = useCallback((sessionId: string) => {
+    startNewSessionWithPluginReset(startNewSession, sessionId);
+  }, [startNewSession]);
   const [commands, setCommands] = useState<readonly SlashCommand[]>([]);
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
@@ -259,7 +263,7 @@ export const useSlashCommandProcessor = (
       session: {
         stats: sessionStats,
         sessionShellAllowlist,
-        startNewSession,
+        startNewSession: startNewPluginSession,
       },
     }),
     [
@@ -272,7 +276,7 @@ export const useSlashCommandProcessor = (
       clearItems,
       refreshStatic,
       sessionStats,
-      startNewSession,
+      startNewPluginSession,
       actions,
       pendingItem,
       setPendingItem,

@@ -1,6 +1,6 @@
 {
   "name": "alice-cli",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "ALICE - AI-powered office assistant CLI with Function Calling support",
   "type": "module",
   "bin": {
@@ -12,12 +12,18 @@
     "dev:watch": "bun --watch run src/index.tsx",
     "build": "bun build.ts",
     "postbuild": "bun scripts/postbuild.mjs",
+    "typecheck": "bun scripts/typecheck.mjs",
+    "test": "bun run test:core",
+    "test:core": "bun scripts/run-test-suite.mjs core",
+    "test:legacy": "bun scripts/run-test-suite.mjs legacy",
+    "test:release-contract": "bun scripts/run-test-suite.mjs release-contract",
+    "test:release": "bun scripts/release.mjs",
+    "verify": "bun scripts/verify.mjs",
     "start": "bun run dist/index.js",
-    "clean": "bun rm -rf dist",
+    "clean": "bun scripts/clean.mjs",
     "script:test-model": "bun run test-case/test-model.ts",
     "script:test-tools": "bun run test-case/test-tools.ts",
-    "script:test-function-calling": "bun run test-case/test-function-calling.ts",
-    "test:xai": "bun run test/xai-connection.ts"
+    "script:test-function-calling": "bun run test-case/test-function-calling.ts"
   },
   "keywords": [
     "cli",

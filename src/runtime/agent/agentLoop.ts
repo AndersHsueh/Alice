@@ -13,6 +13,8 @@ import { compactConversation } from '../../services/compact/compact.js';
 import { obtainTracer } from '../../observability/spans.js';
 import { createSlashHandler, type SlashHandler } from './slashHandler.js';
 import type { SpawnEvent } from './coordinator/profileRegistry.js';
+import type { RunAgentsEvent } from './concurrentAgentRunner.js';
+import { abortReason, throwIfAborted } from './coordinator/abort.js';
 
 const THINK_CLOSE_TAG = '</think>';
 
@@ -33,6 +35,8 @@ export interface AgentLoopDependencies {
   getRelevantMemories?(prompt: string, topK?: number): Promise<string[]>;
   /** 可选:多 Agent coordinator spawn 入口(IK8MWM #7)。默认 noop,接 spawnCoordinator 后 /consult /research 即生效 */
   spawnCoordinator?(profileName: string, request: { prompt: string; workspace?: string }): AsyncGenerator<SpawnEvent>;
+  /** 可选:/team 并发入口；每次请求应创建独立 bus 并返回带 profile 来源的事件。 */
+  runTeamCoordinator?(request: { prompt: string; workspace?: string; signal?: AbortSignal }): AsyncGenerator<RunAgentsEvent>;
   /** 可选:覆盖默认 slash handler,测试可注入 noop */
   slashHandler?: SlashHandler;
 }
@@ -100,7 +104,8 @@ async function generateCaption(
   existingCaption: string | undefined,
   messages: Message[],
   client: any,
-  logger: DaemonLogger
+  logger: DaemonLogger,
+  signal?: AbortSignal,
 ): Promise<string | undefined> {
   try {
     const userMessages = messages.filter(m => m.role === 'user');
@@ -122,8 +127,11 @@ async function generateCaption(
     const prompt = `Summarize this conversation in one short phrase (under 10 words, no punctuation at end). Reply with ONLY the phrase, nothing else.\n\n${recent}`;
 
     let summary = '';
-    for await (const chunk of client.chatStream([{ role: 'user', content: prompt, timestamp: new Date() }])) {
-      summary += chunk;
+    const captionMessages = [{ role: 'user', content: prompt, timestamp: new Date() }];
+    if (signal && typeof client.chat === 'function') {
+      summary = await client.chat(captionMessages, signal);
+    } else {
+      for await (const chunk of client.chatStream(captionMessages)) summary += chunk;
     }
     summary = summary.trim().replace(/[.!?]+$/, '').slice(0, 60);
     if (!summary) return existingCaption;
@@ -160,10 +168,42 @@ function toPermissionDeniedEvent(
   };
 }
 
+/**
+ * 手动驱动 LLM async iterator，以便请求断连时不等待一个不合作的 provider。
+ * next() 的拒绝始终预先挂上 handler，避免 signal 先赢 race 后留下 unhandled rejection。
+ */
+async function nextWithAbort<T>(
+  iterator: AsyncIterator<T>,
+  signal?: AbortSignal,
+): Promise<IteratorResult<T>> {
+  const nextPromise = Promise.resolve().then(() => iterator.next());
+  void nextPromise.catch(() => undefined);
+  if (!signal) return nextPromise;
+  throwIfAborted(signal);
+  let onAbort: (() => void) | undefined;
+  const abortPromise = new Promise<IteratorResult<T>>((_, reject) => {
+    onAbort = () => reject(abortReason(signal));
+    signal.addEventListener('abort', onAbort, { once: true });
+    if (signal.aborted) onAbort();
+  });
+  try {
+    return await Promise.race([nextPromise, abortPromise]);
+  } catch (error) {
+    if (signal.aborted) {
+      // 尽力通知 provider/generator 收尾，但不等待其可能永不返回的 return()。
+      try { void Promise.resolve(iterator.return?.()).catch(() => undefined); } catch { /* ignore */ }
+    }
+    throw error;
+  } finally {
+    if (onAbort) signal.removeEventListener('abort', onAbort);
+  }
+}
+
 export async function* runAgentLoop(
-  req: RuntimeChatRequest,
+  req: RuntimeChatRequest & { signal?: AbortSignal },
   deps: AgentLoopDependencies
 ): AsyncGenerator<RuntimeEvent> {
+  throwIfAborted(req.signal);
   const startedAt = Date.now();
   const config = deps.getConfig();
   const sessionManager = deps.getSessionManager();
@@ -261,15 +301,25 @@ export async function* runAgentLoop(
   // 必须在 model_selected 之前短路,否则 UI 上看得到「模型选了 → 又被 slash 接管」的多余切换。
   const slashHandler =
     deps.slashHandler ??
-    (deps.spawnCoordinator ? createSlashHandler((name, req2) => deps.spawnCoordinator!(name, req2)) : null);
+    ((deps.spawnCoordinator || deps.runTeamCoordinator)
+      ? createSlashHandler(
+        (name, req2) => deps.spawnCoordinator!(name, { ...req2, workspace: session.workspace }),
+        deps.runTeamCoordinator
+          ? (req2) => deps.runTeamCoordinator!({ ...req2, workspace: session.workspace, signal: req.signal })
+          : undefined,
+      )
+      : null);
   if (slashHandler) {
     try {
+      throwIfAborted(req.signal);
       const slash = await slashHandler.handle(req.message, deps);
       if (slash !== null) {
+        throwIfAborted(req.signal);
         yield* yieldSlashResult(slash, session, conversationMessages, sessionManager, deps.logger);
         return;
       }
     } catch (err: unknown) {
+      if (req.signal?.aborted) throw err;
       // 失败绝不阻塞主对话
       deps.logger.warn('Slash 分流失败(已忽略,继续主流)', getErrorMessage(err));
     }
@@ -346,7 +396,7 @@ export async function* runAgentLoop(
     : null;
 
   try {
-    for await (const chunk of client.chatStreamWithTools(
+    const stream = client.chatStreamWithTools(
       messagesForLLM,
       (record: ToolCallRecord) => {
         toolState.upsert(record);
@@ -357,7 +407,13 @@ export async function* runAgentLoop(
       (usage) => {
         pendingBudgetUsage = usage;
       },
-    )) {
+      req.signal,
+    );
+    const streamIterator = stream[Symbol.asyncIterator]();
+    while (true) {
+      const next = await nextWithAbort(streamIterator, req.signal);
+      if (next.done) break;
+      const chunk = next.value;
       // 先把已排队的预算事件 flush 出去,保证事件顺序:预算 → 当前 chunk
       if (pendingBudgetUsage) {
         yield { type: 'budget_update', usage: pendingBudgetUsage };
@@ -419,7 +475,8 @@ export async function* runAgentLoop(
       });
     }
 
-    const updatedCaption = await generateCaption(session.caption, finalMessages, client, deps.logger);
+    throwIfAborted(req.signal);
+    const updatedCaption = await generateCaption(session.caption, finalMessages, client, deps.logger, req.signal);
     await sessionManager.saveSession({
       ...session,
       messages: finalMessages,

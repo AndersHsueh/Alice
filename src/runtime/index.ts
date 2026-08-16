@@ -19,4 +19,5 @@ export * from './agent/coordinator/profileRegistry.js';
 export * from './agent/coordinator/consultantRunner.js';
 export * from './agent/coordinator/researcherRunner.js';
 export * from './agent/coordinator/spawn.js';
+export * from './agent/coordinator/teamCoordinator.js';
 export * from './agent/slashHandler.js';

@@ -82,6 +82,8 @@ export interface SandboxOptions {
   pluginQuota?: number;
   /** per-session 全部 plugin tool 调用上限(默认 1000) */
   sessionQuota?: number;
+  /** 由 PluginLoader 持有的 session 计数；不与其它 manager 共享。 */
+  sessionCounter?: { value: number };
 }
 
 /** 受限 Sandbox(每个 plugin 一个实例) */
@@ -92,6 +94,7 @@ export class PluginSandbox {
   private readonly allowGlobals: ReadonlySet<string>;
   private readonly pluginQuotaLimit: number;
   private readonly sessionQuotaLimit: number;
+  private readonly sessionCounter?: { value: number };
   private readonly stats: SandboxStats = {
     requireBlocked: 0,
     envBlocked: 0,
@@ -110,6 +113,7 @@ export class PluginSandbox {
     this.allowGlobals = new Set(opts.allowGlobals ?? ['console']);
     this.pluginQuotaLimit = opts.pluginQuota ?? 100;
     this.sessionQuotaLimit = opts.sessionQuota ?? 1000;
+    this.sessionCounter = opts.sessionCounter;
   }
 
   /** 取统计 */
@@ -123,6 +127,7 @@ export class PluginSandbox {
     this.stats.envBlocked = 0;
     this.stats.globalBlocked = 0;
     this.stats.toolCalls = 0;
+    this.stats.sessionToolCalls = 0;
     // session 级别不重置(由调用方控制)
   }
 
@@ -200,11 +205,18 @@ export class PluginSandbox {
     if (this.stats.toolCalls >= this.pluginQuotaLimit) {
       throw new QuotaExceededError('plugin', this.pluginQuotaLimit, this.pluginName);
     }
-    if (PluginSandbox.sessionStats >= this.sessionQuotaLimit) {
+    const sessionCalls = this.sessionCounter?.value ?? PluginSandbox.sessionStats;
+    if (sessionCalls >= this.sessionQuotaLimit) {
       throw new QuotaExceededError('session', this.sessionQuotaLimit);
     }
     this.stats.toolCalls++;
-    PluginSandbox.sessionStats++;
+    if (this.sessionCounter) {
+      this.sessionCounter.value++;
+      this.stats.sessionToolCalls = this.sessionCounter.value;
+    } else {
+      PluginSandbox.sessionStats++;
+      this.stats.sessionToolCalls = PluginSandbox.sessionStats;
+    }
     return fn();
   }
 

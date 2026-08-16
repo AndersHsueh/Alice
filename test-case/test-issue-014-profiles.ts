@@ -287,6 +287,32 @@ async function main(): Promise<void> {
     assert(reviewEvents.length >= 1, `reviewer fallback 仍 ≥ 1 (actual ${reviewEvents.length})`);
   }
 
+  /* ─────── ⑬ 四个真实 profile 的 await 均响应 AbortSignal ─────── */
+  section('⑬ 四个真实 profile await 响应取消');
+  for (const profileName of ['consultant', 'researcher', 'executor', 'reviewer']) {
+    const controller = new AbortController();
+    let chatSignalObserved = false;
+    const never = new Promise<never>(() => undefined);
+    const deps = makeMockDeps();
+    deps.baseDeps.getLLMClient = () => ({
+      chat: async (_messages: unknown[], signal?: AbortSignal): Promise<string> => {
+        chatSignalObserved = signal === controller.signal;
+        return never;
+      },
+    });
+    deps.baseDeps.getRelevantMemories = async () => never;
+    const iterator = spawn(profileName, { prompt: 'cancel profile wait', signal: controller.signal }, deps);
+    const pending = iterator.next();
+    controller.abort(new Error(`cancel ${profileName}`));
+    let rejected = false;
+    try { await pending; }
+    catch { rejected = true; }
+    assert(rejected, `${profileName} 的挂起 await 被 signal 中止且不走 fallback`);
+    if (profileName !== 'researcher') {
+      assert(chatSignalObserved, `${profileName} 把同一 signal 传入 LLMClient.chat`);
+    }
+  }
+
   /* ─────── summary ─────── */
   console.log('');
   console.log('─'.repeat(32));

@@ -6,7 +6,7 @@
 
 🤖 **ALICE** - 基于大语言模型的智能办公助手
 
-[![Version](https://img.shields.io/badge/version-3.1.1-blue.svg)](https://github.com/AndersHsueh/Alice)
+[![Version](https://img.shields.io/badge/version-3.1.2-blue.svg)](https://gitee.com/andershsueh/alice-cli/tree/v3.1.2)
 [![License](https://img.shields.io/badge/license-MulanPSL2-green.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![Bun](https://img.shields.io/badge/bun-%3E%3D1.0.0-f9f1df.svg?logo=bun)](https://bun.sh)
@@ -45,11 +45,25 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 - ⚡ **useAliceStream**：全新流式适配器，将 Alice daemon 的 `ChatStreamEvent` 无缝映射到 qwen-code TUI 的消息历史系统
 - 🎨 **功能丰富**：代码高亮、Markdown 渲染、工具调用可视化、会话管理、Vim 模式、多主题等全部开箱即用
 
-### 🚀 v3.1.1 亮点(P2 全集 · 4 个 issue 全部落地)
+### 🚀 v3.1.2 亮点（可信赖 Code Agent 闭环）
 
-> 本 release 把 v3.1.0 后续的 P2 全集(4 个 issue · 12 个 PR)全部实现为可用代码。1173 断言全绿(v3.1.0 基线 608 + P2 新增 565),`bun build.ts` 成功。
+> **产品终局原则：从能力集合走向可信赖的 Code Agent 产品。** v3.1.2 将此前分散的 Analytics、Team、Voice 与 Plugin 能力接入真实用户入口，并为取消、超时、发布产物和测试安全建立可复现合同。
 
-**📋 P2 × 4 全部落地(12 个 PR)**
+- 🛰️ **Analytics**：`/analytics`（别名 `/otel`）以 async stream 读取本地 OTEL JSONL，支持取消与读取上限，不再整文件载入内存
+- 🤝 **Team**：`/team` 完成“consultant + researcher 并发 → bus/artifact → executor 计划 → reviewer”编排；worker 与普通 LLM 流均可随 HTTP/Unix Socket 断连取消
+- 🧩 **Plugin**：`/plugins discover/install/list/invoke/uninstall` 完成本地 HMAC 签名插件闭环，权限 `deny`/`ask` fail closed，并发安装与会话 quota 重置均有真实入口回归
+- 🎙️ **Voice**：`/voice status/start/stop` 提供诚实的受控降级；平台录音生命周期尚未产品化时不会伪报启动成功
+- 🧪 **统一验证**：`bun run verify` 最终通过 30/30 个核心脚本、1085 PASS / 0 FAIL；release smoke 9/9、release contracts 5/5（168/0），并防止陈旧 `dist` 与测试写入真实 HOME
+
+完整变更、边界和迁移说明见 [`release-notes/v3.1.2.md`](release-notes/v3.1.2.md)。
+
+### 🚀 v3.1.1 历史亮点（P2 能力集合）
+
+> `release-notes/v3.1.1.md` 的历史声明是 v3.1.0 基线 608 + P2 新增 565，共 1173 条断言 PASS；这是发布说明中的历史统计，不作为当前复现结果。当前统一 gate 基线为 30 个核心测试脚本、1085 PASS / 0 FAIL。
+
+> 当前验证入口：`bun run typecheck` → `bun run test:core`；最终结果为 30/30 脚本、1085 PASS / 0 FAIL。发布级合同入口为 `bun run verify`：release final dist 仅构建 1 次并完成 smoke 9/9，#004 隔离矩阵 2 次，#005/#019/#020/#021 默认 dist 构建 0 次，release contracts 5/5、168/0；最终耗时约 27.0s。release contracts 只复用带本轮 nonce marker 的构建产物；core 执行前先阻断测试脚本对真实 HOME 派生路径的破坏性 I/O。
+
+**📋 P2 × 4 入口闭环(12 个 PR；产品边界见下)**
 
 | Issue | 标题 | PR 数 | PR 范围 |
 |-------|------|-------|--------|
@@ -60,10 +74,11 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 
 **🔧 4 大新能力**
 
-- 🛰️ **OTEL 本地 dashboard**:`:stats` 命令渲染 7d × 24h 热力图 + 每日 token + per-tool 错误率;隐私边界在 aggregator 出口处强制,深度遍历断言不含 prompt/completion
-- 🤝 **多 worker 协作**:teamMessageBus 协议层(sequence 单调 + ack + 重投)+ teamMessage tool + executor/reviewer profile 实装 + concurrentAgentRunner 多 worker 共享总线 + workspace per-session 串行锁
-- 🎙️ **Voice 输入**:whisper.cpp 子进程 ASR 引擎 + VoiceProcessor 抽象层(读 voice_mode flag 选 Null/Real)+ EnergyWakeWordDetector(RMS 阈值 prototype);voice/text 统一路径
-- 🧩 **Plugin Marketplace**:manifest Zod schema + PluginRegistry + PluginSandbox(vm + require/env 拦截 + quota)+ Marketplace(HMAC 签名 + 端到端 sample-weather fixture)
+- 🛰️ **本地 Analytics**:`/analytics`（别名 `/otel`）读取本地 OTEL trace 并渲染统计，async stream 支持 abort 与 limits，已形成可验证本地闭环
+- 🤝 **Team staged orchestrator-relay**:`/team` 已接通“调研并发 → bus/artifact → executor 计划 → reviewer”流程；这是编排器代 relay 的工作流，不宣称 worker 通过 teamMessage tool 互聊，也不直接替 worker 改文件
+- 🎙️ **Voice 受控降级**:`/voice status/start/stop` 会探测并明确拒绝不可用启动；平台录音生命周期当前未接入，依赖就绪也不会假启动。flag 默认读取 `~/.alice/feature_flags.jsonc`，可由 `ALICE_FEATURE_VOICE_MODE` 覆盖
+- 🧩 **本地签名插件**:`/plugins discover/install/list/invoke/uninstall` 完成本地 HMAC 签名声明式插件闭环；不是远程 marketplace，也不是身份认证系统
+- ⚠️ **可信赖边界**:Team worker 默认 120s timeout 且可取消；核心测试脚本默认 120s timeout；Voice 平台录音、Plugin 远程市场/身份认证仍不在当前产品承诺内。verify 的 release final dist 只构建一次，避免把重复构建误报为发布闭环
 
 ### 🚀 v3.1.0 亮点(结构扩张 · P1 × 9 全部落地)
 
@@ -87,20 +102,21 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 
 - ⚡ **Zod v4 升级**:`^3.23.8` → `^4`(实际 `zod@4.4.3`)。7 处既有 `import { z } from 'zod'` 保持 v3 兼容入口,新代码走 `zod/v4`。5 个高频 builtin 工具切到 zod schema,`toolResultFormatter` 新增 `formatError()` 输出字段路径错误,自修重试上限 2。低风险工具(`getCurrentDateTime` 等)继续走 ajv JSONSchema。
 - 📊 **OpenTelemetry 三件套**:`src/observability/{otelSDK, otlpConfig, spans}.ts`。**零 OTEL 全家桶依赖** —— 只硬引 `@opentelemetry/api ^1.9.1`(平台无关),SDK 与 OTLP exporter 全自研。配置门控:enabled=false 零开销;启用后 < 1% overhead。trace 落 `~/.alice/otel/trace.jsonl`(隐私过滤,不含 prompt 文本),OTLP HTTP 出口直接对接 Honeycomb / Datadog。
-- 🤖 **Coordinator 多 Agent 编排**:`src/runtime/agent/coordinator/{agentProfile, profileRegistry, spawn, consultantRunner, researcherRunner}.ts` + `concurrentAgentRunner.ts` + `slashHandler.ts`。7 profile 框架(consultant/researcher/coder/writer/reviewer/security/tester),2 个可 spawn —— `/consult` 输出 5-8 条议题,`/research` 命中 `~/.alice/memories/*.md`;permissionGate 按 profile 收敛。
+- 🤖 **Coordinator 多 Agent 编排**:`src/runtime/agent/coordinator/{agentProfile, profileRegistry, spawn, consultantRunner, researcherRunner}.ts` + `concurrentAgentRunner.ts` + `slashHandler.ts`。7 profile 框架(consultant/researcher/executor/writer/reviewer/security/tester),4 个可 spawn —— `/consult` 输出 5-8 条议题,`/research` 命中 `~/.alice/memories/*.md`;permissionGate 按 profile 收敛。
 - 🧠 **TeamMemorySync 协议 v1**:`src/services/sync/{syncProtocol, localMock, teamMemorySync}.ts`。`teamId + memory payload + version` envelope,本地 mock 落 `~/.alice/team-sync/staging/<teamId>.jsonl`,24h 滚动 TTL。远程 endpoint(`POST /v1/teams/{teamId}/memories:push` + `GET :pull`)为 v4.0.0 预留。失败 warn-and-continue,不阻塞本地对话。
 - 🌐 **LSP 集成**:`src/services/lsp/{stdioRunner, serverProcess, client, locationFormat, index}.ts` + 3 个 builtin 工具(lspGotoDefinition / lspFindReferences / lspDocumentSymbol)。JSON-RPC 协议跨 Bun/Node runtime,Content-Length 帧协议,SIGTERM 优雅回收。ts ls 缺失时给安装提示而非崩溃。stub server 在 `test-case/fixtures/lsp-stub-server.mjs`(测试用)。
 - 🦊 **Token Budget 接通 TUI**:`BudgetUsage` 类型 + `getUsage()` + `budget_update` 事件流。第 8-10 轮起 Footer 显示 `[ctx 78%]`,`nearCompletion` 触发"auto-compact 即将触发"提示。
 - 🚀 **ripgrep 替换 glob**:`src/utils/ripgrepRunner.ts`,searchFiles 优先走 `rg --files --glob`,20k 文件级目录 ~800ms → ~50ms。无 rg 自动降级 glob。
 - 🛠 **3 个 builtin skill 全员到齐**:`/karpathy-wiki-new`(v3.0.1)、`/karpathy-wiki-ingest`、`/karpathy-wiki-lint`。lint 5 项检查(BROKEN/ORPHAN/NOSUMMARY/NOSTAMP/LOWLINKS)输出 SUMMARY 行机器可读。
 
-**🗺 路线图**
+**🗺 路线图(按当前真实状态)**
 - ✅ **v3.0.1** = P0 × 6(2026 Q3)
-- ✅ **v3.1.1**(本 release) = P2 × 4 全部落地(2026 Q4 末)
 - ✅ **v3.1.0** = P1 × 9(2026 Q4)
-- 🔮 **v4.0.0** = P2 × 4 / Multi-Agent Team / Plugin Marketplace / Voice / analytics dashboard
+- ✅ **v3.1.1** = P2 × 4 能力集合落地(2026-08-15)
+- ✅ **v3.1.2**(当前 release) = 稳定入口、真实测试、取消链路与发布合同收官(2026-08-16)
+- 🔮 **后续周期** = worker tool 互聊、平台录音生命周期、远程插件市场/身份认证与更高等级发布验收
 
-详见 [`release-notes/v3.1.1.md`](release-notes/v3.1.1.md) + [`release-notes/v3.1.0.md`](release-notes/v3.1.0.md) + [`wiki/v3.0.1-rollout.md`](wiki/v3.0.1-rollout.md)
+详见 [`release-notes/v3.1.2.md`](release-notes/v3.1.2.md) + [`release-notes/v3.1.1.md`](release-notes/v3.1.1.md) + [`release-notes/v3.1.0.md`](release-notes/v3.1.0.md)
 
 ### 🚀 v3.0.1 亮点(结构强化 · 21 项行动)
 
@@ -109,14 +125,14 @@ ALICE 是一个现代化的命令行 AI 助手，支持 Function Calling 工具�
 **📋 21 项 P0/P1/P2 行动清单**
 - 🎯 **P0 × 6(全部已合并)**:#1 启动预取(冷启动 < 120ms,PR !2)/ #2 服务层补足(memory + compact,PR !3)/ #3 权限 5 mode(585 例决策,PR !4)/ #4 Feature Flag DCE(PR !5)/ **#5 ★ Workspace Backend 收敛(已完成,PR !6 守卫)** / #19 builtin-skill-new(PR !7)
 - ✅ **P1 × 9**:见上方 v3.1.0 章节
-- 🔮 **P2 × 4**:#14 Multi-Agent Team / #15(挂起)/ #16 Voice / #17 Plugin Marketplace / #18 analytics
+- 🔮 **P2 × 4 + #15 挂起**:正式 P2 为 #14 Multi-Agent Team / #16 Voice / #17 Plugin Marketplace / #18 analytics；#15 remoteManagedSettings 独立挂起,不计入四项
 - ❌ **#6 IDE Bridge** 按产品原则划掉
 
 **🛠 内置 Skills**(本 release 全员到齐)
 - `karpathy-wiki-new` — 一键建 Karpathy Wiki 知识库脚手架(3 目录 + 6 模板)
 - `karpathy-wiki-ingest` — 把 raw/ 编译为结构化 wiki 页面(#20 ✅)
 - `karpathy-wiki-lint` — 知识库健康检查(5 项检查,#21 ✅)
-- 设计:复用现有 `loadSkill` 工具,默认可信 + 详细日志,见 [`wiki/内置-Skills.md`](wiki/内置-Skills.md)
+- 设计:bundled skill 由 `BundledSkillLoader` 暴露 slash command,确定性执行器按需调用;权限与审计由调用方负责,见 [`wiki/内置-Skills.md`](wiki/内置-Skills.md)
 
 **🧹 Obsolete 清理(commit a104d85)**
 - 删除 `QWEN.md` + `.github/copilot-instructions.md`(同构第一规则,统一入口到 `AGENTS.md`)
@@ -145,19 +161,16 @@ veronica restart  # 重启并重新加载配置
 ```
 
 ### 🔧 工具系统（Function Calling）
-- **12 个内置工具**: 文件操作、系统信息、命令执行、技能加载、会话任务清单等
-  - `TodoWrite` - 会话内任务清单（增删改查、状态更新）
-  - `TodoRead` - 查看当前会话任务列表（与 TodoWrite 共用同一套列表展示）
-  - `readFile` - 读取文件内容
-  - `writeFile` - 将内容写入文件（整文件覆盖或新建）
-  - `editFile` - 按行号编辑已有文件（替换/插入/删除行，支持批量），适用于大文件少量修改
-  - `listFiles` - 列出目录文件
-  - `searchFiles` - 搜索文件（支持 glob 模式）
-  - `getCurrentDirectory` - 获取当前目录
-  - `getGitInfo` - 查看 Git 仓库信息
-  - `getCurrentDateTime` - 获取当前时间
+- **17 个内置工具**（以 `src/tools/builtin/index.ts` 的注册表为准）: 文件操作、系统信息、命令执行、技能加载、任务清单、用户确认、多步推理与 LSP 导航
+  - `readFile` / `writeFile` / `editFile` - 读取、写入、按行编辑文件
+  - `listFiles` / `searchFiles` - 列出与搜索文件
+  - `getCurrentDirectory` / `getGitInfo` / `getCurrentDateTime` - 工作目录、Git 与时间信息
   - `executeCommand` - 执行系统命令（带安全确认）
+  - `ask_user` - 请求用户确认或选择
   - `loadSkill` - 按需加载技能指令
+  - `TodoWrite` / `TodoRead` - 写入与读取会话任务清单
+  - `SequentialThinking` - 多步推理
+  - `lspGotoDefinition` / `lspFindReferences` / `lspDocumentSymbol` - TypeScript LSP 导航
 - **智能工具调用**: AI 自动决定何时使用哪个工具
 - **实时进度展示**: 工具执行状态可视化
 - **安全机制**: 危险命令需要用户确认
@@ -342,7 +355,7 @@ Alice: 现在是 2026 年 2 月 10 日 21:40，星期二。
 [🔍 搜索文件] 正在搜索 **/*.ts...
 [🔍 搜索文件] 找到 25 个文件
 
-Alice: 项目中共有 25 个 TypeScript 文件，主要分布在 src/core、src/cli 等目录。
+Alice: 项目中共有 25 个 TypeScript 文件，主要分布在 src/core、src/ui 等目录。
 
 # 示例 3: 读取文件
 > You: 帮我看看 package.json 的内容

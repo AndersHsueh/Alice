@@ -34,17 +34,21 @@ export class OpenAICompatibleProvider extends BaseProvider {
     });
   }
 
-  async chat(messages: Message[]): Promise<string> {
+  async chat(messages: Message[], signal?: AbortSignal): Promise<string> {
     try {
       const requestMessages = this.buildMessages(messages);
 
-      const response = await this.client.post('/chat/completions', {
-        model: this.config.model,
-        messages: requestMessages,
-        temperature: this.config.temperature,
-        max_tokens: this.config.maxTokens,
-        stream: false,
-      });
+      const response = await this.client.post(
+        '/chat/completions',
+        {
+          model: this.config.model,
+          messages: requestMessages,
+          temperature: this.config.temperature,
+          max_tokens: this.config.maxTokens,
+          stream: false,
+        },
+        { signal },
+      );
 
       if (response.data?.choices?.[0]?.message?.content) {
         return response.data.choices[0].message.content;
@@ -226,7 +230,8 @@ export class OpenAICompatibleProvider extends BaseProvider {
 
   async chatWithTools(
     messages: Message[], 
-    tools: OpenAIFunction[]
+    tools: OpenAIFunction[],
+    signal?: AbortSignal,
   ): Promise<ChatResponse> {
     try {
       const requestMessages = this.buildMessages(messages);
@@ -246,7 +251,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
         })),
         tool_choice: 'auto',  // 让模型自动决定是否调用工具
         stream: false,
-      });
+      }, { signal });
 
       const choice = response.data?.choices?.[0];
       if (!choice) {
@@ -276,7 +281,8 @@ export class OpenAICompatibleProvider extends BaseProvider {
 
   async *chatStreamWithTools(
     messages: Message[], 
-    tools: OpenAIFunction[]
+    tools: OpenAIFunction[],
+    signal?: AbortSignal,
   ): AsyncGenerator<ChatResponse> {
     try {
       const requestMessages = this.buildMessages(messages);
@@ -303,6 +309,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
         },
         {
           responseType: 'stream',
+          signal,
         }
       );
 

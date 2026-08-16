@@ -46,6 +46,7 @@ export interface LoaderStats {
 export class PluginLoader {
   private readonly tools = new Map<string, PluginToolEntry>(); // key: "<plugin>.<tool>"
   private readonly pluginSandboxes = new Map<string, PluginSandbox>(); // per-plugin sandbox
+  private readonly sessionCounter = { value: 0 };
   private readonly stats: LoaderStats = {
     loadCalls: 0,
     toolsRegistered: 0,
@@ -63,6 +64,12 @@ export class PluginLoader {
   /** 取统计 */
   getStats(): LoaderStats {
     return { ...this.stats };
+  }
+
+  /** 结束一个 session 后调用，避免 quota 计数泄漏到下一轮。 */
+  resetSession(): void {
+    this.sessionCounter.value = 0;
+    for (const sandbox of this.pluginSandboxes.values()) sandbox.resetStats();
   }
 
   /** 取已加载 tool 列表 */
@@ -98,6 +105,7 @@ export class PluginLoader {
         new PluginSandbox(pluginName, {
           pluginQuota: this.pluginQuota,
           sessionQuota: this.sessionQuota,
+          sessionCounter: this.sessionCounter,
         }),
       );
     }

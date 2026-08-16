@@ -67,6 +67,7 @@ export function fireAndForgetExtractMemories(
   messages: Message[],
   logger?: WarnLogger,
   deps?: ExtractMemoriesDeps,
+  teamSyncDeps?: TeamMemorySyncDeps,
 ): void {
   const resolvedDeps: ExtractMemoriesDeps = deps ?? {
     memoryDir: getMemoryDir(),
@@ -79,7 +80,8 @@ export function fireAndForgetExtractMemories(
       const teamId = await getSessionSync().resolve();
       if (!teamId) return;
       await pushTeamMemory(teamId, sessionId, result.bullets, {
-        logger: logger as TeamMemorySyncDeps['logger'],
+        ...teamSyncDeps,
+        logger: teamSyncDeps?.logger ?? logger as TeamMemorySyncDeps['logger'],
       });
     })
     .catch((err: unknown) => {

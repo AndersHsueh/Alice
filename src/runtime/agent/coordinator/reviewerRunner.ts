@@ -12,6 +12,7 @@
  */
 
 import type { SpawnEvent, SpawnRequest, SpawnDeps } from './profileRegistry.js';
+import { awaitWithSignal, throwIfAborted } from './abort.js';
 
 /* ───────────────────────────── types ────────────────────────────── */
 
@@ -28,7 +29,7 @@ export interface ReviewFinding {
 }
 
 export interface ReviewerRunnerOptions {
-  summarize?: (prompt: string) => Promise<string>;
+  summarize?: (prompt: string, signal?: AbortSignal) => Promise<string>;
   /** 最大评审发现数,默认 5 */
   maxFindings?: number;
 }
@@ -77,13 +78,13 @@ function buildReviewerPrompt(userPrompt: string): string {
   ].join('\n');
 }
 
-function defaultSummarize(deps: SpawnDeps): (p: string) => Promise<string> {
-  return async (prompt: string): Promise<string> => {
+function defaultSummarize(deps: SpawnDeps): (p: string, signal?: AbortSignal) => Promise<string> {
+  return async (prompt: string, signal?: AbortSignal): Promise<string> => {
     const cfg = deps.baseDeps.getConfig();
     const model = deps.baseDeps.getDefaultModel() ?? cfg.models[0];
     if (!model) throw new Error('reviewer runner:无默认模型');
     const client = deps.baseDeps.getLLMClient(model, '你是代码评审员,负责给出结构化 finding 列表。');
-    return client.chat([{ role: 'user', content: prompt, timestamp: new Date() }]);
+    return client.chat([{ role: 'user', content: prompt, timestamp: new Date() }], signal);
   };
 }
 
@@ -99,22 +100,26 @@ export async function* runReviewer(
 
   let findings: ReviewFinding[] = [];
   try {
-    const llmOut = await summarize(buildReviewerPrompt(request.prompt));
+    const llmOut = await awaitWithSignal(summarize(buildReviewerPrompt(request.prompt), request.signal), request.signal);
+    throwIfAborted(request.signal);
     findings = parseFindings(llmOut, max);
     if (findings.length === 0) {
       // LLM 输出不合规 → fallback 全套
       findings = fallbackFindings(request.prompt).slice(0, max);
     }
   } catch (err: unknown) {
+    if (request.signal?.aborted) throw err;
     deps.logger?.warn('reviewer runner LLM 失败,使用 fallback 评审',
       err instanceof Error ? err.message : String(err));
     findings = fallbackFindings(request.prompt).slice(0, max);
   }
 
   for (const finding of findings) {
+    throwIfAborted(request.signal);
     yield { type: 'review', finding, total: findings.length };
   }
   // reviewer 也算「主题提炼」的一部分
   const topics = findings.map((f) => `[${f.severity}] ${f.category}`);
+  throwIfAborted(request.signal);
   yield { type: 'done', topics, memories: [] };
 }

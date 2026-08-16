@@ -14,13 +14,14 @@
  */
 
 import type { SpawnEvent, SpawnRequest, SpawnDeps } from './profileRegistry.js';
+import { awaitWithSignal, throwIfAborted } from './abort.js';
 
 export interface ConsultantRunnerOptions {
   /**
    * 注入 LLM 提炼能力。签名:接 prompt 字符串,返回 markdown bullet 列表文本。
    * 默认从 deps.baseDeps.getLLMClient() 派生一个 chat 客户端。
    */
-  summarize?: (prompt: string) => Promise<string>;
+  summarize?: (prompt: string, signal?: AbortSignal) => Promise<string>;
   /** 议题上下限,默认 5-8 */
   minTopics?: number;
   maxTopics?: number;
@@ -66,7 +67,8 @@ export async function* runConsultant(
 
   let topics: string[] = [];
   try {
-    const llmOut = await summarize(buildConsultantPrompt(request.prompt));
+    const llmOut = await awaitWithSignal(summarize(buildConsultantPrompt(request.prompt), request.signal), request.signal);
+    throwIfAborted(request.signal);
     topics = parseTopics(llmOut, max);
     if (topics.length < min) {
       // LLM 不足 5 条 → fallback 补齐(避免主对话拿到 1-2 条空)
@@ -76,14 +78,17 @@ export async function* runConsultant(
     }
     if (topics.length > max) topics = topics.slice(0, max);
   } catch (err: unknown) {
+    if (request.signal?.aborted) throw err;
     deps.logger?.warn('consultant runner LLM 失败,使用 fallback 议题',
       err instanceof Error ? err.message : String(err));
     topics = fallbackTopics(request.prompt).slice(0, Math.min(max, min));
   }
 
   for (let i = 0; i < topics.length; i++) {
+    throwIfAborted(request.signal);
     yield { type: 'topic', topic: topics[i]!, index: i + 1 };
   }
+  throwIfAborted(request.signal);
   yield { type: 'done', topics, memories: [] };
 }
 
@@ -98,12 +103,12 @@ function buildConsultantPrompt(userPrompt: string): string {
 }
 
 /** 默认 summarize:从 baseDeps 派生 chat 客户端,做非流式调用。 */
-function defaultSummarize(deps: SpawnDeps): (p: string) => Promise<string> {
-  return async (prompt: string): Promise<string> => {
+function defaultSummarize(deps: SpawnDeps): (p: string, signal?: AbortSignal) => Promise<string> {
+  return async (prompt: string, signal?: AbortSignal): Promise<string> => {
     const cfg = deps.baseDeps.getConfig();
     const model = deps.baseDeps.getDefaultModel() ?? cfg.models[0];
     if (!model) throw new Error('consultant runner:无默认模型');
     const client = deps.baseDeps.getLLMClient(model, '你是咨询顾问,负责提炼议题。');
-    return client.chat([{ role: 'user', content: prompt, timestamp: new Date() }]);
+    return client.chat([{ role: 'user', content: prompt, timestamp: new Date() }], signal);
   };
 }

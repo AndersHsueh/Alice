@@ -38,7 +38,7 @@ export abstract class BaseProvider {
     this.systemPrompt = systemPrompt;
   }
 
-  abstract chat(messages: Message[]): Promise<string>;
+  abstract chat(messages: Message[], signal?: AbortSignal): Promise<string>;
   abstract chatStream(messages: Message[]): AsyncGenerator<string>;
   abstract testConnection(): Promise<{ success: boolean; speed: number; error?: string }>;
 
@@ -51,7 +51,8 @@ export abstract class BaseProvider {
   // 新增：带工具的流式对话
   abstract chatStreamWithTools(
     messages: Message[], 
-    tools: OpenAIFunction[]
+    tools: OpenAIFunction[],
+    signal?: AbortSignal,
   ): AsyncGenerator<ChatResponse>;
 
   protected buildMessages(messages: Message[]): Array<any> {

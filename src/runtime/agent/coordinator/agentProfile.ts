@@ -11,8 +11,8 @@
  *  - spawnable:   true = 真的能拉起 runtime / false = 仅占位,标「未实装」
  *  - description: 简短说明,供 list / 未实装错误信息用
  *
- * 注:目前只 consultant + researcher 可 spawn,其余 5 个(coder/writer/
- * reviewer/security/tester)显式标 spawnable=false,spawn 时抛明确错误。
+ * 注:consultant / researcher / executor / reviewer 可 spawn；writer /
+ * security / tester 仍显式标 spawnable=false,spawn 时抛明确错误。
  */
 
 import type { RuleAction } from '../../../core/permission/permissionPolicy.js';

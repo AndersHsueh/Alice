@@ -13,6 +13,7 @@
  *      · 跨域引用(目标含 /,如 raw/... / outputs/... / ../CLAUDE.md)→ 不算 BROKEN
  *      · fenced code block 内 + 行内反引号内的 [[...]] → 不算 BROKEN
  *      · ORPHAN / LOWLINKS 豁免 INDEX.md / log.md / 文件名含 工作流- 的工作流页
+ *      · NOSUMMARY 豁免 append-only 流水账 log.md;普通主题页仍必须有摘要
  *  - 日期戳判定:仅 `> 最后更新:YYYY-MM-DD` 与 `> Last updated:YYYY-MM-DD` 两种写法
  *  - 摘要判定:`## 摘要` 与 `## Summary` 两套等价
  *  - 输出:逐条 TAG + 末尾 SUMMARY 行;exit code 恒 0
@@ -31,6 +32,11 @@ export const DEFAULT_MIN_LINKS = 3;
 /** ORPHAN / LOWLINKS 检查的豁免文件名(精确匹配) */
 const ORPHAN_EXEMPT_BASENAMES = new Set<string>([
   'INDEX.md',
+  'log.md',
+]);
+
+/** append-only 操作流水账不是主题页,不强制摘要;其它页面仍命中 NOSUMMARY */
+const NOSUMMARY_EXEMPT_BASENAMES = new Set<string>([
   'log.md',
 ]);
 
@@ -155,6 +161,11 @@ function isExemptFromDensity(name: string): boolean {
   return ORPHAN_EXEMPT_BASENAMES.has(name) || isWorkflowPage(name);
 }
 
+/** NOSUMMARY 的最小豁免范围:仅 append-only 流水账 basename=log.md */
+function isExemptFromSummary(name: string): boolean {
+  return NOSUMMARY_EXEMPT_BASENAMES.has(name);
+}
+
 /** 从环境变量或默认值解析 MIN_LINKS */
 function parseMinLinksFromEnv(): number {
   const env = process.env['MIN_LINKS'];
@@ -241,7 +252,7 @@ export async function lintWiki(
     return !referencedStems.has(name) && !referencedStems.has(stem);
   });
 
-  const noSummaryPages = pages.filter((n) => !hasSummary(pageContents.get(n) ?? ''));
+  const noSummaryPages = pages.filter((n) => !isExemptFromSummary(n) && !hasSummary(pageContents.get(n) ?? ''));
   const noStampPages = pages.filter((n) => !hasStamp(pageContents.get(n) ?? ''));
   const lowLinksPages = pages.filter((n) => {
     if (isExemptFromDensity(n)) return false;

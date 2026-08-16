@@ -8,7 +8,7 @@
  * 测试方法(issue 验收要点):
  *  ① 一轮对话产出 4-9 个 span(根 agent_loop + N 次 chat.iteration.stream + M 次 tool.execute.*)
  *  ② child span attributes 快照:tokenBudget.used/total/pct + model_selected.model
- *  ③ console exporter 写 ~/.alice/otel/trace.jsonl 不含 prompt 文本(隐私断言)
+ *  ③ console exporter 写入注入的 tmp trace.jsonl,且不含 prompt 文本(隐私断言)
  *  ④ 开启 OTEL 后单轮耗时增幅 < 3%(容差 5%,防 flaky)
  *
  * 实现策略:
@@ -37,6 +37,7 @@ import {
   traceChatStreamIteration,
   traceToolExecution,
 } from '../src/observability/spans.js';
+import { findDestructiveHomeIo } from './helpers/homeIoSafety.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -204,7 +205,7 @@ async function testSpanCount(): Promise<void> {
 
   await shutdownSDK();
   // 清理 tmpDir(异步)
-  fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+  await fs.rm(tmpDir, { recursive: true, force: true });
 }
 
 /* ──────────────── 用例 ② attributes 快照 ──────────────── */
@@ -263,7 +264,7 @@ async function testAttributesSnapshot(): Promise<void> {
   assertEq(toolSpan?.attributes['tool.success'], true, 'toolSpan.tool.success');
 
   await shutdownSDK();
-  fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+  await fs.rm(tmpDir, { recursive: true, force: true });
 }
 
 /* ──────────────── 用例 ③ 隐私断言 ──────────────── */
@@ -271,22 +272,11 @@ async function testAttributesSnapshot(): Promise<void> {
 async function testPrivacyNoPromptLeak(): Promise<void> {
   section('③ console exporter 输出不含 prompt 文本');
 
-  // 准备 tmpDir 和标准 ~/.alice/otel/trace.jsonl 路径(双写,验证两种路径都不漏)
+  // Exporter 始终显式注入 tmp 路径，不解析或触碰真实 HOME。
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'alice-otel-011-priv-'));
-  const aliceOtel = resolveConsoleFilePath('trace.jsonl');
-  // resolveConsoleFilePath 默认写入 ~/.alice/otel/,不在 tmpDir 里
-  // 这里改为写到 tmpDir 内以避免污染 home
   const consoleFile = path.join(tmpDir, 'trace.jsonl');
 
   const secretMarker = `secret-token-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  // 不污染 home 的 alice/otel:本次测试我们临时把 consoleFile 指向 tmp,
-  // 并通过 spy 校验 fs.appendFile 没被以 aliceOtel 路径调用过。
-  const aliceFileExistsBefore = fsSync.existsSync(aliceOtel);
-  try {
-    fsSync.unlinkSync(aliceOtel);
-  } catch {
-    // ignore
-  }
 
   await startSDK({
     enabled: true,
@@ -314,26 +304,34 @@ async function testPrivacyNoPromptLeak(): Promise<void> {
     'trace.jsonl 不含 prompt 中文字符 "已读取"',
   );
 
-  // 额外:断言 ~/.alice/otel/trace.jsonl 没被本次测试污染
-  if (aliceFileExistsBefore) {
-    // 还原原文件
-    const content = await fs.readFile(aliceOtel, 'utf-8').catch(() => '');
-    assert(
-      !content.includes(secretMarker),
-      '~/.alice/otel/trace.jsonl(原存在)未被本次 secret marker 污染',
-    );
-  } else {
-    // 测试结束后清理
-    fsSync.rmSync(aliceOtel, { force: true });
-  }
-
-  fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+  await fs.rm(tmpDir, { recursive: true, force: true });
 }
 
-/* ──────────────── 用例 ④ 性能开销 ──────────────── */
+/* ──────────────── 用例 ④ 默认路径纯解析 ──────────────── */
+
+function testDefaultPathWithoutIo(): void {
+  section('④ 默认 console 路径仅做字符串解析与 fs spy 断言');
+
+  const originalMkdirSync = fsSync.mkdirSync;
+  const mkdirCalls: string[] = [];
+  fsSync.mkdirSync = ((target: Parameters<typeof fsSync.mkdirSync>[0]) => {
+    mkdirCalls.push(String(target));
+    return undefined;
+  }) as typeof fsSync.mkdirSync;
+  try {
+    const resolved = resolveConsoleFilePath('trace.jsonl');
+    const expectedDir = path.dirname(resolved);
+    assert(resolved.endsWith(path.join('.alice', 'otel', 'trace.jsonl')), '相对默认路径保持 ~/.alice/otel/trace.jsonl 契约');
+    assertEq(mkdirCalls, [expectedDir], 'mkdir 仅由 spy 捕获，未执行默认路径 I/O');
+  } finally {
+    fsSync.mkdirSync = originalMkdirSync;
+  }
+}
+
+/* ──────────────── 用例 ⑤ 性能开销 ──────────────── */
 
 async function testPerformanceOverhead(): Promise<void> {
-  section('④ OTEL 开启 vs 关闭,单轮耗时增幅 < 3%(容差 5%)');
+  section('⑤ OTEL 开启 vs 关闭,单轮耗时增幅 < 3%(容差 5%)');
 
   const ITERATIONS = 500; // 跑足够多次让噪声被平均掉
   const secret = 'secret-perf-' + Math.random().toString(36).slice(2);
@@ -369,7 +367,7 @@ async function testPerformanceOverhead(): Promise<void> {
   console.log(`  ℹ OTEL on: ${otelMs.toFixed(2)}ms / ${ITERATIONS} 次`);
 
   await shutdownSDK();
-  fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+  await fs.rm(tmpDir, { recursive: true, force: true });
 
   // 验收:< 5% overhead(issue 原文 < 3%,允许 5% 容差防 flaky)
   const overheadPct = ((otelMs - baselineMs) / baselineMs) * 100;
@@ -380,16 +378,17 @@ async function testPerformanceOverhead(): Promise<void> {
   );
 }
 
-/* ──────────────── 用例 ⑤ 配置门控 ──────────────── */
+/* ──────────────── 用例 ⑥ 配置门控 ──────────────── */
 
 async function testConfigGating(): Promise<void> {
-  section('⑤ 配置门控:enabled=false 时 SDK 关闭,无 IO');
+  section('⑥ 配置门控:enabled=false 时 SDK 关闭,无真实 HOME IO');
 
   _resetSDKForTests();
   await shutdownSDK();
 
-  // 默认设置:enabled=false(没读到 settings.jsonc 或文件不存在)
-  const config = loadOtelConfig();
+  // 缺失配置显式注入 tmp 路径，不读取真实 ~/.alice/settings.jsonc。
+  const configRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'alice-otel-011-config-'));
+  const config = loadOtelConfig(path.join(configRoot, 'missing-settings.jsonc'));
   assert(config.enabled === false, `loadOtelConfig() 默认 enabled=false`);
 
   // 启 SDK 但 enabled=false
@@ -403,12 +402,13 @@ async function testConfigGating(): Promise<void> {
   assert(spans.length === 0, `disabled 时不产生 span (实际 ${spans.length})`);
 
   await shutdownSDK();
+  await fs.rm(configRoot, { recursive: true, force: true });
 }
 
-/* ──────────────── 用例 ⑥ SDK isLive 与拉取接口 ──────────────── */
+/* ──────────────── 用例 ⑦ SDK isLive 与拉取接口 ──────────────── */
 
 async function testApiSurface(): Promise<void> {
-  section('⑥ SDK API 表面:getTracer / isLive / pullFinishedSpans / shutdown');
+  section('⑦ SDK API 表面:getTracer / isLive / pullFinishedSpans / shutdown');
 
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'alice-otel-011-api-'));
   const consoleFile = path.join(tmpDir, 'trace.jsonl');
@@ -437,7 +437,44 @@ async function testApiSurface(): Promise<void> {
 
   await shutdownSDK();
   assert(getActiveSDK() === null, 'shutdownSDK 后 getActiveSDK()=null');
-  fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+  await fs.rm(tmpDir, { recursive: true, force: true });
+}
+
+/* ──────────────── 用例 ⑧ core 测试 HOME I/O 安全合同 ──────────────── */
+
+async function testNoDestructiveHomeIo(): Promise<void> {
+  section('⑧ core/runner 测试禁止破坏性真实 HOME I/O');
+  const fixtureRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'alice-home-io-safety-'));
+  await fs.writeFile(path.join(fixtureRoot, 'test-unsafe.ts'), [
+    "import fs from 'node:fs/promises';",
+    "import os from 'node:os';",
+    "import path from 'node:path';",
+    "const target = path.join(os.homedir(), '.alice', 'otel', 'trace.jsonl');",
+    'await fs.unlink(target);',
+  ].join('\n'));
+  await fs.writeFile(path.join(fixtureRoot, 'test-hidden-helper.ts'), [
+    "import fs from 'node:fs';",
+    "import { resolveConsoleFilePath } from '../src/observability/otlpConfig.js';",
+    "const target = resolveConsoleFilePath('trace.jsonl');",
+    'fs.rmSync(target);',
+  ].join('\n'));
+  await fs.writeFile(path.join(fixtureRoot, 'test-safe.ts'), [
+    "import fs from 'node:fs/promises';",
+    "import os from 'node:os';",
+    "import path from 'node:path';",
+    "const target = path.join(os.tmpdir(), 'alice-fixture');",
+    'await fs.rm(target, { recursive: true, force: true });',
+  ].join('\n'));
+  const fixtureViolations = await findDestructiveHomeIo(fixtureRoot);
+  assertEq(
+    fixtureViolations.map((item) => item.file).sort(),
+    ['test-hidden-helper.ts', 'test-unsafe.ts'],
+    '静态门禁命中直接 HOME 与已知 helper 派生删除，允许 tmp fixture',
+  );
+  await fs.rm(fixtureRoot, { recursive: true, force: true });
+
+  const violations = await findDestructiveHomeIo(path.join(REPO_ROOT, 'test-case'));
+  assertEq(violations, [], 'test-case 脚本无 HOME/已知默认路径 helper 派生的写入或删除');
 }
 
 /* ────────────────── 主入口 ────────────────── */
@@ -445,19 +482,31 @@ async function testApiSurface(): Promise<void> {
 async function main(): Promise<void> {
   console.log('🧪 test-issue-011 — OpenTelemetry 可观测性\n');
 
+  const simulatedUserData = await fs.mkdtemp(path.join(os.tmpdir(), 'alice-otel-011-user-data-'));
+  const sentinelPath = path.join(simulatedUserData, '.alice', 'otel', 'trace.jsonl');
+  const sentinelBytes = Buffer.from([0x41, 0x4c, 0x49, 0x43, 0x45, 0x00, 0xff, 0x0a]);
+  await fs.mkdir(path.dirname(sentinelPath), { recursive: true });
+  await fs.writeFile(sentinelPath, sentinelBytes);
+  const sentinelBefore = await fs.readFile(sentinelPath);
+
   try {
     await testSpanCount();
     await testAttributesSnapshot();
     await testPrivacyNoPromptLeak();
+    testDefaultPathWithoutIo();
     await testPerformanceOverhead();
     await testConfigGating();
     await testApiSurface();
+    await testNoDestructiveHomeIo();
   } catch (err) {
     console.error('uncaught:', err);
     failures.push('uncaught: ' + (err instanceof Error ? err.message : String(err)));
     failed++;
   } finally {
     await shutdownSDK();
+    const sentinelAfter = await fs.readFile(sentinelPath).catch(() => Buffer.alloc(0));
+    assert(sentinelAfter.equals(sentinelBefore), '模拟用户 trace sentinel 前后逐字节不变');
+    await fs.rm(simulatedUserData, { recursive: true, force: true });
   }
 
   console.log(`\n────────────────────────────`);

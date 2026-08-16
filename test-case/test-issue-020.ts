@@ -18,7 +18,6 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { BundledSkillLoader } from '../src/services/BundledSkillLoader.js';
 import { skillManager } from '../src/core/skillManager.js';
@@ -29,6 +28,7 @@ import {
   todayIso,
   type LogType,
 } from '../src/skills/bundled/karpathy-wiki-ingest/ingest.js';
+import { prepareReleaseArtifact } from './helpers/releaseArtifact.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -340,15 +340,12 @@ async function testAppendLogIdempotent(): Promise<void> {
 async function testDistPackaging(): Promise<void> {
   section('⑨ 打包:dist 含 SKILL.md + 编译后的 ingest.js');
 
-  // 注意:build 用 bun(v3.0.1 起,#19 修复了 Node<22.18 下的 npm run build 失败)
-  const cmd = process.platform === 'win32' ? 'bun.cmd' : 'bun';
-  const res = spawnSync(cmd, ['run', 'build'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf-8',
-    timeout: 300_000,
-    env: { ...process.env, PATH: process.env['PATH'] },
-  });
-  assert(res.status === 0, `bun run build 成功 (stderr: ${(res.stderr ?? '').slice(-200)})`);
+  const artifact = prepareReleaseArtifact(REPO_ROOT);
+  assert(
+    artifact.status === 0,
+    `${artifact.mode} 准备成功 (stderr: ${artifact.stderr.slice(-200)})`,
+  );
+  if (artifact.status !== 0) return;
 
   const bundledDist = path.join(REPO_ROOT, 'dist', 'skills', 'bundled', 'karpathy-wiki-ingest');
   assert(await exists(path.join(bundledDist, 'SKILL.md')), 'dist 含 SKILL.md');

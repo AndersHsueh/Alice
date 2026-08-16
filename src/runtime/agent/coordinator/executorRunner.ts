@@ -12,6 +12,7 @@
  */
 
 import type { SpawnEvent, SpawnRequest, SpawnDeps } from './profileRegistry.js';
+import { awaitWithSignal, throwIfAborted } from './abort.js';
 
 /* ───────────────────────────── types ────────────────────────────── */
 
@@ -32,7 +33,7 @@ export interface ExecutorRunnerOptions {
    * 注入 LLM 拆解能力。签名:接 prompt 字符串,返回 markdown 步骤列表文本。
    * 默认从 deps.baseDeps.getLLMClient() 派生一个 chat 客户端。
    */
-  summarize?: (prompt: string) => Promise<string>;
+  summarize?: (prompt: string, signal?: AbortSignal) => Promise<string>;
   /** 步骤数量上下限,默认 3-6 */
   minSteps?: number;
   maxSteps?: number;
@@ -115,13 +116,13 @@ function buildExecutorPrompt(userPrompt: string): string {
 }
 
 /** 默认 summarize:从 baseDeps 派生 chat 客户端,做非流式调用。 */
-function defaultSummarize(deps: SpawnDeps): (p: string) => Promise<string> {
-  return async (prompt: string): Promise<string> => {
+function defaultSummarize(deps: SpawnDeps): (p: string, signal?: AbortSignal) => Promise<string> {
+  return async (prompt: string, signal?: AbortSignal): Promise<string> => {
     const cfg = deps.baseDeps.getConfig();
     const model = deps.baseDeps.getDefaultModel() ?? cfg.models[0];
     if (!model) throw new Error('executor runner:无默认模型');
     const client = deps.baseDeps.getLLMClient(model, '你是执行工程师,负责拆解任务为步骤。');
-    return client.chat([{ role: 'user', content: prompt, timestamp: new Date() }]);
+    return client.chat([{ role: 'user', content: prompt, timestamp: new Date() }], signal);
   };
 }
 
@@ -136,7 +137,8 @@ export async function* runExecutor(
 
   let steps: ExecutorStep[] = [];
   try {
-    const llmOut = await summarize(buildExecutorPrompt(request.prompt));
+    const llmOut = await awaitWithSignal(summarize(buildExecutorPrompt(request.prompt), request.signal), request.signal);
+    throwIfAborted(request.signal);
     steps = parseSteps(llmOut, max);
     if (steps.length < min) {
       const fb = fallbackSteps(request.prompt);
@@ -145,15 +147,18 @@ export async function* runExecutor(
     }
     if (steps.length > max) steps = steps.slice(0, max);
   } catch (err: unknown) {
+    if (request.signal?.aborted) throw err;
     deps.logger?.warn('executor runner LLM 失败,使用 fallback 步骤',
       err instanceof Error ? err.message : String(err));
     steps = fallbackSteps(request.prompt).slice(0, Math.min(max, min));
   }
 
   for (const step of steps) {
+    throwIfAborted(request.signal);
     yield { type: 'step', step };
   }
   // executor 也算「主题提炼」的一部分:把 step titles 当 topics(主对话可消费)
   const topics = steps.map((s) => s.title);
+  throwIfAborted(request.signal);
   yield { type: 'done', topics, memories: [] };
 }

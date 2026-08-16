@@ -4,6 +4,7 @@
 
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { Socket } from 'net';
+import { EventEmitter } from 'events';
 import type { DaemonConfig } from '../types/daemon.js';
 import type { PingResponse, StatusResponse, ReloadConfigResponse } from '../types/daemon.js';
 import { daemonConfigManager } from './config.js';
@@ -17,15 +18,84 @@ import { FeishuAdapter } from './gateway/feishuAdapter.js';
 import { handleChannelMessage } from './gateway/handler.js';
 import { getFeishuWsState } from './gateway/feishuWsState.js';
 
-function readBody(req: IncomingMessage): Promise<string> {
+function readBody(req: IncomingMessage, signal?: AbortSignal): Promise<string> {
   const withBody = (req as IncomingMessage & { bodyPromise?: Promise<string> }).bodyPromise;
-  if (withBody) return withBody;
+  if (withBody && !signal) return withBody;
+  if (withBody && signal) {
+    const bodyPromise = Promise.resolve(withBody);
+    // race 先结束时，bodyPromise 仍可能稍后 reject；预先挂 handler 防止 unhandled rejection。
+    void bodyPromise.catch(() => undefined);
+    if (signal.aborted) return Promise.reject(signal.reason ?? new DOMException('请求已取消', 'AbortError'));
+    return new Promise<string>((resolve, reject) => {
+      const cleanup = (): void => signal.removeEventListener('abort', onAbort);
+      const onAbort = (): void => {
+        cleanup();
+        reject(signal.reason ?? new DOMException('请求已取消', 'AbortError'));
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
+      bodyPromise.then(
+        (body) => { cleanup(); resolve(body); },
+        (error: unknown) => { cleanup(); reject(error); },
+      );
+    });
+  }
   return new Promise((resolve, reject) => {
     let body = '';
-    req.on('data', (chunk) => { body += chunk; });
-    req.on('end', () => resolve(body));
-    req.on('error', reject);
+    let settled = false;
+    const cleanup = (): void => {
+      req.removeListener('data', onData);
+      req.removeListener('end', onEnd);
+      req.removeListener('error', onError);
+      signal?.removeEventListener('abort', onAbort);
+    };
+    const settle = (fn: () => void): void => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      fn();
+    };
+    const onData = (chunk: Buffer | string): void => { body += chunk; };
+    const onEnd = (): void => settle(() => resolve(body));
+    const onError = (error: Error): void => settle(() => reject(error));
+    const onAbort = (): void => settle(() => reject(signal?.reason ?? new DOMException('请求已取消', 'AbortError')));
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onError);
+    if (signal) {
+      if (signal.aborted) onAbort();
+      else signal.addEventListener('abort', onAbort, { once: true });
+    }
   });
+}
+
+/** HTTP 流请求的 request-scoped cancellation；正常响应结束时不误触发 abort。 */
+function createRequestAbortScope(req: IncomingMessage, res: ServerResponse): {
+  signal: AbortSignal;
+  dispose: () => void;
+} {
+  const controller = new AbortController();
+  const abort = (reason: Error): void => {
+    if (!controller.signal.aborted) controller.abort(reason);
+  };
+  const onAborted = (): void => abort(new DOMException('客户端请求已中止', 'AbortError'));
+  const onResponseClose = (): void => {
+    // ServerResponse.close 在正常 end 后也会触发，writableEnded 用来区分真正断连。
+    if (!res.writableEnded && !res.finished) {
+      abort(new DOMException('客户端连接已关闭', 'AbortError'));
+    }
+  };
+
+  req.once('aborted', onAborted);
+  res.once('close', onResponseClose);
+  if ((req as IncomingMessage & { aborted?: boolean }).aborted) onAborted();
+
+  return {
+    signal: controller.signal,
+    dispose: () => {
+      req.removeListener('aborted', onAborted);
+      res.removeListener('close', onResponseClose);
+    },
+  };
 }
 
 export class DaemonRoutes {
@@ -33,12 +103,18 @@ export class DaemonRoutes {
   private logger: DaemonLogger;
   private startTime: number;
   private pid: number;
+  private readonly chatStreamRunner: typeof runChatStream;
 
-  constructor(config: DaemonConfig, logger: DaemonLogger) {
+  constructor(
+    config: DaemonConfig,
+    logger: DaemonLogger,
+    options: { chatStreamRunner?: typeof runChatStream } = {},
+  ) {
     this.config = config;
     this.logger = logger;
     this.startTime = Date.now();
     this.pid = process.pid;
+    this.chatStreamRunner = options.chatStreamRunner ?? runChatStream;
   }
 
   /**
@@ -102,8 +178,10 @@ export class DaemonRoutes {
     } catch (error: unknown) {
       const msg = getErrorMessage(error);
       this.logger.error('处理请求失败', msg);
-      res.writeHead(500);
-      res.end(JSON.stringify({ error: 'Internal Server Error', message: msg }));
+      if (!res.writableEnded && !res.destroyed) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Internal Server Error', message: msg }));
+      }
     }
   }
 
@@ -111,6 +189,23 @@ export class DaemonRoutes {
    * 处理 Unix socket 请求（通过 HTTP 协议）
    */
   async handleSocketRequest(socket: Socket, data: Buffer): Promise<void> {
+    const requestEvents = new EventEmitter();
+    const responseEvents = new EventEmitter();
+    let req: (IncomingMessage & { bodyPromise?: Promise<string> }) | undefined;
+    let res: ServerResponse | undefined;
+    const onSocketDisconnect = (): void => {
+      if (req && res && !res.writableEnded && !res.finished) {
+        (req as IncomingMessage & { aborted: boolean }).aborted = true;
+        requestEvents.emit('aborted');
+      }
+      if (res) {
+        (res as ServerResponse & { destroyed: boolean }).destroyed = true;
+        responseEvents.emit('close');
+      }
+    };
+    const onSocketError = (): void => onSocketDisconnect();
+    socket.once('close', onSocketDisconnect);
+    socket.once('error', onSocketError);
     try {
       const requestStr = data.toString();
       const [head, ...rest] = requestStr.split('\r\n\r\n');
@@ -127,18 +222,21 @@ export class DaemonRoutes {
       }
       const bodyStr = contentLength > 0 ? body.slice(0, contentLength) : body;
 
-      const req = {
+      req = Object.assign(requestEvents, {
         method,
         url: pathname,
         headers: { host: 'localhost' },
         bodyPromise: Promise.resolve(bodyStr),
-      } as IncomingMessage & { bodyPromise?: Promise<string> };
+        aborted: false,
+      }) as IncomingMessage & { bodyPromise?: Promise<string> };
 
       // 构造响应对象
-      let responseBody = '';
       let headersWritten = false;
       const responseHeaders: Record<string, string> = {};
-      const res = {
+      res = Object.assign(responseEvents, {
+        writableEnded: false,
+        finished: false,
+        destroyed: false,
         setHeader: (name: string, value: string) => {
           responseHeaders[name] = value;
         },
@@ -163,6 +261,10 @@ export class DaemonRoutes {
           // Socket 不需要 flush，已实时写入
         },
         end: (body?: string) => {
+          if (res!.writableEnded) return;
+          // 必须先标终态再 socket.end；同步/快速 close 不应被识别为客户端中止。
+          (res as ServerResponse & { writableEnded: boolean; finished: boolean }).writableEnded = true;
+          (res as ServerResponse & { writableEnded: boolean; finished: boolean }).finished = true;
           if (body) {
             if (!headersWritten) {
               const allHeaders = { ...responseHeaders };
@@ -173,13 +275,20 @@ export class DaemonRoutes {
           }
           socket.end();
         },
-      } as ServerResponse;
+      }) as unknown as ServerResponse;
 
       await this.handleHttpRequest(req, res);
     } catch (error: unknown) {
       this.logger.error('处理 socket 请求失败', getErrorMessage(error));
-      socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
-      socket.end();
+      if (!socket.destroyed) {
+        socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+        socket.end();
+      }
+    } finally {
+      socket.removeListener('close', onSocketDisconnect);
+      socket.removeListener('error', onSocketError);
+      requestEvents.removeAllListeners();
+      responseEvents.removeAllListeners();
     }
   }
 
@@ -427,10 +536,13 @@ export class DaemonRoutes {
    */
   private async handleChatStream(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const startedAt = Date.now();
+    const requestScope = createRequestAbortScope(req, res);
     let body: string;
     try {
-      body = await readBody(req);
+      body = await readBody(req, requestScope.signal);
     } catch (error: unknown) {
+      requestScope.dispose();
+      if (requestScope.signal.aborted || res.destroyed) return;
       res.writeHead(400);
       res.end(JSON.stringify({ error: 'Failed to read body', message: getErrorMessage(error) }));
       return;
@@ -439,13 +551,20 @@ export class DaemonRoutes {
     try {
       payload = JSON.parse(body) as ChatStreamRequest;
     } catch {
+      requestScope.dispose();
       res.writeHead(400);
       res.end(JSON.stringify({ error: 'Invalid JSON body' }));
       return;
     }
     if (!payload.message) {
+      requestScope.dispose();
       res.writeHead(400);
       res.end(JSON.stringify({ error: 'Missing field: message' }));
+      return;
+    }
+
+    if (requestScope.signal.aborted) {
+      requestScope.dispose();
       return;
     }
 
@@ -464,7 +583,8 @@ export class DaemonRoutes {
     });
 
     try {
-      for await (const event of runChatStream(payload, this.logger)) {
+      for await (const event of this.chatStreamRunner(payload, this.logger, { signal: requestScope.signal })) {
+        if (requestScope.signal.aborted || res.destroyed) break;
         const line = JSON.stringify(event) + '\n';
         res.write(line);
         res.flushHeaders?.();
@@ -477,13 +597,18 @@ export class DaemonRoutes {
         // 对端中止（如 LLM 服务或上游客户端关闭连接）：视为流式请求被取消，而非服务内部错误
         const friendly = 'LLM 流式请求已中断：连接被关闭或请求被取消。';
         this.logger.warn('Chat stream 中止', msg, { durationMs: Date.now() - startedAt });
-        res.write(JSON.stringify({ type: 'error', message: friendly, raw: msg }) + '\n');
+        if (!requestScope.signal.aborted && !res.destroyed) {
+          res.write(JSON.stringify({ type: 'error', message: friendly, raw: msg }) + '\n');
+        }
       } else {
         this.logger.error('Chat stream 错误', msg, { durationMs: Date.now() - startedAt });
-        res.write(JSON.stringify({ type: 'error', message: msg }) + '\n');
+        if (!requestScope.signal.aborted && !res.destroyed) {
+          res.write(JSON.stringify({ type: 'error', message: msg }) + '\n');
+        }
       }
     } finally {
-      res.end();
+      requestScope.dispose();
+      if (!res.writableEnded && !res.destroyed) res.end();
     }
   }
 

@@ -108,26 +108,16 @@ function assertEq0(list: string[], msg: string): void {
 async function testTscTypeCheck(): Promise<void> {
   section('② tsc 层:类型检查通过(守卫模块可解析)');
 
-  // 优先用 build.ts(经 bun 直跑);不存在则退回 tsc --noEmit
-  const buildTs = path.join(REPO_ROOT, 'build.ts');
-  const useBuildTs = fs.stat(buildTs).then(() => true, () => false);
-
-  if (await useBuildTs) {
-    const res = spawnSync(process.execPath, [buildTs], {
-      cwd: REPO_ROOT,
-      encoding: 'utf-8',
-      timeout: 300_000,
-    });
-    assert(res.status === 0, `build.ts 通过 (exit=${res.status})`);
-  } else {
-    const tscBin = path.join(REPO_ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
-    const res = spawnSync(process.execPath, [tscBin, '--noEmit', '-p', 'tsconfig.json'], {
-      cwd: REPO_ROOT,
-      encoding: 'utf-8',
-      timeout: 300_000,
-    });
-    assert(res.status === 0, `tsc --noEmit 通过 (exit=${res.status})`);
-  }
+  // This contract only needs source-boundary type checking. Calling build.ts
+  // here used to rebuild and overwrite the release dist, duplicating the
+  // release gate and making later artifact contracts order-dependent.
+  const typecheck = path.join(REPO_ROOT, 'scripts', 'typecheck.mjs');
+  const res = spawnSync(process.execPath, [typecheck], {
+    cwd: REPO_ROOT,
+    encoding: 'utf-8',
+    timeout: 300_000,
+  });
+  assert(res.status === 0, `typecheck 通过 (exit=${res.status})`);
 }
 
 // ---------- 第三层:Backend 实现仍存在于 runtime 层(解耦未被删除式"回退") ----------

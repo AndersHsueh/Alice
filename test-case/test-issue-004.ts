@@ -163,25 +163,30 @@ async function countOccurrences(dir: string, needle: string): Promise<number> {
 async function testProductAssertion(): Promise<void> {
   section('③ 产物断言:acp_integration=off → dist 中 acp-integration 出现 0 次');
   const dir = await makeTmpDir();
+  const outputDir = path.join(dir, 'dist-off');
   const flagsFile = path.join(dir, 'feature_flags.jsonc');
   await fs.writeFile(flagsFile, '{ "acp_integration": false, "non_interactive": false }', 'utf-8');
 
   const res = spawnSync(process.execPath, [path.join(REPO_ROOT, 'build.ts')], {
     cwd: REPO_ROOT,
-    env: { ...process.env, ALICE_FEATURE_FLAGS_PATH: flagsFile },
+    env: {
+      ...process.env,
+      ALICE_FEATURE_FLAGS_PATH: flagsFile,
+      ALICE_BUILD_OUTDIR: outputDir,
+    },
     encoding: 'utf-8',
     timeout: 300_000,
   });
   assertEq(res.status, 0, `build.ts 构建成功 (stderr: ${res.stderr?.slice(-200) ?? ''})`);
+  if (res.status !== 0) return;
 
-  const distDir = path.join(REPO_ROOT, 'dist');
-  const count = await countOccurrences(distDir, 'acp-integration');
+  const count = await countOccurrences(outputDir, 'acp-integration');
   assertEq(count, 0, `dist/ 中 'acp-integration' 出现次数 === 0 (实际 ${count})`);
   // 注意:只数路径式引用 'nonInteractive/',避免误伤合法模块 src/ui/noninteractive/nonInteractiveUi
-  const countNI = await countOccurrences(distDir, 'nonInteractive/');
+  const countNI = await countOccurrences(outputDir, 'nonInteractive/');
   assertEq(countNI, 0, `dist/ 中实验目录 'nonInteractive/' 引用次数 === 0 (实际 ${countNI})`);
-  const dirExists = await fs.stat(path.join(distDir, 'nonInteractive')).then(() => true, () => false);
-  assert(!dirExists, 'dist/nonInteractive/ 目录不存在(字节数为 0)');
+  const dirExists = await fs.stat(path.join(outputDir, 'nonInteractive')).then(() => true, () => false);
+  assert(!dirExists, '隔离产物中 nonInteractive/ 目录不存在(字节数为 0)');
 }
 
 // ---------- 用例 ④: 互斥测试(office × sandbox_workspace) ----------
@@ -209,7 +214,11 @@ async function testMutex(): Promise<void> {
   await fs.writeFile(okFile, '{ "office": false, "sandbox_workspace": true }', 'utf-8');
   const res2 = spawnSync(process.execPath, [path.join(REPO_ROOT, 'build.ts')], {
     cwd: REPO_ROOT,
-    env: { ...process.env, ALICE_FEATURE_FLAGS_PATH: okFile },
+    env: {
+      ...process.env,
+      ALICE_FEATURE_FLAGS_PATH: okFile,
+      ALICE_BUILD_OUTDIR: path.join(dir, 'dist-sandbox'),
+    },
     encoding: 'utf-8',
     timeout: 300_000,
   });

@@ -11,7 +11,7 @@
  *  ③ lint 执行器在 tmp 造 fixture wiki,断言 5 项检查的命中与豁免:
  *     - BROKEN:命中真实断链;跳过跨域(raw/...、outputs/...、../CLAUDE.md);跳过 fenced code block
  *     - ORPHAN:命中真 orphan;豁免 INDEX.md / log.md / 工作流页(内置-Skills.md 这类)
- *     - NOSUMMARY:命中缺 ## 摘要或 ## Summary;豁免带摘要的页
+ *     - NOSUMMARY:命中普通主题页缺 ## 摘要或 ## Summary;仅豁免 append-only log.md,其它缺摘要页仍命中
  *     - NOSTAMP:命中缺日期戳(> 最后更新: / > Last updated:);豁免带戳的页
  *     - LOWLINKS:< MIN_LINKS 出链时报告
  *  ④ SUMMARY 行:机器可读汇总 broken=N orphans=N lowlinks=N nosummary=N nostamp=N,数字与逐条报告一致
@@ -25,11 +25,11 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { BundledSkillLoader } from '../src/services/BundledSkillLoader.js';
 import { skillManager } from '../src/core/skillManager.js';
 import { lintWiki } from '../src/skills/bundled/karpathy-wiki-lint/lint.js';
+import { prepareReleaseArtifact } from './helpers/releaseArtifact.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -254,7 +254,8 @@ async function testLintFixture(): Promise<void> {
 
   const root = await setupWiki({
     'INDEX.md': makePage({ title: 'INDEX', stamp: STAMP, links: ['alpha', 'beta'] }),
-    'log.md': makePage({ title: 'log', stamp: STAMP, links: ['INDEX'] }),
+    // log.md 是 append-only 流水账,故意缺摘要:规则应仅豁免它,不能扩展到普通主题页
+    'log.md': `# log\n\n> 最后更新:${STAMP}\n\n## entries\n\n- [[INDEX]]\n`,
     '工作流-ingest-query-lint.md': makePage({ title: '工作流', stamp: STAMP, links: ['INDEX'] }),
     // alpha:引用 beta / delta / 真断链「不存在页」
     'alpha.md': makePage({ title: 'alpha', stamp: STAMP, links: ['beta', 'delta', '不存在页'] }),
@@ -315,7 +316,7 @@ async function testLintFixture(): Promise<void> {
     'ORPHAN 豁免工作流页',
   );
 
-  // NOSUMMARY:命中 nosummary.md,豁免 en.md(英文 Summary)
+  // NOSUMMARY:命中普通主题页 nosummary.md,豁免 en.md(英文 Summary)与 append-only log.md
   const noSummaryLines = result.lines.filter((l) => l.startsWith('NOSUMMARY:'));
   assert(
     noSummaryLines.some((l) => l.includes('nosummary.md')),
@@ -324,6 +325,10 @@ async function testLintFixture(): Promise<void> {
   assert(
     !noSummaryLines.some((l) => l.includes('en.md')),
     'NOSUMMARY 豁免带英文 Summary 的 en.md',
+  );
+  assert(
+    !noSummaryLines.some((l) => l.includes('log.md')),
+    'NOSUMMARY 仅豁免 append-only log.md',
   );
 
   // NOSTAMP:命中 nostamp.md,豁免 en.md(英文 Last updated)
@@ -434,17 +439,12 @@ async function testExitCodeAlwaysZero(): Promise<void> {
 async function testDistPackaging(): Promise<void> {
   section('⑦ 打包:dist 中 SKILL.md 与 lint.js 齐全');
 
-  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const res = spawnSync(npm, ['run', 'build'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf-8',
-    timeout: 300_000,
-    env: { ...process.env, PATH: process.env['PATH'] },
-  });
+  const artifact = prepareReleaseArtifact(REPO_ROOT);
   assert(
-    res.status === 0,
-    `npm run build 成功 (stderr: ${(res.stderr ?? '').slice(-200)})`,
+    artifact.status === 0,
+    `${artifact.mode} 准备成功 (stderr: ${artifact.stderr.slice(-200)})`,
   );
+  if (artifact.status !== 0) return;
 
   const bundledDist = path.join(REPO_ROOT, 'dist', 'skills', 'bundled', SKILL_NAME);
   assert(await exists(path.join(bundledDist, 'SKILL.md')), 'dist 含 SKILL.md');

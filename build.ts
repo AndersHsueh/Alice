@@ -10,34 +10,22 @@
  *     生成 tsconfig.build.json 跑 tsc — 关闭 flag 的目录在产物中为 0 字节
  *  4. DCE 后处理:只对引用了 feature()/isFeatureActive() 的产物文件做
  *     分支剪除(其余文件原样保留,不破坏 sourcemap)
+ *
+ *  ALICE_BUILD_OUTDIR 可将一次 feature-flag 合同构建写入隔离目录；默认仍为 dist/。
  */
 
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { GrowthBookLocal } from './src/runtime/feature/growthBookLocal.ts';
 import { buildTimeDCE } from './src/runtime/feature/buildTimeDCE.ts';
+import {
+  loadBuildFlags,
+  inactiveDirsForFlags,
+  MUTEX_GROUPS,
+} from './scripts/build-config.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-/** flag 管理的实验目录:flag 关闭 → 构建期整体剥离 */
-const EXPERIMENT_DIRS = [
-  { flag: 'acp_integration', dir: 'src/acp-integration' },
-  { flag: 'non_interactive', dir: 'src/nonInteractive' },
-];
-
-/** 互斥 flag 组:同组内最多启用一个 */
-const MUTEX_GROUPS = [['office', 'sandbox_workspace']];
-
-/** 已知 flag 的默认值(文件 / env 未设置时) */
-const DEFAULT_FLAGS: Record<string, boolean> = {
-  office: true,
-  sandbox_workspace: false,
-  acp_integration: false,
-  non_interactive: false,
-};
 
 function walkJs(dir: string, out: string[] = []): string[] {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -49,15 +37,13 @@ function walkJs(dir: string, out: string[] = []): string[] {
 }
 
 function main(): void {
-  const flagsPath =
-    process.env['ALICE_FEATURE_FLAGS_PATH'] ??
-    path.join(os.homedir(), '.alice', 'feature_flags.jsonc');
-  const store = new GrowthBookLocal(flagsPath);
-
-  const flags: Record<string, boolean> = {};
-  for (const [name, def] of Object.entries(DEFAULT_FLAGS)) {
-    flags[name] = store.get(name, def);
-  }
+  const flags = loadBuildFlags();
+  // Contract tests may need to exercise a feature-flag matrix without
+  // replacing the release artifact in dist/. Keep the default release path
+  // unchanged, but allow an explicit isolated output directory.
+  const distDir = path.resolve(
+    process.env['ALICE_BUILD_OUTDIR'] ?? path.join(__dirname, 'dist'),
+  );
 
   // 1. 互斥检查(构建期报错)
   for (const group of MUTEX_GROUPS) {
@@ -74,19 +60,29 @@ function main(): void {
   const tsconfig = JSON.parse(
     fs.readFileSync(path.join(__dirname, 'tsconfig.json'), 'utf-8'),
   ) as { exclude?: string[] };
-  const inactiveDirs = EXPERIMENT_DIRS.filter((e) => flags[e.flag] !== true).map(
-    (e) => `${e.dir}/**/*`,
-  );
+  const inactiveDirs = inactiveDirsForFlags(flags);
   const buildConfigPath = path.join(__dirname, 'tsconfig.build.json');
   fs.writeFileSync(
     buildConfigPath,
-    JSON.stringify({ ...tsconfig, exclude: [...(tsconfig.exclude ?? []), ...inactiveDirs] }, null, 2),
+    JSON.stringify(
+      {
+        ...tsconfig,
+        compilerOptions: {
+          ...tsconfig.compilerOptions,
+          outDir: distDir,
+        },
+        exclude: [...(tsconfig.exclude ?? []), ...inactiveDirs],
+      },
+      null,
+      2,
+    ),
   );
 
   console.log(
     '🔨 构建 flags:',
     Object.entries(flags).map(([k, v]) => `${k}=${v ? 'on' : 'off'}`).join(' '),
   );
+  console.log(`   构建输出目录: ${distDir}`);
   console.log('   DCE 剥离目录:', inactiveDirs.length > 0 ? inactiveDirs.join(', ') : '(无)');
 
   // 3. tsc 编译
@@ -101,7 +97,6 @@ function main(): void {
   let foldedCalls = 0;
   let prunedBranches = 0;
   let touched = 0;
-  const distDir = path.join(__dirname, 'dist');
   if (fs.existsSync(distDir)) {
     for (const file of walkJs(distDir)) {
       const src = fs.readFileSync(file, 'utf-8');

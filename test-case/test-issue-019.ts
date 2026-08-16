@@ -16,7 +16,6 @@
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { BundledSkillLoader } from '../src/services/BundledSkillLoader.js';
 import { skillManager } from '../src/core/skillManager.js';
@@ -25,6 +24,7 @@ import {
   TEMPLATE_MAP,
   SCAFFOLD_DIRS,
 } from '../src/skills/bundled/karpathy-wiki-new/scaffold.js';
+import { prepareReleaseArtifact } from './helpers/releaseArtifact.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -151,14 +151,12 @@ async function testOfflineDegrade(): Promise<void> {
 async function testDistPackaging(): Promise<void> {
   section('⑤ 打包:dist 中 SKILL.md 与 templates 齐全');
 
-  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const res = spawnSync(npm, ['run', 'build'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf-8',
-    timeout: 300_000,
-    env: { ...process.env, PATH: process.env['PATH'] },
-  });
-  assert(res.status === 0, `npm run build 成功 (stderr: ${(res.stderr ?? '').slice(-200)})`);
+  const artifact = prepareReleaseArtifact(REPO_ROOT);
+  assert(
+    artifact.status === 0,
+    `${artifact.mode} 准备成功 (stderr: ${artifact.stderr.slice(-200)})`,
+  );
+  if (artifact.status !== 0) return;
 
   const bundledDist = path.join(REPO_ROOT, 'dist', 'skills', 'bundled', 'karpathy-wiki-new');
   assert(await exists(path.join(bundledDist, 'SKILL.md')), 'dist 含 SKILL.md');

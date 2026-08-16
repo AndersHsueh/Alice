@@ -65,7 +65,7 @@ export class GoogleProvider extends BaseProvider {
     this.safetySettings = googleConfig?.safetySettings as GeminiSafetySetting[] | undefined;
   }
 
-  async chat(messages: Message[]): Promise<string> {
+  async chat(messages: Message[], signal?: AbortSignal): Promise<string> {
     const geminiMessages = this.convertToGeminiFormat(messages);
 
     const response = await axios.post(
@@ -85,7 +85,8 @@ export class GoogleProvider extends BaseProvider {
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': this.config.apiKey || ''
-        }
+        },
+        signal,
       }
     );
 
@@ -142,7 +143,7 @@ export class GoogleProvider extends BaseProvider {
     }
   }
 
-  async chatWithTools(messages: Message[], tools: OpenAIFunction[]): Promise<ChatResponse> {
+  async chatWithTools(messages: Message[], tools: OpenAIFunction[], signal?: AbortSignal): Promise<ChatResponse> {
     const geminiMessages = this.convertToGeminiFormat(messages);
     const geminiTools = this.convertToolsToGeminiFormat(tools);
 
@@ -164,7 +165,8 @@ export class GoogleProvider extends BaseProvider {
         headers: {
           'Content-Type': 'application/json',
           'x-goog-api-key': this.config.apiKey || ''
-        }
+        },
+        signal,
       }
     );
 
@@ -208,10 +210,11 @@ export class GoogleProvider extends BaseProvider {
 
   async *chatStreamWithTools(
     messages: Message[],
-    tools: OpenAIFunction[]
+    tools: OpenAIFunction[],
+    signal?: AbortSignal,
   ): AsyncGenerator<ChatResponse> {
     // 简化实现：先不支持流式工具调用
-    const result = await this.chatWithTools(messages, tools);
+    const result = await this.chatWithTools(messages, tools, signal);
     yield result;
   }
 

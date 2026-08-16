@@ -12,6 +12,9 @@
  */
 
 import fs from 'node:fs';
+import type { FileHandle } from 'node:fs/promises';
+import readline from 'node:readline';
+import { finished } from 'node:stream/promises';
 import path from 'node:path';
 import os from 'node:os';
 
@@ -81,6 +84,17 @@ export interface AggregateResult {
   sourcePath: string;
 }
 
+/** 文件流聚合的边界与取消选项。 */
+export interface AggregateFileOptions {
+  now?: Date;
+  strict?: boolean;
+  signal?: AbortSignal;
+  /** 最多处理的非空/空行数，防止异常 trace 文件无限膨胀。 */
+  maxLines?: number;
+  /** 最多读取的 UTF-8 字节数，防止单次分析占满内存/时间。 */
+  maxBytes?: number;
+}
+
 /* ───────────────────────────── helpers ───────────────────────────── */
 
 const SPAN_STATUS_OK = 1;
@@ -119,14 +133,36 @@ function getHour(d: Date): number {
 
 /**
  * 解析一行 JSONL。失败返 null,调用方按 skipped 计数。
- * 不抛异常:任何字段类型不对都返回原始值,聚合时跳过。
+ * 不抛异常:JSON 合法但不满足最小 span 契约的行也返回 null,由调用方计入 skipped。
  */
 export function parseSpanLine(line: string): RawSpan | null {
   if (!line.trim()) return null;
   try {
-    const obj = JSON.parse(line) as RawSpan;
-    if (!obj || typeof obj !== 'object') return null;
-    return obj;
+    const obj = JSON.parse(line) as Record<string, unknown>;
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+
+    // OTEL JSONL 中 span 至少要有可解析的名称和纳秒时间戳；合法 JSON
+    // 但缺少这些字段的行也应计为 skipped，而不是混入 totalSpans。
+    const name = obj.name;
+    const timestamp = obj.startTimeUnixNano;
+    if (
+      typeof name !== 'string' ||
+      name.trim().length === 0 ||
+      /[\u0000-\u001f\u007f]/.test(name) ||
+      typeof timestamp !== 'string' ||
+      !/^-?\d+$/.test(timestamp)
+    ) {
+      return null;
+    }
+
+    try {
+      const millis = Number(BigInt(timestamp) / 1_000_000n);
+      if (!Number.isFinite(millis) || Number.isNaN(new Date(millis).getTime())) return null;
+    } catch {
+      return null;
+    }
+
+    return obj as RawSpan;
   } catch {
     return null;
   }
@@ -134,13 +170,21 @@ export function parseSpanLine(line: string): RawSpan | null {
 
 /**
  * 读取整个文件,逐行解析。
- * 文件不存在/读失败 → 返 { spans: [], skipped: 0 }(优雅降级,不抛错)。
+ * 默认文件不存在/读失败 → 返 { spans: [], skipped: 0 }(优雅降级,不抛错)。
+ * strict=true 用于用户显式路径,读失败时抛错交给 CLI 展示。
  */
-export function readSpans(filePath: string): { spans: RawSpan[]; skipped: number } {
+export function readSpans(
+  filePath: string,
+  opts: { strict?: boolean } = {},
+): { spans: RawSpan[]; skipped: number } {
   let content: string;
   try {
     content = fs.readFileSync(filePath, 'utf-8');
-  } catch {
+  } catch (error: unknown) {
+    if (opts.strict) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`无法读取 trace 文件 "${filePath}": ${message}`);
+    }
     return { spans: [], skipped: 0 };
   }
   const lines = content.split('\n');
@@ -159,14 +203,28 @@ export function readSpans(filePath: string): { spans: RawSpan[]; skipped: number
  * 纯函数,无 IO,可测试。
  */
 export function aggregateSpans(spans: RawSpan[], opts?: { sourcePath?: string; now?: Date }): AggregateResult {
-  const sourcePath = opts?.sourcePath ?? '<unknown>';
-  const now = opts?.now ?? new Date();
+  const accumulator = createAccumulator(opts?.sourcePath ?? '<unknown>', opts?.now ?? new Date());
+  for (const span of spans) accumulator.add(span);
+  return accumulator.finish();
+}
 
-  // 累计容器
+interface ToolCounter {
+  success: number;
+  failed: number;
+  total: number;
+}
+
+/**
+ * 只保存聚合累加器，不保存已处理的 span。流式入口和同步兼容入口共用它，
+ * 这样两条路径的指标语义保持一致。
+ */
+function createAccumulator(sourcePath: string, now: Date): {
+  add: (span: RawSpan) => void;
+  skip: () => void;
+  finish: () => AggregateResult;
+} {
   const dailyMap = new Map<string, DailyTokenRow>();
-  const toolMap = new Map<string, { success: number; failed: number; total: number }>();
-
-  // 热力图:7 天,每天 24 小时格
+  const toolMap = new Map<string, ToolCounter>();
   const todayDate = new Date(now);
   todayDate.setHours(0, 0, 0, 0);
   const heatmapDates: string[] = [];
@@ -176,16 +234,17 @@ export function aggregateSpans(spans: RawSpan[], opts?: { sourcePath?: string; n
     heatmapDates.push(formatLocalDate(d));
   }
   const heatmapCells: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
-  // date → day index(0=今天)
   const heatmapDateIdx = new Map<string, number>();
   heatmapDates.forEach((d, i) => heatmapDateIdx.set(d, i));
-
   let minDate = '';
   let maxDate = '';
+  let totalSpans = 0;
+  let skippedLines = 0;
 
-  for (const span of spans) {
+  const add = (span: RawSpan): void => {
+    totalSpans++;
     const start = nsToDate(span.startTimeUnixNano);
-    if (!start) continue;
+    if (!start) return;
     const dateStr = formatLocalDate(start);
     if (!minDate || dateStr < minDate) minDate = dateStr;
     if (!maxDate || dateStr > maxDate) maxDate = dateStr;
@@ -241,42 +300,168 @@ export function aggregateSpans(spans: RawSpan[], opts?: { sourcePath?: string; n
     if (dayIdx !== undefined) {
       heatmapCells[dayIdx][getHour(start)]++;
     }
-  }
-
-  // 排序:每日 token 按日期升序
-  const dailyTokens = [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date));
-
-  // per-tool 按 total 降序,errorRate 计算
-  const toolErrorRates: ToolErrorRate[] = [...toolMap.entries()]
-    .map(([toolName, v]) => ({
-      toolName,
-      total: v.total,
-      success: v.success,
-      failed: v.failed,
-      errorRate: v.total > 0 ? v.failed / v.total : 0,
-    }))
-    .sort((a, b) => b.total - a.total);
+  };
 
   return {
-    totalSpans: spans.length,
-    skippedLines: 0,
-    dateRange: { start: minDate, end: maxDate },
-    dailyTokens,
-    toolErrorRates,
-    heatmap: { dates: heatmapDates, cells: heatmapCells },
-    sourcePath,
+    add,
+    skip: () => { skippedLines++; },
+    finish: () => {
+      const dailyTokens = [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date));
+      const toolErrorRates: ToolErrorRate[] = [...toolMap.entries()]
+        .map(([toolName, v]) => ({
+          toolName,
+          total: v.total,
+          success: v.success,
+          failed: v.failed,
+          errorRate: v.total > 0 ? v.failed / v.total : 0,
+        }))
+        .sort((a, b) => b.total - a.total);
+      return {
+        totalSpans,
+        skippedLines,
+        dateRange: { start: minDate, end: maxDate },
+        dailyTokens,
+        toolErrorRates,
+        heatmap: { dates: heatmapDates, cells: heatmapCells },
+        sourcePath,
+      };
+    },
   };
 }
 
 /**
  * 高级入口:从文件直接聚合。
- * 文件不存在 → 返空结果(graceful);读失败 → 同上。
+ * 文件不存在 → 默认返空结果(graceful);strict=true 时显式路径读失败会抛错。
  * 这里显式累加 skippedLines(readSpans 已经分开了,这里拼回去)。
  */
-export function aggregateFromFile(filePath: string, opts?: { now?: Date }): AggregateResult {
-  const { spans, skipped } = readSpans(filePath);
-  const result = aggregateSpans(spans, { sourcePath: filePath, ...(opts ?? {}) });
+export function aggregateFromFile(
+  filePath: string,
+  opts?: { now?: Date; strict?: boolean },
+): AggregateResult {
+  const { strict, ...aggregateOpts } = opts ?? {};
+  const { spans, skipped } = readSpans(filePath, { strict });
+  const result = aggregateSpans(spans, { sourcePath: filePath, ...aggregateOpts });
   return { ...result, skippedLines: skipped };
+}
+
+function abortError(): Error {
+  const error = new Error('分析已取消');
+  error.name = 'AbortError';
+  return error;
+}
+
+function limitError(message: string): Error {
+  const error = new Error(message);
+  error.name = 'AggregateLimitError';
+  return error;
+}
+
+/**
+ * 以 readline + fs.createReadStream 逐行聚合 trace 文件。
+ * 与 aggregateFromFile 保持 strict/宽松读失败语义，但不会构造 spans 数组；
+ * action 可把 CommandContext.abortSignal 传入以响应 ESC/会话取消。
+ */
+export async function aggregateFromFileStream(
+  filePath: string,
+  opts: AggregateFileOptions = {},
+): Promise<AggregateResult> {
+  if (opts.signal?.aborted) throw abortError();
+  const maxLines = opts.maxLines ?? 1_000_000;
+  const maxBytes = opts.maxBytes ?? 256 * 1024 * 1024;
+  if (!Number.isSafeInteger(maxLines) || maxLines <= 0) {
+    throw new Error(`maxLines 必须是正整数，实际为 ${String(maxLines)}`);
+  }
+  if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) {
+    throw new Error(`maxBytes 必须是正整数，实际为 ${String(maxBytes)}`);
+  }
+
+  const accumulator = createAccumulator(filePath, opts.now ?? new Date());
+  let fileHandle: FileHandle | undefined;
+  let stream: fs.ReadStream | undefined;
+  let lineReader: readline.Interface | undefined;
+  let bytesRead = 0;
+  let lineCount = 0;
+  let terminalError: Error | undefined;
+
+  const terminate = (error: Error): void => {
+    if (terminalError) return;
+    terminalError = error;
+    lineReader?.close();
+    // 传入原始错误以保留可诊断类型；onStreamError 负责消费 error 事件，
+    // for-await 结束后再由本函数的 catch 统一执行 strict/宽松语义。
+    stream?.destroy(error);
+  };
+  const onAbort = (): void => {
+    terminate(abortError());
+  };
+  const onData = (chunk: Buffer | string): void => {
+    bytesRead += typeof chunk === 'string' ? Buffer.byteLength(chunk, 'utf8') : chunk.length;
+    if (bytesRead > maxBytes) {
+      terminate(limitError(`trace 文件超过最大字节数限制 (${maxBytes})`));
+    }
+  };
+  const onStreamError = (error: Error): void => {
+    terminalError ??= error;
+    lineReader?.close();
+  };
+
+  try {
+    // 先显式打开并校验普通文件，让 ENOENT/EISDIR 在创建 ReadStream 前进入
+    // 本函数的错误语义；这也避免不同运行时把延迟 open error 当作未处理事件。
+    fileHandle = await fs.promises.open(filePath, 'r');
+    const stats = await fileHandle.stat();
+    if (!stats.isFile()) {
+      throw new Error(`路径不是普通文件: ${filePath}`);
+    }
+    if (opts.signal?.aborted) throw abortError();
+    // 在原始 Buffer chunk 层计数，避免 readline 为超长无换行单行先缓存完整内容。
+    // highWaterMark 确保实际读取最多只会比 maxBytes 多一个 chunk。
+    stream = fileHandle.createReadStream({ highWaterMark: 64 * 1024, autoClose: false });
+    stream.on('data', onData);
+    stream.on('error', onStreamError);
+    lineReader = readline.createInterface({ input: stream, crlfDelay: Infinity });
+    opts.signal?.addEventListener('abort', onAbort, { once: true });
+    for await (const line of lineReader) {
+      if (terminalError) throw terminalError;
+      if (opts.signal?.aborted) throw abortError();
+      lineCount++;
+      if (lineCount > maxLines) {
+        terminate(limitError(`trace 文件超过最大行数限制 (${maxLines})`));
+        throw terminalError;
+      }
+      const span = parseSpanLine(line);
+      if (span) accumulator.add(span);
+      else if (line.trim()) accumulator.skip();
+    }
+    if (terminalError) throw terminalError;
+    return accumulator.finish();
+  } catch (error: unknown) {
+    if (opts.signal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
+      throw abortError();
+    }
+    if (error instanceof Error && error.name === 'AggregateLimitError') {
+      throw error;
+    }
+    if (!opts.strict) {
+      return createAccumulator(filePath, opts.now ?? new Date()).finish();
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`无法读取 trace 文件 "${filePath}": ${message}`);
+  } finally {
+    opts.signal?.removeEventListener('abort', onAbort);
+    lineReader?.close();
+    if (stream && !stream.destroyed) stream.destroy();
+    if (stream) {
+      // 等待 destroy(error) 的 error/close 事件完整排空后再移除监听器，
+      // 避免限制或取消路径产生未处理的异步 error 事件。
+      try { await finished(stream); } catch { /* terminalError 已由上方统一处理 */ }
+      stream.removeListener('data', onData);
+      stream.removeListener('error', onStreamError);
+    }
+    if (fileHandle) {
+      try { await fileHandle.close(); } catch { /* best-effort cleanup */ }
+    }
+  }
 }
 
 /** 默认 consoleFile 路径(~/.alice/otel/trace.jsonl,OTEL SDK 默认) */

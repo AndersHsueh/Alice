@@ -88,6 +88,7 @@ import { registerCleanup, runExitCleanup } from '../utils/cleanup.js';
 import { useMessageQueue } from './hooks/useMessageQueue.js';
 import { useAutoAcceptIndicator } from './hooks/useAutoAcceptIndicator.js';
 import { useSessionStats } from './contexts/SessionContext.js';
+import { startNewSessionWithPluginReset } from './commands/pluginsCommand.js';
 import { useGitBranchName } from './hooks/useGitBranchName.js';
 import {
   useExtensionUpdates,
@@ -270,6 +271,9 @@ export const AppContainer = (props: AppContainerProps) => {
 
   // Additional hooks moved from App.tsx
   const { stats: sessionStats, startNewSession } = useSessionStats();
+  const startNewPluginSession = useCallback((sessionId: string) => {
+    startNewSessionWithPluginReset(startNewSession, sessionId);
+  }, [startNewSession]);
   const logger = useLogger(config.storage, sessionStats.sessionId);
   const branchName = useGitBranchName(config.getTargetDir());
 
@@ -487,7 +491,7 @@ export const AppContainer = (props: AppContainerProps) => {
   } = useResumeCommand({
     config,
     historyManager,
-    startNewSession,
+    startNewSession: startNewPluginSession,
     remount: refreshStatic,
   });
 

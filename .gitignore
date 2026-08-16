@@ -1,85 +1,38 @@
-# Dependencies
+# Dependencies and generated artifacts
 node_modules/
-
-# Reference code (huge, external)
-pi-mono/
-
-# Build output
 dist/
+coverage/
+.nyc_output/
+.cache/
 *.tsbuildinfo
 
-# Logs
+# Runtime state and local sockets
+.alice/
+*.pid
+*.sock
+
+# Logs, temporary files, and backups
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-
-# Environment variables / secrets
-.env
-.env.local
-.env.*.local
-
-# OS files
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# IDE / Editor
-.vscode/
-.idea/
-.cursor/
-*.swp
-*.swo
-*~
-*.sublime-*
-
-# User config (runtime configuration directory)
-.alice/
-
-# Obsidian workspace (local-only)
-.obsidian/
-
-# Claude Code settings + memory (local-only, may carry session/permission state)
-.claude/
-/memory/
-
-# Raw / internal knowledge bases (not part of public distribution)
-raw/
-wiki/
-outputs/
-
-# Subprojects kept locally only (not part of alice-cli)
-gitee-cli/
-prototype/node_modules/
-prototype/dist/
-
-# Misc local
-QWEN.md
-GEMINI.md
-*.pen
-
-# Temporary files
 *.tmp
 *.temp
-.cache/
-
-# Test coverage
-coverage/
-.nyc_output/
-
-# Session state (for development)
-.copilot/
-
-# Backup files
 *.backup
 *.bak
+*~
 
-# Test directory
-test/
-
-# ----- Credentials / secrets (CRITICAL: do not push) -----
+# Environment variables and credentials (never commit)
+.env
+.env.*
+!.env.example
+!.env.*.example
 github_auth.json
+credentials*
+secrets.*
+*.secret
+*.secrets
 *.pem
 *.key
 *.p12
@@ -88,6 +41,35 @@ github_auth.json
 id_rsa*
 id_ed25519*
 *.gpg
-credentials*
-secrets.*
+
+# Editors, operating systems, and local agent state
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+.cursor/
+.copilot/
+.claude/
+.codex/
+.agents/
+.obsidian/
+*.swp
+*.swo
+*.sublime-*
+
+# Local memory, reference material, and internal knowledge bases
+/memory/
+raw/
+wiki/
+outputs/
+pi-mono/
+anthropic-prompt/
+ANTHROPIC-prompt/
+
+# Local subprojects and private working documents
+gitee-cli/
+QWEN.md
+GEMINI.md
+*.pen
 *.secret

@@ -14,11 +14,12 @@
  *  - 重投上限 2 次(首次 + 1 次重投),避免无限循环
  *  - 类型完全 discriminated union,worker 调用方用 switch 按 type 收消息
  *
- * 后续 PR(本 issue 但非本 PR):
- *  - 接入 teamMessage tool:让 worker 通过 tool 调用 sendMessage / recvMessage
- *  - 接入 concurrentAgentRunner:多 worker 共享总线
- *  - 接入 executor / reviewer profile(目前仅 consultant + researcher spawnable)
- *  - 共享 workspace 并发写协调
+ * 当前边界:
+ *  - /team 已由 orchestrator 使用本总线记录 worker 生命周期并 ack
+ *  - worker 尚未在真实 tool-call loop 中调用 teamMessageTool,因此不宣称
+ *    worker-to-worker 互聊已完成
+ *  - executor / reviewer 与共享 workspace 的编排入口已存在；真正写入时
+ *    仍需把 workspace lock 注入对应 tool 执行路径
  */
 
 import type { SpawnLogger } from './profileRegistry.js';
